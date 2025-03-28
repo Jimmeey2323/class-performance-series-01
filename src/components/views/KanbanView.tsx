@@ -1,238 +1,68 @@
 
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ProcessedData, KanbanColumn, KanbanItem } from '@/types/data';
-import { 
-  DndContext, 
-  DragOverlay, 
-  PointerSensor, 
-  useSensor, 
-  useSensors,
-  closestCorners,
-  DragEndEvent,
-  DragStartEvent
-} from '@dnd-kit/core';
-import { SortableContext, arrayMove, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import KanbanBoard from './kanban/KanbanBoard';
-import KanbanCard from './kanban/KanbanCard';
-import { Label } from '@/components/ui/label';
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
-} from '@/components/ui/select';
+import { groupBy } from 'lodash';
 
 interface KanbanViewProps {
   data: ProcessedData[];
   trainerAvatars?: Record<string, string>;
 }
 
-// Group criteria options
-const groupByOptions = [
-  { value: 'dayOfWeek', label: 'Day of Week' },
-  { value: 'cleanedClass', label: 'Class Type' },
-  { value: 'location', label: 'Location' },
-  { value: 'period', label: 'Period' },
-  { value: 'teacherName', label: 'Instructor' },
-  { value: 'class', label: 'Class' }, // New option for grouping by class
-];
-
 const KanbanView: React.FC<KanbanViewProps> = ({ data, trainerAvatars = {} }) => {
   const [columns, setColumns] = useState<KanbanColumn[]>([]);
-  const [groupBy, setGroupBy] = useState<keyof ProcessedData | 'class'>('dayOfWeek');
-  const [activeItem, setActiveItem] = useState<KanbanItem | null>(null);
+  const [groupByField, setGroupByField] = useState<keyof ProcessedData>('dayOfWeek');
   
-  const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: {
-        distance: 8,
-      },
-    })
-  );
-  
-  // Create columns based on the groupBy field
   useEffect(() => {
-    if (!data.length) return;
-    
     // Group data by the selected field
-    const groups: Record<string, ProcessedData[]> = {};
+    const groupedData = groupBy(data, groupByField);
     
-    data.forEach(item => {
-      let key;
-      
-      // Special case for 'class' which combines cleanedClass and teacherName
-      if (groupBy === 'class') {
-        key = `${item.cleanedClass} - ${item.teacherName}`;
-      } else {
-        key = String(item[groupBy as keyof ProcessedData]);
-      }
-      
-      if (!groups[key]) {
-        groups[key] = [];
-      }
-      groups[key].push(item);
-    });
-    
-    // Create columns from groups
-    const newColumns: KanbanColumn[] = Object.entries(groups).map(([key, items]) => ({
-      id: key,
-      title: key,
-      items: items.map(item => ({
+    // Convert to KanbanColumn format
+    const kanbanColumns: KanbanColumn[] = Object.keys(groupedData).map(key => {
+      const items: KanbanItem[] = groupedData[key].map(item => ({
         id: item.uniqueID,
         title: item.cleanedClass,
         data: item,
         avatarUrl: trainerAvatars[item.teacherName]
-      }))
-    }));
+      }));
+      
+      return {
+        id: key,
+        title: key,
+        items
+      };
+    });
     
     // Sort columns by title
-    newColumns.sort((a, b) => a.title.localeCompare(b.title));
+    const sortedColumns = kanbanColumns.sort((a, b) => {
+      // Special sorting for days of week
+      if (groupByField === 'dayOfWeek') {
+        const daysOrder = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+        return daysOrder.indexOf(a.title) - daysOrder.indexOf(b.title);
+      }
+      
+      return a.title.localeCompare(b.title);
+    });
     
-    setColumns(newColumns);
-  }, [data, groupBy, trainerAvatars]);
+    setColumns(sortedColumns);
+  }, [data, groupByField, trainerAvatars]);
   
-  // Handle the start of a drag operation
-  const handleDragStart = (event: DragStartEvent) => {
-    const { active } = event;
-    const activeColumn = columns.find(col => 
-      col.items.some(item => item.id === active.id)
-    );
-    
-    if (!activeColumn) return;
-    
-    const activeItemData = activeColumn.items.find(item => item.id === active.id);
-    if (activeItemData) {
-      setActiveItem(activeItemData);
-    }
-  };
-  
-  // Handle dropping a card
-  const handleDragEnd = (event: DragEndEvent) => {
-    const { active, over } = event;
-    
-    if (!over) return;
-    
-    // If dropped in a different column, update the data
-    const sourceColumnId = columns.find(col => 
-      col.items.some(item => item.id === active.id)
-    )?.id;
-    
-    const destinationColumnId = over.id.toString().includes('column:') 
-      ? over.id.toString().replace('column:', '')
-      : columns.find(col => 
-          col.items.some(item => item.id === over.id)
-        )?.id;
-    
-    if (!sourceColumnId || !destinationColumnId) return;
-    
-    // If columns are different, move the item between columns
-    if (sourceColumnId !== destinationColumnId) {
-      const newColumns = [...columns];
-      
-      // Find source and destination column indexes
-      const sourceColIndex = newColumns.findIndex(col => col.id === sourceColumnId);
-      const destColIndex = newColumns.findIndex(col => col.id === destinationColumnId);
-      
-      if (sourceColIndex === -1 || destColIndex === -1) return;
-      
-      // Find the item to move
-      const itemIndex = newColumns[sourceColIndex].items.findIndex(
-        item => item.id === active.id
-      );
-      
-      if (itemIndex === -1) return;
-      
-      // Get the item to move
-      const itemToMove = newColumns[sourceColIndex].items[itemIndex];
-      
-      // Remove from source column
-      newColumns[sourceColIndex].items.splice(itemIndex, 1);
-      
-      // Add to destination column
-      newColumns[destColIndex].items.push(itemToMove);
-      
-      setColumns(newColumns);
-    }
-    // If reordering within the same column
-    else {
-      const columnIndex = columns.findIndex(col => col.id === sourceColumnId);
-      if (columnIndex === -1) return;
-      
-      const itemIndex = columns[columnIndex].items.findIndex(
-        item => item.id === active.id
-      );
-      
-      const overItemIndex = columns[columnIndex].items.findIndex(
-        item => item.id === over.id
-      );
-      
-      if (itemIndex === -1 || overItemIndex === -1) return;
-      
-      // Use arrayMove to handle the reordering logic
-      const newColumns = [...columns];
-      newColumns[columnIndex].items = arrayMove(
-        newColumns[columnIndex].items,
-        itemIndex,
-        overItemIndex
-      );
-      
-      setColumns(newColumns);
-    }
-    
-    setActiveItem(null);
-  };
-
   return (
-    <div className="p-4 space-y-4 bg-gradient-to-br from-purple-50 to-indigo-50 dark:from-gray-900 dark:to-gray-800">
-      <div className="w-full md:w-1/3 space-y-1 mb-4">
-        <Label htmlFor="groupBy" className="text-lg font-medium text-indigo-700 dark:text-indigo-300">Group Classes By</Label>
-        <Select 
-          value={groupBy as string} 
-          onValueChange={(value) => setGroupBy(value as keyof ProcessedData | 'class')}
+    <div className="p-4">
+      <div className="mb-4 flex justify-end">
+        <select 
+          className="border rounded p-2 text-sm"
+          value={groupByField}
+          onChange={(e) => setGroupByField(e.target.value as keyof ProcessedData)}
         >
-          <SelectTrigger id="groupBy" className="bg-white dark:bg-gray-800 border-indigo-200 dark:border-indigo-800">
-            <SelectValue placeholder="Select grouping criterion" />
-          </SelectTrigger>
-          <SelectContent>
-            {groupByOptions.map(option => (
-              <SelectItem key={option.value} value={option.value}>
-                {option.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+          <option value="dayOfWeek">Group by Day</option>
+          <option value="teacherName">Group by Teacher</option>
+          <option value="location">Group by Location</option>
+          <option value="period">Group by Period</option>
+        </select>
       </div>
       
-      <div className="overflow-x-auto pb-4">
-        <DndContext
-          sensors={sensors}
-          collisionDetection={closestCorners}
-          onDragStart={handleDragStart}
-          onDragEnd={handleDragEnd}
-        >
-          <div className="flex gap-4 min-w-max">
-            {columns.map(column => (
-              <SortableContext
-                key={column.id}
-                items={column.items.map(item => item.id)}
-                strategy={verticalListSortingStrategy}
-              >
-                <KanbanBoard 
-                  id={column.id}
-                  title={column.title} 
-                  items={column.items}
-                  count={column.items.length}
-                />
-              </SortableContext>
-            ))}
-          </div>
-          
-          <DragOverlay>
-            {activeItem && <KanbanCard item={activeItem} />}
-          </DragOverlay>
-        </DndContext>
-      </div>
+      <KanbanBoard columns={columns} setColumns={setColumns} />
     </div>
   );
 };

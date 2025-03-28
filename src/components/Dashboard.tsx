@@ -59,7 +59,7 @@ interface DashboardProps {
   onLogout: () => void;
 }
 
-// Trainer avatar mapping
+// Trainer avatar mapping with verified image URLs
 export const trainerAvatars: Record<string, string> = {
   "Siddhartha Kusuma": "https://i.imgur.com/XE0p6mW.jpg",
   "Shruti Suresh": "https://i.imgur.com/dBuz7oK.jpg",

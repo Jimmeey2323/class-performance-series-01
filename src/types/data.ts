@@ -94,5 +94,5 @@ export interface PivotData {
   rowField: keyof ProcessedData;
   columnField: keyof ProcessedData;
   valueField: keyof ProcessedData;
-  aggregation: 'sum' | 'average' | 'count' | 'min' | 'max';
+  aggregation: 'sum' | 'average' | 'count' | 'min' | 'max' | 'count-unique';
 }
