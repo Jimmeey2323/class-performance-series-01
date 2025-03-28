@@ -12,6 +12,7 @@ import KanbanView from '@/components/views/KanbanView';
 import TimelineView from '@/components/views/TimelineView';
 import PivotView from '@/components/views/PivotView';
 import SearchBar from '@/components/SearchBar';
+import TrainerComparisonView from '@/components/TrainerComparisonView';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { exportToCSV } from '@/utils/fileProcessing';
@@ -28,7 +29,8 @@ import {
   Search,
   FileText,
   FileSpreadsheet,
-  FileJson 
+  FileJson,
+  Users
 } from 'lucide-react';
 import ProgressBar from '@/components/ProgressBar';
 import { Card, CardContent } from '@/components/ui/card';
@@ -49,6 +51,7 @@ import {
   DialogClose
 } from "@/components/ui/dialog";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 
 interface DashboardProps {
   data: ProcessedData[];
@@ -60,17 +63,19 @@ interface DashboardProps {
   onLogout: () => void;
 }
 
-// Trainer avatar mapping with verified image URLs
+// Trainer avatar mapping with updated image URLs
 export const trainerAvatars: Record<string, string> = {
   "Siddhartha Kusuma": "https://i.imgur.com/XE0p6mW.jpg",
   "Shruti Suresh": "https://i.imgur.com/dBuz7oK.jpg",
   "Poojitha Bhaskar": "https://i.imgur.com/dvPLVXg.jpg",
   "Pushyank Nahar": "https://i.imgur.com/aHAJw6U.jpg",
-  "Shruti Kulkarni": "https://i.imgur.com/S0EXsgi.jpg",
+  "Shruti Kulkarni": "https://i.imgur.com/CW2ZOUy.jpg",
   "Karan Bhatia": "https://i.imgur.com/y6d1H2z.jpg",
-  "Pranjali Jain": "https://i.imgur.com/EAq1Xb7.jpg",
+  "Pranjali Jain": "https://i.imgur.com/Hx8hTAk.jpg",
   "Anisha Shah": "https://i.imgur.com/7GM2oPn.jpg",
-  "Saniya Jaiswal": "https://i.imgur.com/EP32RoZ.jpg"
+  "Saniya Jaiswal": "https://i.imgur.com/EP32RoZ.jpg",
+  "Vivaran Dhasmana": "https://i.imgur.com/HGrGuq9.jpg",
+  "Kajol Kanchan": "https://i.imgur.com/v9x0pFa.jpg"
 };
 
 const Dashboard: React.FC<DashboardProps> = ({ 
@@ -88,6 +93,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   const [activeTab, setActiveTab] = useState('data');
   const [searchQuery, setSearchQuery] = useState('');
   const [showSearchDialog, setShowSearchDialog] = useState(false);
+  const [showTrainerComparison, setShowTrainerComparison] = useState(false);
 
   // Apply filters and sorting to data, excluding future dates
   useEffect(() => {
@@ -240,15 +246,27 @@ const Dashboard: React.FC<DashboardProps> = ({
           </Button>
         </div>
         
-        <div className="flex flex-col items-center">
-          <h1 className="text-3xl font-bold text-center mb-2 text-slate-800 dark:text-slate-100 flex items-center justify-center gap-2">
-            <span className="h-8 w-8 text-amber-500">✨</span>
+        <div className="flex flex-col items-center w-full animate-fade-in">
+          <div className="flex items-center justify-center mb-3 animate-scale-in">
+            <img src="https://i.imgur.com/9mOm7gP.png" alt="Logo" className="h-16 w-auto hover:animate-pulse transition-all" />
+          </div>
+          <h1 className="text-3xl font-bold text-center mb-2 text-slate-800 dark:text-slate-100 flex items-center justify-center gap-2 animate-enter">
+            <span className="h-8 w-8 text-amber-500 animate-pulse">✨</span>
             Class Performance & Analytics
-            <span className="h-8 w-8 text-amber-500">✨</span>
+            <span className="h-8 w-8 text-amber-500 animate-pulse">✨</span>
           </h1>
-          <p className="text-center text-slate-600 dark:text-slate-400 max-w-2xl">
+          <p className="text-center text-slate-600 dark:text-slate-400 max-w-2xl animate-fade-in transition-all hover:text-slate-800 dark:hover:text-slate-200">
             Analyze class performance metrics, explore trends, and gain insights to optimize your fitness studio operations
           </p>
+          
+          <div className="flex flex-wrap justify-center gap-2 mt-3 animate-fade-in transition-opacity duration-500">
+            {Object.entries(trainerAvatars).slice(0, 6).map(([name, src]) => (
+              <Avatar key={name} className="border-2 border-white hover:scale-110 transition-transform duration-300">
+                <AvatarImage src={src} alt={name} className="object-cover" />
+                <AvatarFallback>{name.split(' ').map(n => n[0]).join('')}</AvatarFallback>
+              </Avatar>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -306,6 +324,15 @@ const Dashboard: React.FC<DashboardProps> = ({
               </div>
             </DialogContent>
           </Dialog>
+          
+          <Button 
+            variant={showTrainerComparison ? "default" : "outline"} 
+            size="sm" 
+            onClick={() => setShowTrainerComparison(!showTrainerComparison)}
+          >
+            <Users className="mr-2 h-4 w-4" />
+            Trainer Comparison
+          </Button>
         </div>
       </div>
 
@@ -318,6 +345,16 @@ const Dashboard: React.FC<DashboardProps> = ({
           </CardContent>
         </Card>
       </div>
+      
+      {showTrainerComparison && (
+        <div className="grid grid-cols-1 gap-6">
+          <Card>
+            <CardContent className="p-6">
+              <TrainerComparisonView data={filteredData} trainerAvatars={trainerAvatars} />
+            </CardContent>
+          </Card>
+        </div>
+      )}
       
       <DataFilters 
         onFilterChange={handleFilterChange} 

@@ -81,7 +81,7 @@ const TopBottomClasses: React.FC<TopBottomClassesProps> = ({ data }) => {
     });
 
     const sortedClasses = Object.values(classStats)
-      .filter(item => item.avgAttendance > 0) // Filter out zero attendance
+      .filter(item => item.avgAttendance > 0 && item.totalOccurrences >= 2) // Filter out zero attendance and low occurrence classes
       .sort((a, b) => b.avgAttendance - a.avgAttendance);
     
     return sortedClasses.slice(0, topClassesCount);
@@ -121,7 +121,7 @@ const TopBottomClasses: React.FC<TopBottomClassesProps> = ({ data }) => {
     });
 
     const sortedClasses = Object.values(classStats)
-      .filter(item => item.avgAttendance > 0) // Filter out zero attendance
+      .filter(item => item.avgAttendance > 0 && item.totalOccurrences >= 2) // Filter out zero attendance and low occurrence classes
       .sort((a, b) => a.avgAttendance - b.avgAttendance);
     
     return sortedClasses.slice(0, bottomClassesCount);

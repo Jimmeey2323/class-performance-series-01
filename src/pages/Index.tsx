@@ -128,17 +128,20 @@ const Index = () => {
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
       <div className="container mx-auto px-4 py-8">
         {showUploader ? (
-          <div>
-            <div className="flex justify-center items-center mb-8">
-              <div className="animate-fade-in text-center">
-                <h1 className="text-3xl font-bold mb-2 text-slate-800 dark:text-slate-100 flex items-center justify-center gap-2">
-                  <Sparkles className="h-8 w-8 text-amber-500" />
+          <div className="animate-fade-in">
+            <div className="flex flex-col items-center mb-8">
+              <div className="flex flex-col items-center animate-scale-in">
+                <img src="https://i.imgur.com/9mOm7gP.png" alt="Logo" className="h-24 w-auto mb-4 animate-pulse hover:scale-110 transition-all duration-300" />
+                <h1 className="text-4xl font-bold mb-4 text-slate-800 dark:text-slate-100 text-center bg-clip-text bg-gradient-to-r from-purple-600 to-blue-500 text-transparent">
                   Class Performance & Analytics
-                  <Sparkles className="h-8 w-8 text-amber-500" />
                 </h1>
-                <p className="text-center text-slate-600 dark:text-slate-400 max-w-2xl mx-auto mb-8">
-                  Analyze class performance metrics, explore trends, and gain insights to optimize your fitness studio operations
-                </p>
+                <div className="flex items-center justify-center mb-4">
+                  <Sparkles className="h-6 w-6 text-amber-500 animate-pulse mr-2" />
+                  <p className="text-center text-slate-600 dark:text-slate-400 max-w-2xl mx-auto">
+                    Analyze class performance metrics, explore trends, and gain insights
+                  </p>
+                  <Sparkles className="h-6 w-6 text-amber-500 animate-pulse ml-2" />
+                </div>
               </div>
               
               <button 
