@@ -1,5 +1,6 @@
-import React from 'react';
-import { ProcessedData, ViewMode } from '@/types/data';
+
+import React, { useState, useEffect } from 'react';
+import { ProcessedData, ViewMode, FilterOption, SortOption } from '@/types/data';
 import { ViewSwitcherWrapper } from './ViewSwitcherWrapper';
 import DataTable from '@/components/DataTable';
 import DataFilters from '@/components/DataFilters';
