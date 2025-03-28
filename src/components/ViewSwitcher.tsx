@@ -9,6 +9,11 @@ import {
   PieChart 
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { 
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger
+} from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 
 interface ViewSwitcherProps {
@@ -28,18 +33,24 @@ export const ViewSwitcher: React.FC<ViewSwitcherProps> = ({ viewMode, setViewMod
   return (
     <div className="flex overflow-x-auto py-2 gap-2 bg-white dark:bg-gray-950 border rounded-lg p-2">
       {views.map(view => (
-        <Button
-          key={view.id}
-          variant={viewMode === view.id ? "default" : "outline"}
-          className={cn(
-            "flex items-center gap-2",
-            viewMode === view.id ? "bg-primary/90 text-primary-foreground" : ""
-          )}
-          onClick={() => setViewMode(view.id as ViewMode)}
-        >
-          {view.icon}
-          {view.label}
-        </Button>
+        <Tooltip key={view.id}>
+          <TooltipTrigger asChild>
+            <Button
+              variant={viewMode === view.id ? "default" : "outline"}
+              className={cn(
+                "flex items-center gap-2",
+                viewMode === view.id ? "bg-primary/90 text-primary-foreground" : ""
+              )}
+              onClick={() => setViewMode(view.id as ViewMode)}
+            >
+              {view.icon}
+              {view.label}
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>Switch to {view.label}</p>
+          </TooltipContent>
+        </Tooltip>
       ))}
     </div>
   );
