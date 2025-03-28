@@ -1,6 +1,6 @@
-
-import React, { useState, useEffect } from 'react';
-import { ProcessedData, FilterOption, SortOption, ViewMode } from '@/types/data';
+import React from 'react';
+import { ProcessedData, ViewMode } from '@/types/data';
+import { ViewSwitcherWrapper } from './ViewSwitcherWrapper';
 import DataTable from '@/components/DataTable';
 import DataFilters from '@/components/DataFilters';
 import MetricsPanel from '@/components/MetricsPanel';
@@ -325,8 +325,8 @@ const Dashboard: React.FC<DashboardProps> = ({
         activeFilters={filters.length}
       />
 
-      <ViewSwitcher viewMode={viewMode} setViewMode={setViewMode} />
-      
+      <ViewSwitcherWrapper viewMode={viewMode} setViewMode={setViewMode} />
+
       <div className="bg-white dark:bg-gray-950 border rounded-lg shadow-sm">
         {viewMode === 'table' && <DataTable data={filteredData} trainerAvatars={trainerAvatars} />}
         {viewMode === 'grid' && <GridView data={filteredData} trainerAvatars={trainerAvatars} />}
