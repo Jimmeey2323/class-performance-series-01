@@ -25,6 +25,7 @@ import {
 
 interface KanbanViewProps {
   data: ProcessedData[];
+  trainerAvatars?: Record<string, string>;
 }
 
 // Group criteria options
@@ -37,7 +38,7 @@ const groupByOptions = [
   { value: 'class', label: 'Class' }, // New option for grouping by class
 ];
 
-const KanbanView: React.FC<KanbanViewProps> = ({ data }) => {
+const KanbanView: React.FC<KanbanViewProps> = ({ data, trainerAvatars = {} }) => {
   const [columns, setColumns] = useState<KanbanColumn[]>([]);
   const [groupBy, setGroupBy] = useState<keyof ProcessedData | 'class'>('dayOfWeek');
   const [activeItem, setActiveItem] = useState<KanbanItem | null>(null);
@@ -80,7 +81,8 @@ const KanbanView: React.FC<KanbanViewProps> = ({ data }) => {
       items: items.map(item => ({
         id: item.uniqueID,
         title: item.cleanedClass,
-        data: item
+        data: item,
+        avatarUrl: trainerAvatars[item.teacherName]
       }))
     }));
     
@@ -88,7 +90,7 @@ const KanbanView: React.FC<KanbanViewProps> = ({ data }) => {
     newColumns.sort((a, b) => a.title.localeCompare(b.title));
     
     setColumns(newColumns);
-  }, [data, groupBy]);
+  }, [data, groupBy, trainerAvatars]);
   
   // Handle the start of a drag operation
   const handleDragStart = (event: DragStartEvent) => {

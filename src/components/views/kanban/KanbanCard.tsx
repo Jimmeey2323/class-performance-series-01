@@ -3,23 +3,22 @@ import React from 'react';
 import { KanbanItem } from '@/types/data';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Users, Clock, User, MapPin } from 'lucide-react';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { 
+  MapPin, 
+  Clock, 
+  Users, 
+  IndianRupee 
+} from 'lucide-react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 
 interface KanbanCardProps {
   item: KanbanItem;
 }
 
 const KanbanCard: React.FC<KanbanCardProps> = ({ item }) => {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition
-  } = useSortable({
+  const { attributes, listeners, setNodeRef, transform, transition } = useSortable({
     id: item.id,
   });
   
@@ -27,8 +26,8 @@ const KanbanCard: React.FC<KanbanCardProps> = ({ item }) => {
     transform: CSS.Transform.toString(transform),
     transition,
   };
-
-  // Get initials from teacher name for avatar
+  
+  // Get initials for avatar fallback
   const getInitials = (name: string) => {
     return name
       .split(' ')
@@ -37,8 +36,6 @@ const KanbanCard: React.FC<KanbanCardProps> = ({ item }) => {
       .toUpperCase()
       .slice(0, 2);
   };
-
-  const teacherInitials = getInitials(item.data.teacherName);
   
   // Generate a consistent color based on the teacher's name
   const generateAvatarColor = (name: string) => {
@@ -56,56 +53,55 @@ const KanbanCard: React.FC<KanbanCardProps> = ({ item }) => {
     
     return colors[Math.abs(hash) % colors.length];
   };
-  
-  const avatarColor = generateAvatarColor(item.data.teacherName);
 
+  const teacherName = item.data.teacherName;
+  const teacherInitials = getInitials(teacherName);
+  const avatarColor = generateAvatarColor(teacherName);
+  
   return (
     <Card 
       ref={setNodeRef} 
       style={style} 
-      className="cursor-grab active:cursor-grabbing bg-white dark:bg-gray-800 border-indigo-100 dark:border-indigo-700 shadow-sm hover:shadow-md transition-all duration-200"
       {...attributes} 
       {...listeners}
+      className="bg-white dark:bg-gray-800 border-indigo-100 dark:border-indigo-900 cursor-grab active:cursor-grabbing shadow-sm hover:shadow-md transition-shadow"
     >
       <CardContent className="p-3">
-        <div className="font-medium mb-2 truncate text-indigo-700 dark:text-indigo-300">{item.title}</div>
-        
-        <div className="flex justify-between items-center mb-2">
-          <div className="flex items-center gap-1 text-sm">
-            <Clock className="h-3 w-3 text-indigo-400" />
-            <span className="text-gray-700 dark:text-gray-300">{item.data.classTime}</span>
-          </div>
-          <Badge variant="outline" className="text-xs bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-900 dark:text-indigo-300 dark:border-indigo-700">
-            {item.data.period}
-          </Badge>
+        <div className="flex justify-between items-start mb-2">
+          <h3 className="font-medium text-sm">{item.title}</h3>
+          <Badge variant="outline" className="text-xs">{item.data.dayOfWeek}</Badge>
         </div>
         
-        <div className="grid grid-cols-2 gap-y-1 gap-x-2 text-xs mt-3">
-          <div className="flex items-center gap-1 col-span-2 mb-1">
-            <Avatar className="h-5 w-5">
+        <div className="flex items-center gap-2 mb-2">
+          <Avatar className="h-5 w-5">
+            {item.avatarUrl ? (
+              <AvatarImage src={item.avatarUrl} alt={teacherName} />
+            ) : (
               <AvatarFallback className={`text-xs text-white ${avatarColor}`}>
                 {teacherInitials}
               </AvatarFallback>
-            </Avatar>
-            <span className="truncate text-gray-800 dark:text-gray-200">{item.data.teacherName}</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <MapPin className="h-3 w-3 text-indigo-400" />
-            <span className="truncate text-gray-600 dark:text-gray-400">{item.data.location}</span>
-          </div>
+            )}
+          </Avatar>
+          <span className="text-xs text-muted-foreground truncate">{teacherName}</span>
         </div>
         
-        <div className="mt-2 pt-2 border-t border-gray-100 dark:border-gray-700 flex items-center justify-between">
-          <div className="flex items-center gap-1 text-xs">
-            <Users className="h-3 w-3 text-indigo-400" />
-            <span className="text-gray-600 dark:text-gray-400">{item.data.totalCheckins} check-ins</span>
+        <div className="grid grid-cols-2 gap-1 text-xs">
+          <div className="flex items-center gap-1">
+            <Clock className="h-3 w-3 text-muted-foreground" />
+            <span>{item.data.classTime}</span>
           </div>
-          <Badge 
-            variant={parseFloat(item.data.classAverageIncludingEmpty) > 10 ? "default" : "secondary"}
-            className="text-xs"
-          >
-            Avg: {item.data.classAverageIncludingEmpty}
-          </Badge>
+          <div className="flex items-center gap-1">
+            <MapPin className="h-3 w-3 text-muted-foreground" />
+            <span className="truncate">{item.data.location}</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <Users className="h-3 w-3 text-muted-foreground" />
+            <span>{item.data.classAverageIncludingEmpty} avg</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <IndianRupee className="h-3 w-3 text-muted-foreground" />
+            <span>₹{parseFloat(item.data.totalRevenue).toLocaleString('en-IN')}</span>
+          </div>
         </div>
       </CardContent>
     </Card>

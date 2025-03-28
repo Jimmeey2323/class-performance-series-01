@@ -72,6 +72,7 @@ export interface KanbanItem {
   id: string;
   title: string;
   data: ProcessedData;
+  avatarUrl?: string;
 }
 
 export interface KanbanColumn {

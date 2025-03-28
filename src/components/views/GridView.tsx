@@ -12,13 +12,14 @@ import {
   IndianRupee,
   Calendar as CalendarIcon
 } from 'lucide-react';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 interface GridViewProps {
   data: ProcessedData[];
+  trainerAvatars?: Record<string, string>;
 }
 
-const GridView: React.FC<GridViewProps> = ({ data }) => {
+const GridView: React.FC<GridViewProps> = ({ data, trainerAvatars = {} }) => {
   // Get initials from teacher name for avatar
   const getInitials = (name: string) => {
     return name
@@ -52,6 +53,7 @@ const GridView: React.FC<GridViewProps> = ({ data }) => {
         data.map((item, index) => {
           const teacherInitials = getInitials(item.teacherName);
           const avatarColor = generateAvatarColor(item.teacherName);
+          const avatarUrl = trainerAvatars[item.teacherName];
           
           return (
             <Card key={index} className="overflow-hidden transition-all hover:shadow-lg border-indigo-100 dark:border-indigo-900 bg-white dark:bg-gray-900">
@@ -88,9 +90,13 @@ const GridView: React.FC<GridViewProps> = ({ data }) => {
                   
                   <div className="flex items-center text-sm gap-1 col-span-2 mt-1">
                     <Avatar className="h-6 w-6">
-                      <AvatarFallback className={`text-xs text-white ${avatarColor}`}>
-                        {teacherInitials}
-                      </AvatarFallback>
+                      {avatarUrl ? (
+                        <AvatarImage src={avatarUrl} alt={item.teacherName} />
+                      ) : (
+                        <AvatarFallback className={`text-xs text-white ${avatarColor}`}>
+                          {teacherInitials}
+                        </AvatarFallback>
+                      )}
                     </Avatar>
                     <span className="truncate text-gray-800 dark:text-gray-200 font-medium">{item.teacherName}</span>
                   </div>
