@@ -39,6 +39,14 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { 
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogClose
+} from "@/components/ui/dialog";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 interface DashboardProps {
@@ -48,7 +56,21 @@ interface DashboardProps {
   onReset: () => void;
   viewMode: ViewMode;
   setViewMode: React.Dispatch<React.SetStateAction<ViewMode>>;
+  onLogout: () => void;
 }
+
+// Trainer avatar mapping
+export const trainerAvatars: Record<string, string> = {
+  "Siddhartha Kusuma": "https://i.imgur.com/XE0p6mW.jpg",
+  "Shruti Suresh": "https://i.imgur.com/dBuz7oK.jpg",
+  "Poojitha Bhaskar": "https://i.imgur.com/dvPLVXg.jpg",
+  "Pushyank Nahar": "https://i.imgur.com/aHAJw6U.jpg",
+  "Shruti Kulkarni": "https://i.imgur.com/S0EXsgi.jpg",
+  "Karan Bhatia": "https://i.imgur.com/y6d1H2z.jpg",
+  "Pranjali Jain": "https://i.imgur.com/EAq1Xb7.jpg",
+  "Anisha Shah": "https://i.imgur.com/7GM2oPn.jpg",
+  "Saniya Jaiswal": "https://i.imgur.com/EP32RoZ.jpg"
+};
 
 const Dashboard: React.FC<DashboardProps> = ({ 
   data, 
@@ -56,14 +78,15 @@ const Dashboard: React.FC<DashboardProps> = ({
   progress, 
   onReset,
   viewMode,
-  setViewMode
+  setViewMode,
+  onLogout
 }) => {
   const [filteredData, setFilteredData] = useState<ProcessedData[]>([]);
   const [filters, setFilters] = useState<FilterOption[]>([]);
   const [sortOptions, setSortOptions] = useState<SortOption[]>([]);
   const [activeTab, setActiveTab] = useState('data');
   const [searchQuery, setSearchQuery] = useState('');
-  const [searchExpanded, setSearchExpanded] = useState(false);
+  const [showSearchDialog, setShowSearchDialog] = useState(false);
 
   // Apply filters and sorting to data, excluding future dates
   useEffect(() => {
@@ -184,6 +207,7 @@ const Dashboard: React.FC<DashboardProps> = ({
 
   const handleSearchChange = (query: string) => {
     setSearchQuery(query);
+    setShowSearchDialog(false);
   }; 
 
   if (loading) {
@@ -206,6 +230,27 @@ const Dashboard: React.FC<DashboardProps> = ({
 
   return (
     <div className="space-y-6 animate-fade-in">
+      <div className="flex flex-col justify-between items-center mb-6 relative">
+        <div className="absolute right-0 top-0">
+          <Button variant="ghost" size="icon" onClick={onLogout}>
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+            </svg>
+          </Button>
+        </div>
+        
+        <div className="flex flex-col items-center">
+          <h1 className="text-3xl font-bold text-center mb-2 text-slate-800 dark:text-slate-100 flex items-center justify-center gap-2">
+            <span className="h-8 w-8 text-amber-500">✨</span>
+            Class Performance & Analytics
+            <span className="h-8 w-8 text-amber-500">✨</span>
+          </h1>
+          <p className="text-center text-slate-600 dark:text-slate-400 max-w-2xl">
+            Analyze class performance metrics, explore trends, and gain insights to optimize your fitness studio operations
+          </p>
+        </div>
+      </div>
+
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
         <div className="flex items-center gap-2">
           <h2 className="text-2xl font-bold">Analytics Dashboard</h2>
@@ -240,39 +285,35 @@ const Dashboard: React.FC<DashboardProps> = ({
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+          
+          <Dialog open={showSearchDialog} onOpenChange={setShowSearchDialog}>
+            <DialogTrigger asChild>
+              <Button variant="outline" size="sm">
+                <Search className="mr-2 h-4 w-4" />
+                Advanced Search
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-3xl">
+              <DialogHeader>
+                <DialogTitle>Advanced Search</DialogTitle>
+              </DialogHeader>
+              <SearchBar onSearch={handleSearchChange} data={data} />
+              <div className="flex justify-end mt-4">
+                <DialogClose asChild>
+                  <Button variant="outline" size="sm">Close</Button>
+                </DialogClose>
+              </div>
+            </DialogContent>
+          </Dialog>
         </div>
       </div>
 
       <MetricsPanel data={filteredData} />
       
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <Card className="lg:col-span-2">
+        <Card className="lg:col-span-3">
           <CardContent className="p-6">
             <TopBottomClasses data={filteredData} />
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-6">
-            <Collapsible 
-              open={searchExpanded} 
-              onOpenChange={setSearchExpanded}
-              className="w-full"
-            >
-              <CollapsibleTrigger asChild>
-                <Button variant="outline" className="flex w-full justify-between mb-2">
-                  <span className="flex items-center">
-                    <Search className="mr-2 h-4 w-4" />
-                    Advanced Search
-                  </span>
-                  <span className="text-muted-foreground text-xs">
-                    {searchExpanded ? "Hide" : "Show"}
-                  </span>
-                </Button>
-              </CollapsibleTrigger>
-              <CollapsibleContent>
-                <SearchBar onSearch={handleSearchChange} data={data} />
-              </CollapsibleContent>
-            </Collapsible>
           </CardContent>
         </Card>
       </div>
@@ -287,11 +328,11 @@ const Dashboard: React.FC<DashboardProps> = ({
       <ViewSwitcher viewMode={viewMode} setViewMode={setViewMode} />
       
       <div className="bg-white dark:bg-gray-950 border rounded-lg shadow-sm">
-        {viewMode === 'table' && <DataTable data={filteredData} />}
-        {viewMode === 'grid' && <GridView data={filteredData} />}
-        {viewMode === 'kanban' && <KanbanView data={filteredData} />}
-        {viewMode === 'timeline' && <TimelineView data={filteredData} />}
-        {viewMode === 'pivot' && <PivotView data={filteredData} />}
+        {viewMode === 'table' && <DataTable data={filteredData} trainerAvatars={trainerAvatars} />}
+        {viewMode === 'grid' && <GridView data={filteredData} trainerAvatars={trainerAvatars} />}
+        {viewMode === 'kanban' && <KanbanView data={filteredData} trainerAvatars={trainerAvatars} />}
+        {viewMode === 'timeline' && <TimelineView data={filteredData} trainerAvatars={trainerAvatars} />}
+        {viewMode === 'pivot' && <PivotView data={filteredData} trainerAvatars={trainerAvatars} />}
       </div>
       
       <ChartPanel data={filteredData} />

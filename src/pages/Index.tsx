@@ -127,28 +127,32 @@ const Index = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
       <div className="container mx-auto px-4 py-8">
-        <div className="flex justify-between items-center mb-8">
-          <div className="animate-fade-in">
-            <h1 className="text-3xl font-bold text-center mb-2 text-slate-800 dark:text-slate-100 flex items-center justify-center gap-2">
-              <Sparkles className="h-8 w-8 text-amber-500" />
-              Class Performance & Analytics
-              <Sparkles className="h-8 w-8 text-amber-500" />
-            </h1>
-            <p className="text-center text-slate-600 dark:text-slate-400 max-w-2xl mx-auto">
-              Analyze class performance metrics, explore trends, and gain insights to optimize your fitness studio operations
-            </p>
-          </div>
-          
-          <button 
-            onClick={handleLogout} 
-            className="px-4 py-2 bg-slate-200 dark:bg-slate-700 rounded hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors"
-          >
-            Sign Out
-          </button>
-        </div>
-        
         {showUploader ? (
-          <FileUploader onFileUpload={handleFileUpload} />
+          <div>
+            <div className="flex justify-center items-center mb-8">
+              <div className="animate-fade-in text-center">
+                <h1 className="text-3xl font-bold mb-2 text-slate-800 dark:text-slate-100 flex items-center justify-center gap-2">
+                  <Sparkles className="h-8 w-8 text-amber-500" />
+                  Class Performance & Analytics
+                  <Sparkles className="h-8 w-8 text-amber-500" />
+                </h1>
+                <p className="text-center text-slate-600 dark:text-slate-400 max-w-2xl mx-auto mb-8">
+                  Analyze class performance metrics, explore trends, and gain insights to optimize your fitness studio operations
+                </p>
+              </div>
+              
+              <button 
+                onClick={handleLogout} 
+                className="absolute top-4 right-4 p-2 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+                title="Sign Out"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                </svg>
+              </button>
+            </div>
+            <FileUploader onFileUpload={handleFileUpload} />
+          </div>
         ) : (
           <Dashboard 
             data={data} 
@@ -157,6 +161,7 @@ const Index = () => {
             onReset={resetUpload}
             viewMode={viewMode}
             setViewMode={setViewMode}
+            onLogout={handleLogout}
           />
         )}
       </div>

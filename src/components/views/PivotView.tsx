@@ -25,14 +25,16 @@ import {
 } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Grid2X2, BarChart3, Download } from 'lucide-react';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 interface PivotViewProps {
   data: ProcessedData[];
+  trainerAvatars?: Record<string, string>;
 }
 
-type AggregationMethod = 'sum' | 'average' | 'count' | 'min' | 'max';
+type AggregationMethod = 'sum' | 'average' | 'count' | 'countUnique' | 'min' | 'max';
 
-const PivotView: React.FC<PivotViewProps> = ({ data }) => {
+const PivotView: React.FC<PivotViewProps> = ({ data, trainerAvatars = {} }) => {
   const [rowField, setRowField] = useState<keyof ProcessedData>('dayOfWeek');
   const [columnField, setColumnField] = useState<keyof ProcessedData>('cleanedClass');
   const [valueField, setValueField] = useState<keyof ProcessedData>('totalCheckins');
@@ -48,6 +50,8 @@ const PivotView: React.FC<PivotViewProps> = ({ data }) => {
     { key: 'totalRevenue', label: 'Total Revenue' },
     { key: 'totalTime', label: 'Total Time (Hours)' },
     { key: 'totalNonPaid', label: 'Total Non-Paid' },
+    { key: 'classAverageIncludingEmpty', label: 'Class Average (All)' },
+    { key: 'classAverageExcludingEmpty', label: 'Class Average (Non-Empty)' },
   ];
 
   const displayFields = [
@@ -85,6 +89,18 @@ const PivotView: React.FC<PivotViewProps> = ({ data }) => {
       });
     });
     
+    // For countUnique aggregation, we need to track unique values
+    const uniqueValues: Record<string, Record<string, Set<string>>> = {};
+    
+    if (aggregationMethod === 'countUnique') {
+      rowValues.forEach(rowValue => {
+        uniqueValues[rowValue] = {};
+        columnValues.forEach(colValue => {
+          uniqueValues[rowValue][colValue] = new Set();
+        });
+      });
+    }
+    
     // Aggregate data into the pivot table
     data.forEach(item => {
       const rowValue = String(item[rowField]);
@@ -116,6 +132,12 @@ const PivotView: React.FC<PivotViewProps> = ({ data }) => {
         }
         case 'count':
           pivotTable[rowValue][colValue] += 1;
+          break;
+        case 'countUnique':
+          // Add the value to the set of unique values
+          uniqueValues[rowValue][colValue].add(String(item.uniqueID));
+          // Update the count in the pivot table
+          pivotTable[rowValue][colValue] = uniqueValues[rowValue][colValue].size;
           break;
         case 'min':
           if (pivotTable[rowValue][colValue] === 0 || value < pivotTable[rowValue][colValue]) {
@@ -292,6 +314,7 @@ const PivotView: React.FC<PivotViewProps> = ({ data }) => {
                   <SelectItem value="sum">Sum</SelectItem>
                   <SelectItem value="average">Average</SelectItem>
                   <SelectItem value="count">Count</SelectItem>
+                  <SelectItem value="countUnique">Count Unique</SelectItem>
                   <SelectItem value="min">Minimum</SelectItem>
                   <SelectItem value="max">Maximum</SelectItem>
                 </SelectContent>

@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ProcessedData } from '@/types/data';
 import {
   Table,
@@ -29,7 +29,10 @@ import {
   EyeOff,
   Layers,
   Type,
-  Palette
+  Palette,
+  Bookmark,
+  BookmarkX,
+  Filter
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -53,16 +56,20 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
+import { trainerAvatars } from './Dashboard';
 
 interface DataTableProps {
   data: ProcessedData[];
+  trainerAvatars?: Record<string, string>;
 }
 
 type TableView = 'comfortable' | 'compact';
 type TableTheme = 'default' | 'striped' | 'bordered' | 'elegant';
 
-const DataTable: React.FC<DataTableProps> = ({ data }) => {
+const DataTable: React.FC<DataTableProps> = ({ data, trainerAvatars = {} }) => {
   const [pageIndex, setPageIndex] = useState(0);
   const [pageSize, setPageSize] = useState(10);
   const [searchQuery, setSearchQuery] = useState('');
@@ -77,7 +84,23 @@ const DataTable: React.FC<DataTableProps> = ({ data }) => {
   const [fontSize, setFontSize] = useState(14); // Default font size
   const [tableView, setTableView] = useState<TableView>('comfortable');
   const [showIcons, setShowIcons] = useState(true);
-  const [tableTheme, setTableTheme] = useState<TableTheme>('default');
+  const [tableTheme, setTableTheme] = useState<TableTheme>('elegant');
+  const [bookmarks, setBookmarks] = useState<string[]>([]);
+  const [showOnlyBookmarks, setShowOnlyBookmarks] = useState(false);
+  const [childRows, setChildRows] = useState<Record<string, ProcessedData[]>>({});
+
+  // Load bookmarks from localStorage on component mount
+  useEffect(() => {
+    const savedBookmarks = localStorage.getItem('classAnalyticsBookmarks');
+    if (savedBookmarks) {
+      setBookmarks(JSON.parse(savedBookmarks));
+    }
+  }, []);
+
+  // Save bookmarks to localStorage whenever they change
+  useEffect(() => {
+    localStorage.setItem('classAnalyticsBookmarks', JSON.stringify(bookmarks));
+  }, [bookmarks]);
 
   // All possible columns
   const allColumns: Array<{ key: keyof ProcessedData; label: string }> = [
@@ -101,6 +124,12 @@ const DataTable: React.FC<DataTableProps> = ({ data }) => {
 
   // Filter data based on search query
   const filteredData = data.filter(item => {
+    // First apply bookmark filter if enabled
+    if (showOnlyBookmarks && !bookmarks.includes(item.uniqueID)) {
+      return false;
+    }
+    
+    // Then apply search filter
     const query = searchQuery.toLowerCase();
     return Object.values(item).some(
       value => value && String(value).toLowerCase().includes(query)
@@ -127,7 +156,7 @@ const DataTable: React.FC<DataTableProps> = ({ data }) => {
       
       return sortDirection === 'asc' ? comparison : -comparison;
     });
-  }, [filteredData, sortField, sortDirection]);
+  }, [filteredData, sortField, sortDirection, showOnlyBookmarks, bookmarks]);
 
   // Calculate pagination
   const pageCount = Math.ceil(sortedData.length / pageSize);
@@ -143,11 +172,40 @@ const DataTable: React.FC<DataTableProps> = ({ data }) => {
     }
   };
 
-  const toggleRowExpand = (rowId: string) => {
+  const toggleRowExpand = async (rowId: string, row: ProcessedData) => {
+    // Toggle the expanded state
     setExpandedRows(prev => ({
       ...prev,
       [rowId]: !prev[rowId]
     }));
+    
+    // If we're expanding and don't have child rows yet, try to find them
+    if (!expandedRows[rowId] && !childRows[rowId]) {
+      // Here you would fetch or filter the data to find rows that are "children" of this row
+      // For this example, we'll simulate by finding rows with matching class attributes
+      const children = data.filter(item => 
+        item.dayOfWeek === row.dayOfWeek && 
+        item.teacherName === row.teacherName &&
+        item.cleanedClass === row.cleanedClass &&
+        item.location === row.location &&
+        item.uniqueID !== row.uniqueID // Exclude the parent row
+      );
+      
+      setChildRows(prev => ({
+        ...prev,
+        [rowId]: children
+      }));
+    }
+  };
+
+  const toggleBookmark = (rowId: string) => {
+    setBookmarks(prev => {
+      if (prev.includes(rowId)) {
+        return prev.filter(id => id !== rowId);
+      } else {
+        return [...prev, rowId];
+      }
+    });
   };
 
   const handlePreviousPage = () => {
@@ -177,7 +235,10 @@ const DataTable: React.FC<DataTableProps> = ({ data }) => {
     }
     
     if (key === 'teacherName' && showIcons) {
-      // Get initials for the avatar
+      // Get avatar URL from the mapping
+      const avatarUrl = trainerAvatars[row.teacherName];
+      
+      // Get initials for the avatar fallback
       const initials = row.teacherName
         .split(' ')
         .map(part => part.charAt(0))
@@ -198,9 +259,13 @@ const DataTable: React.FC<DataTableProps> = ({ data }) => {
       return (
         <div className="flex items-center gap-2">
           <Avatar className="h-6 w-6">
-            <AvatarFallback className={`text-xs text-white ${avatarColor}`}>
-              {initials}
-            </AvatarFallback>
+            {avatarUrl ? (
+              <AvatarImage src={avatarUrl} alt={row.teacherName} />
+            ) : (
+              <AvatarFallback className={`text-xs text-white ${avatarColor}`}>
+                {initials}
+              </AvatarFallback>
+            )}
           </Avatar>
           <span>{row[key]}</span>
         </div>
@@ -236,164 +301,184 @@ const DataTable: React.FC<DataTableProps> = ({ data }) => {
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-between items-center p-4 border-b">
+      <div className="flex justify-between items-center p-4 border-b bg-indigo-50 dark:bg-indigo-900/20 rounded-t-lg">
         <div className="relative w-full max-w-sm">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Search data across all columns..."
+            placeholder="Quick search..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-10 w-full"
           />
         </div>
         
-        <Dialog>
-          <DialogTrigger asChild>
-            <Button variant="outline" size="sm" className="flex items-center gap-1">
-              <Settings className="h-4 w-4" />
-              Customize Table
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
-              <DialogTitle>Table Customization</DialogTitle>
-            </DialogHeader>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-4">
-              <div className="space-y-4">
-                <h4 className="font-medium flex items-center gap-2 text-indigo-700 dark:text-indigo-300">
-                  <Eye className="h-4 w-4" />
-                  Column Visibility
-                </h4>
-                <div className="grid grid-cols-2 gap-2 max-h-60 overflow-y-auto p-2 border rounded-md">
-                  {allColumns.map(column => (
-                    <div key={column.key as string} className="flex items-center space-x-2">
-                      <Checkbox 
-                        id={`column-${column.key}`} 
-                        checked={visibleColumns.includes(column.key)}
-                        onCheckedChange={() => toggleColumnVisibility(column.key)}
+        <div className="flex items-center space-x-3">
+          <div className="flex items-center space-x-2">
+            <Switch 
+              id="bookmark-filter" 
+              checked={showOnlyBookmarks} 
+              onCheckedChange={setShowOnlyBookmarks}
+            />
+            <Label htmlFor="bookmark-filter" className="text-sm cursor-pointer">
+              {showOnlyBookmarks ? (
+                <Badge variant="outline" className="flex items-center gap-1">
+                  <Bookmark className="h-3 w-3" />
+                  Bookmarked Only
+                </Badge>
+              ) : (
+                <span className="text-muted-foreground">Show Bookmarks</span>
+              )}
+            </Label>
+          </div>
+          
+          <Dialog>
+            <DialogTrigger asChild>
+              <Button variant="outline" size="sm" className="flex items-center gap-1">
+                <Settings className="h-4 w-4" />
+                Customize Table
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-2xl">
+              <DialogHeader>
+                <DialogTitle>Table Customization</DialogTitle>
+              </DialogHeader>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-4">
+                <div className="space-y-4">
+                  <h4 className="font-medium flex items-center gap-2 text-indigo-700 dark:text-indigo-300">
+                    <Eye className="h-4 w-4" />
+                    Column Visibility
+                  </h4>
+                  <div className="grid grid-cols-2 gap-2 max-h-60 overflow-y-auto p-2 border rounded-md">
+                    {allColumns.map(column => (
+                      <div key={column.key as string} className="flex items-center space-x-2">
+                        <Checkbox 
+                          id={`column-${column.key}`} 
+                          checked={visibleColumns.includes(column.key)}
+                          onCheckedChange={() => toggleColumnVisibility(column.key)}
+                        />
+                        <label
+                          htmlFor={`column-${column.key}`}
+                          className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                        >
+                          {column.label}
+                        </label>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                
+                <div className="space-y-4">
+                  <div className="space-y-3">
+                    <h4 className="font-medium flex items-center gap-2 text-indigo-700 dark:text-indigo-300">
+                      <Layers className="h-4 w-4" />
+                      Row Height
+                    </h4>
+                    <div className="px-1">
+                      <Slider 
+                        defaultValue={[rowHeight]} 
+                        min={30} 
+                        max={80} 
+                        step={5}
+                        onValueChange={(value) => setRowHeight(value[0])}
                       />
-                      <label
-                        htmlFor={`column-${column.key}`}
-                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                      >
-                        {column.label}
-                      </label>
+                      <div className="flex justify-between text-xs text-muted-foreground mt-1">
+                        <span>Compact</span>
+                        <span>Comfortable</span>
+                      </div>
                     </div>
-                  ))}
+                  </div>
+                  
+                  <div className="space-y-3 mt-6">
+                    <h4 className="font-medium flex items-center gap-2 text-indigo-700 dark:text-indigo-300">
+                      <Type className="h-4 w-4" />
+                      Font Size
+                    </h4>
+                    <div className="px-1">
+                      <Slider 
+                        defaultValue={[fontSize]} 
+                        min={10} 
+                        max={18} 
+                        step={1}
+                        onValueChange={(value) => setFontSize(value[0])}
+                      />
+                      <div className="flex justify-between text-xs text-muted-foreground mt-1">
+                        <span>Small</span>
+                        <span>Large</span>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-3 mt-6">
+                    <h4 className="font-medium flex items-center gap-2 text-indigo-700 dark:text-indigo-300">
+                      <Palette className="h-4 w-4" />
+                      Display Options
+                    </h4>
+                    
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <Label>Table View</Label>
+                        <RadioGroup 
+                          defaultValue={tableView}
+                          onValueChange={(value) => setTableView(value as TableView)}
+                          className="flex gap-4"
+                        >
+                          <div className="flex items-center space-x-2">
+                            <RadioGroupItem value="comfortable" id="comfortable" />
+                            <Label htmlFor="comfortable">Comfortable</Label>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <RadioGroupItem value="compact" id="compact" />
+                            <Label htmlFor="compact">Compact</Label>
+                          </div>
+                        </RadioGroup>
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <Label>Table Theme</Label>
+                        <RadioGroup 
+                          defaultValue={tableTheme}
+                          onValueChange={(value) => setTableTheme(value as TableTheme)}
+                          className="grid grid-cols-2 gap-2"
+                        >
+                          <div className="flex items-center space-x-2">
+                            <RadioGroupItem value="default" id="default" />
+                            <Label htmlFor="default">Default</Label>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <RadioGroupItem value="striped" id="striped" />
+                            <Label htmlFor="striped">Striped</Label>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <RadioGroupItem value="bordered" id="bordered" />
+                            <Label htmlFor="bordered">Bordered</Label>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <RadioGroupItem value="elegant" id="elegant" />
+                            <Label htmlFor="elegant">Elegant</Label>
+                          </div>
+                        </RadioGroup>
+                      </div>
+                      
+                      <div className="flex items-center space-x-2">
+                        <Checkbox 
+                          id="show-icons" 
+                          checked={showIcons}
+                          onCheckedChange={(checked) => setShowIcons(checked as boolean)}
+                        />
+                        <Label htmlFor="show-icons">Show Icons & Avatars</Label>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
               
-              <div className="space-y-4">
-                <div className="space-y-3">
-                  <h4 className="font-medium flex items-center gap-2 text-indigo-700 dark:text-indigo-300">
-                    <Layers className="h-4 w-4" />
-                    Row Height
-                  </h4>
-                  <div className="px-1">
-                    <Slider 
-                      defaultValue={[rowHeight]} 
-                      min={30} 
-                      max={80} 
-                      step={5}
-                      onValueChange={(value) => setRowHeight(value[0])}
-                    />
-                    <div className="flex justify-between text-xs text-muted-foreground mt-1">
-                      <span>Compact</span>
-                      <span>Comfortable</span>
-                    </div>
-                  </div>
-                </div>
-                
-                <div className="space-y-3 mt-6">
-                  <h4 className="font-medium flex items-center gap-2 text-indigo-700 dark:text-indigo-300">
-                    <Type className="h-4 w-4" />
-                    Font Size
-                  </h4>
-                  <div className="px-1">
-                    <Slider 
-                      defaultValue={[fontSize]} 
-                      min={10} 
-                      max={18} 
-                      step={1}
-                      onValueChange={(value) => setFontSize(value[0])}
-                    />
-                    <div className="flex justify-between text-xs text-muted-foreground mt-1">
-                      <span>Small</span>
-                      <span>Large</span>
-                    </div>
-                  </div>
-                </div>
-                
-                <div className="space-y-3 mt-6">
-                  <h4 className="font-medium flex items-center gap-2 text-indigo-700 dark:text-indigo-300">
-                    <Palette className="h-4 w-4" />
-                    Display Options
-                  </h4>
-                  
-                  <div className="space-y-4">
-                    <div className="space-y-2">
-                      <Label>Table View</Label>
-                      <RadioGroup 
-                        defaultValue={tableView}
-                        onValueChange={(value) => setTableView(value as TableView)}
-                        className="flex gap-4"
-                      >
-                        <div className="flex items-center space-x-2">
-                          <RadioGroupItem value="comfortable" id="comfortable" />
-                          <Label htmlFor="comfortable">Comfortable</Label>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <RadioGroupItem value="compact" id="compact" />
-                          <Label htmlFor="compact">Compact</Label>
-                        </div>
-                      </RadioGroup>
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <Label>Table Theme</Label>
-                      <RadioGroup 
-                        defaultValue={tableTheme}
-                        onValueChange={(value) => setTableTheme(value as TableTheme)}
-                        className="grid grid-cols-2 gap-2"
-                      >
-                        <div className="flex items-center space-x-2">
-                          <RadioGroupItem value="default" id="default" />
-                          <Label htmlFor="default">Default</Label>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <RadioGroupItem value="striped" id="striped" />
-                          <Label htmlFor="striped">Striped</Label>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <RadioGroupItem value="bordered" id="bordered" />
-                          <Label htmlFor="bordered">Bordered</Label>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <RadioGroupItem value="elegant" id="elegant" />
-                          <Label htmlFor="elegant">Elegant</Label>
-                        </div>
-                      </RadioGroup>
-                    </div>
-                    
-                    <div className="flex items-center space-x-2">
-                      <Checkbox 
-                        id="show-icons" 
-                        checked={showIcons}
-                        onCheckedChange={(checked) => setShowIcons(checked as boolean)}
-                      />
-                      <Label htmlFor="show-icons">Show Icons & Avatars</Label>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-            
-            <DialogFooter>
-              <Button type="button" variant="default">Apply Changes</Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+              <DialogFooter>
+                <Button type="button" variant="default">Apply Changes</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
       
       <div className="border rounded-lg overflow-hidden bg-white dark:bg-gray-950">
@@ -405,6 +490,7 @@ const DataTable: React.FC<DataTableProps> = ({ data }) => {
             )}>
               <TableRow>
                 <TableHead className="w-14 p-2"></TableHead> {/* Expand button column */}
+                <TableHead className="w-10 p-2"></TableHead> {/* Bookmark column */}
                 {visibleColumns.map((key) => {
                   const column = allColumns.find(col => col.key === key);
                   return column ? (
@@ -439,7 +525,8 @@ const DataTable: React.FC<DataTableProps> = ({ data }) => {
                       className={cn(
                         "hover:bg-gray-50 dark:hover:bg-gray-900/50 transition-colors",
                         expandedRows[row.uniqueID] && "bg-slate-50 dark:bg-slate-900/75",
-                        tableTheme === 'striped' && rowIndex % 2 === 0 && "bg-slate-50/50 dark:bg-slate-900/20"
+                        tableTheme === 'striped' && rowIndex % 2 === 0 && "bg-slate-50/50 dark:bg-slate-900/20",
+                        bookmarks.includes(row.uniqueID) && "bg-yellow-50 dark:bg-yellow-900/10"
                       )}
                       style={getRowStyle()}
                     >
@@ -448,12 +535,26 @@ const DataTable: React.FC<DataTableProps> = ({ data }) => {
                           variant="ghost" 
                           size="sm" 
                           className="h-8 w-8 p-0"
-                          onClick={() => toggleRowExpand(row.uniqueID)}
+                          onClick={() => toggleRowExpand(row.uniqueID, row)}
                         >
                           {expandedRows[row.uniqueID] ? 
                             <ChevronDown className="h-4 w-4" /> : 
                             <ChevronRight className="h-4 w-4" />
                           }
+                        </Button>
+                      </TableCell>
+                      <TableCell className="w-10 p-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 w-8 p-0"
+                          onClick={() => toggleBookmark(row.uniqueID)}
+                        >
+                          {bookmarks.includes(row.uniqueID) ? (
+                            <Bookmark className="h-4 w-4 text-amber-500" />
+                          ) : (
+                            <Bookmark className="h-4 w-4 text-gray-300" />
+                          )}
                         </Button>
                       </TableCell>
                       {visibleColumns.map((key) => (
@@ -466,84 +567,40 @@ const DataTable: React.FC<DataTableProps> = ({ data }) => {
                       ))}
                     </TableRow>
                     
-                    {/* Expanded row details */}
+                    {/* Child rows section */}
                     {expandedRows[row.uniqueID] && (
-                      <TableRow className="bg-slate-50 dark:bg-slate-900/30">
-                        <TableCell colSpan={visibleColumns.length + 1} className="p-6">
-                          <div className="space-y-6">
-                            <h4 className="text-lg font-medium border-b pb-2">Class Details</h4>
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-                              <div className="space-y-1">
-                                <p className="text-sm font-medium text-gray-500">Class Type</p>
-                                <p className="text-base font-semibold">{row.cleanedClass}</p>
-                              </div>
-                              <div className="space-y-1">
-                                <p className="text-sm font-medium text-gray-500">Schedule</p>
-                                <p className="text-base font-semibold">{row.dayOfWeek} at {row.classTime}</p>
-                              </div>
-                              <div className="space-y-1">
-                                <p className="text-sm font-medium text-gray-500">Location</p>
-                                <p className="text-base font-semibold">{row.location}</p>
-                              </div>
-                              <div className="space-y-1">
-                                <p className="text-sm font-medium text-gray-500">Instructor</p>
-                                <p className="text-base font-semibold flex items-center gap-2">
-                                  {showIcons && (
-                                    <Avatar className="h-6 w-6">
-                                      <AvatarFallback className="text-xs text-white bg-indigo-500">
-                                        {row.teacherName.split(' ').map(n => n[0]).join('')}
-                                      </AvatarFallback>
-                                    </Avatar>
-                                  )}
-                                  {row.teacherName}
-                                </p>
-                              </div>
-                            </div>
-                            
-                            <h4 className="text-lg font-medium border-b pb-2 mt-4">Performance Metrics</h4>
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-                              <div className="space-y-1">
-                                <p className="text-sm font-medium text-gray-500">Total Occurrences</p>
-                                <p className="text-xl font-bold">{row.totalOccurrences}</p>
-                              </div>
-                              <div className="space-y-1">
-                                <p className="text-sm font-medium text-gray-500">Total Check-ins</p>
-                                <p className="text-xl font-bold">{row.totalCheckins}</p>
-                              </div>
-                              <div className="space-y-1">
-                                <p className="text-sm font-medium text-gray-500">Avg. Attendance (All)</p>
-                                <p className="text-xl font-bold">{row.classAverageIncludingEmpty}</p>
-                              </div>
-                              <div className="space-y-1">
-                                <p className="text-sm font-medium text-gray-500">Avg. Attendance (Non-Empty)</p>
-                                <p className="text-xl font-bold">{row.classAverageExcludingEmpty}</p>
-                              </div>
-                              <div className="space-y-1">
-                                <p className="text-sm font-medium text-gray-500">Total Revenue</p>
-                                <p className="text-xl font-bold">{formatCurrency(String(row.totalRevenue))}</p>
-                              </div>
-                              <div className="space-y-1">
-                                <p className="text-sm font-medium text-gray-500">Empty Classes</p>
-                                <p className="text-xl font-bold">{row.totalEmpty}</p>
-                              </div>
-                              <div className="space-y-1">
-                                <p className="text-sm font-medium text-gray-500">Non-Paid Customers</p>
-                                <p className="text-xl font-bold">{row.totalNonPaid}</p>
-                              </div>
-                              <div className="space-y-1">
-                                <p className="text-sm font-medium text-gray-500">Total Time (Hours)</p>
-                                <p className="text-xl font-bold">{parseFloat(String(row.totalTime)).toFixed(1)}</p>
-                              </div>
-                            </div>
-                          </div>
-                        </TableCell>
-                      </TableRow>
+                      childRows[row.uniqueID]?.length > 0 ? (
+                        childRows[row.uniqueID].map((childRow, childIndex) => (
+                          <TableRow 
+                            key={`child-${childIndex}`}
+                            className="bg-slate-50/80 dark:bg-slate-900/20 border-l-4 border-indigo-200 dark:border-indigo-800"
+                            style={getRowStyle()}
+                          >
+                            <TableCell className="w-14 p-2"></TableCell>
+                            <TableCell className="w-10 p-2"></TableCell>
+                            {visibleColumns.map((key) => (
+                              <TableCell 
+                                key={`child-${childIndex}-${key}`} 
+                                className="py-3 px-6 whitespace-nowrap text-sm text-gray-600 dark:text-gray-400"
+                              >
+                                {renderCellValue(childRow, key)}
+                              </TableCell>
+                            ))}
+                          </TableRow>
+                        ))
+                      ) : (
+                        <TableRow className="bg-slate-50/80 dark:bg-slate-900/20">
+                          <TableCell colSpan={visibleColumns.length + 2} className="py-4 text-center text-sm text-gray-500">
+                            No detailed records found for this class.
+                          </TableCell>
+                        </TableRow>
+                      )
                     )}
                   </React.Fragment>
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={visibleColumns.length + 1} className="h-48 text-center">
+                  <TableCell colSpan={visibleColumns.length + 2} className="h-48 text-center">
                     No data available
                   </TableCell>
                 </TableRow>
