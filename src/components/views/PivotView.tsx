@@ -1,363 +1,291 @@
 
 import React, { useState, useMemo } from 'react';
 import { ProcessedData } from '@/types/data';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
-} from '@/components/ui/select';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+  Table, 
+  TableBody, 
+  TableCell, 
+  TableHead, 
+  TableHeader, 
+  TableRow 
 } from '@/components/ui/table';
-import { Download, RotateCcw, Filter, SlidersHorizontal } from 'lucide-react';
-import { toast } from "@/hooks/use-toast";
+import { 
+  Card, 
+  CardContent, 
+  CardHeader, 
+  CardTitle 
+} from '@/components/ui/card';
+import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Button } from '@/components/ui/button';
+import { Grid2X2, BarChart3, Download } from 'lucide-react';
 
 interface PivotViewProps {
   data: ProcessedData[];
 }
 
-type PivotField = keyof ProcessedData;
-type AggregationType = 'sum' | 'average' | 'count' | 'min' | 'max';
-
-interface PivotConfig {
-  rows: PivotField[];
-  columns: PivotField[];
-  values: PivotField[];
-  aggregation: AggregationType;
-}
+type AggregationMethod = 'sum' | 'average' | 'count' | 'min' | 'max';
 
 const PivotView: React.FC<PivotViewProps> = ({ data }) => {
-  const [config, setConfig] = useState<PivotConfig>({
-    rows: ['cleanedClass'],
-    columns: ['dayOfWeek'],
-    values: ['totalCheckins'],
-    aggregation: 'sum'
-  });
-  
-  const [filterField, setFilterField] = useState<PivotField | ''>('');
-  const [filterValue, setFilterValue] = useState('');
+  const [rowField, setRowField] = useState<keyof ProcessedData>('dayOfWeek');
+  const [columnField, setColumnField] = useState<keyof ProcessedData>('cleanedClass');
+  const [valueField, setValueField] = useState<keyof ProcessedData>('totalCheckins');
+  const [aggregationMethod, setAggregationMethod] = useState<AggregationMethod>('sum');
 
-  const stringFields: PivotField[] = ['uniqueID', 'cleanedClass', 'dayOfWeek', 'classTime', 'location', 'teacherName', 'period'];
-  const numericFields: PivotField[] = ['totalOccurrences', 'totalCancelled', 'totalCheckins', 'totalEmpty', 'totalNonEmpty', 'totalRevenue', 'totalTime', 'totalNonPaid'];
-  
-  // Filter data based on current filter
-  const filteredData = useMemo(() => {
-    if (!filterField || !filterValue) return data;
-    
-    return data.filter(item => {
-      const fieldValue = String(item[filterField]);
-      return fieldValue.toLowerCase().includes(filterValue.toLowerCase());
-    });
-  }, [data, filterField, filterValue]);
+  // Define numeric fields and display fields
+  const numericFields = [
+    { key: 'totalOccurrences', label: 'Total Occurrences' },
+    { key: 'totalCheckins', label: 'Total Check-ins' },
+    { key: 'totalCancelled', label: 'Total Cancelled' },
+    { key: 'totalEmpty', label: 'Total Empty' },
+    { key: 'totalNonEmpty', label: 'Total Non-Empty' },
+    { key: 'totalRevenue', label: 'Total Revenue' },
+    { key: 'totalTime', label: 'Total Time (Hours)' },
+    { key: 'totalNonPaid', label: 'Total Non-Paid' },
+  ];
+
+  const displayFields = [
+    { key: 'cleanedClass', label: 'Class Type' },
+    { key: 'dayOfWeek', label: 'Day of Week' },
+    { key: 'classTime', label: 'Class Time' },
+    { key: 'location', label: 'Location' },
+    { key: 'teacherName', label: 'Instructor' },
+    { key: 'period', label: 'Period' },
+  ];
 
   // Generate pivot table data
   const pivotData = useMemo(() => {
-    if (filteredData.length === 0) return { rows: [], columns: [], values: {} };
-    
     // Get unique values for row and column fields
-    const uniqueRows = [...new Set(filteredData.map(item => String(item[config.rows[0]])))]
-      .sort((a, b) => a.localeCompare(b));
+    const rowValues = Array.from(new Set(data.map(item => String(item[rowField]))))
+      .sort((a, b) => {
+        // Special sorting for days of week
+        if (rowField === 'dayOfWeek') {
+          const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+          return days.indexOf(a) - days.indexOf(b);
+        }
+        return a.localeCompare(b);
+      });
     
-    const uniqueColumns = [...new Set(filteredData.map(item => String(item[config.columns[0]])))]
-      .sort((a, b) => a.localeCompare(b));
+    const columnValues = Array.from(new Set(data.map(item => String(item[columnField]))))
+      .sort();
     
-    // Create value matrix
-    const values: Record<string, Record<string, number>> = {};
-    const totals: Record<string, number> = {};
-    const columnTotals: Record<string, number> = {};
+    // Initialize pivot table with zeros
+    const pivotTable: Record<string, Record<string, number>> = {};
     
-    // Initialize
-    uniqueRows.forEach(row => {
-      values[row] = {};
-      totals[row] = 0;
-      
-      uniqueColumns.forEach(col => {
-        values[row][col] = 0;
-        if (!columnTotals[col]) columnTotals[col] = 0;
+    rowValues.forEach(rowValue => {
+      pivotTable[rowValue] = {};
+      columnValues.forEach(colValue => {
+        pivotTable[rowValue][colValue] = 0;
       });
     });
     
-    // Calculate values
-    filteredData.forEach(item => {
-      const rowKey = String(item[config.rows[0]]);
-      const colKey = String(item[config.columns[0]]);
+    // Aggregate data into the pivot table
+    data.forEach(item => {
+      const rowValue = String(item[rowField]);
+      const colValue = String(item[columnField]);
+      const value = parseFloat(String(item[valueField])) || 0;
       
-      if (uniqueRows.includes(rowKey) && uniqueColumns.includes(colKey)) {
-        const valueField = config.values[0];
-        const value = typeof item[valueField] === 'string' 
-          ? parseFloat(item[valueField] as string) 
-          : Number(item[valueField]);
-        
-        if (!isNaN(value)) {
-          if (config.aggregation === 'sum' || config.aggregation === 'average') {
-            values[rowKey][colKey] += value;
-            totals[rowKey] += value;
-            columnTotals[colKey] += value;
-          } else if (config.aggregation === 'count') {
-            values[rowKey][colKey] += 1;
-            totals[rowKey] += 1;
-            columnTotals[colKey] += 1;
-          } else if (config.aggregation === 'max') {
-            values[rowKey][colKey] = Math.max(values[rowKey][colKey] || 0, value);
-            totals[rowKey] = Math.max(totals[rowKey] || 0, value);
-            columnTotals[colKey] = Math.max(columnTotals[colKey] || 0, value);
-          } else if (config.aggregation === 'min') {
-            if (values[rowKey][colKey] === 0) {
-              values[rowKey][colKey] = value;
-            } else {
-              values[rowKey][colKey] = Math.min(values[rowKey][colKey], value);
-            }
-            
-            if (totals[rowKey] === 0) {
-              totals[rowKey] = value;
-            } else {
-              totals[rowKey] = Math.min(totals[rowKey], value);
-            }
-            
-            if (columnTotals[colKey] === 0) {
-              columnTotals[colKey] = value;
-            } else {
-              columnTotals[colKey] = Math.min(columnTotals[colKey], value);
-            }
+      // Skip if row or column value doesn't exist (shouldn't happen, but just in case)
+      if (!pivotTable[rowValue] || pivotTable[rowValue][colValue] === undefined) return;
+      
+      // Apply aggregation
+      switch (aggregationMethod) {
+        case 'sum':
+          pivotTable[rowValue][colValue] += value;
+          break;
+        case 'average': {
+          // For average, store count and total, we'll compute average later
+          if (!pivotTable[rowValue][`${colValue}_count`]) {
+            pivotTable[rowValue][`${colValue}_count`] = 0;
+            pivotTable[rowValue][`${colValue}_total`] = 0;
           }
+          
+          pivotTable[rowValue][`${colValue}_count`] += 1;
+          pivotTable[rowValue][`${colValue}_total`] += value;
+          
+          // Calculate the average
+          pivotTable[rowValue][colValue] = pivotTable[rowValue][`${colValue}_total`] / 
+                                            pivotTable[rowValue][`${colValue}_count`];
+          break;
         }
+        case 'count':
+          pivotTable[rowValue][colValue] += 1;
+          break;
+        case 'min':
+          if (pivotTable[rowValue][colValue] === 0 || value < pivotTable[rowValue][colValue]) {
+            pivotTable[rowValue][colValue] = value;
+          }
+          break;
+        case 'max':
+          if (value > pivotTable[rowValue][colValue]) {
+            pivotTable[rowValue][colValue] = value;
+          }
+          break;
       }
     });
     
-    // For average, divide by count
-    if (config.aggregation === 'average') {
-      const countMatrix: Record<string, Record<string, number>> = {};
-      const rowCounts: Record<string, number> = {};
-      const colCounts: Record<string, number> = {};
-      
-      // Initialize
-      uniqueRows.forEach(row => {
-        countMatrix[row] = {};
-        rowCounts[row] = 0;
-        
-        uniqueColumns.forEach(col => {
-          countMatrix[row][col] = 0;
-          if (!colCounts[col]) colCounts[col] = 0;
+    // Clean up temporary fields used for average calculation
+    if (aggregationMethod === 'average') {
+      rowValues.forEach(rowValue => {
+        columnValues.forEach(colValue => {
+          delete pivotTable[rowValue][`${colValue}_count`];
+          delete pivotTable[rowValue][`${colValue}_total`];
         });
-      });
-      
-      // Count
-      filteredData.forEach(item => {
-        const rowKey = String(item[config.rows[0]]);
-        const colKey = String(item[config.columns[0]]);
-        
-        if (uniqueRows.includes(rowKey) && uniqueColumns.includes(colKey)) {
-          countMatrix[rowKey][colKey] += 1;
-          rowCounts[rowKey] += 1;
-          colCounts[colKey] += 1;
-        }
-      });
-      
-      // Compute averages
-      uniqueRows.forEach(row => {
-        uniqueColumns.forEach(col => {
-          if (countMatrix[row][col] > 0) {
-            values[row][col] = values[row][col] / countMatrix[row][col];
-          }
-        });
-        
-        if (rowCounts[row] > 0) {
-          totals[row] = totals[row] / rowCounts[row];
-        }
-      });
-      
-      uniqueColumns.forEach(col => {
-        if (colCounts[col] > 0) {
-          columnTotals[col] = columnTotals[col] / colCounts[col];
-        }
       });
     }
     
-    let grandTotal = 0;
-    Object.values(totals).forEach(total => {
-      grandTotal += total;
+    // Calculate row and column totals
+    const totals: Record<string, number> = {};
+    
+    // Calculate row totals
+    rowValues.forEach(rowValue => {
+      totals[`row_${rowValue}`] = columnValues.reduce((sum, colValue) => {
+        return sum + (pivotTable[rowValue][colValue] || 0);
+      }, 0);
     });
+    
+    // Calculate column totals
+    columnValues.forEach(colValue => {
+      totals[`col_${colValue}`] = rowValues.reduce((sum, rowValue) => {
+        return sum + (pivotTable[rowValue][colValue] || 0);
+      }, 0);
+    });
+    
+    // Calculate grand total
+    totals.grand = rowValues.reduce((sum, rowValue) => {
+      return sum + (totals[`row_${rowValue}`] || 0);
+    }, 0);
     
     return {
-      rows: uniqueRows,
-      columns: uniqueColumns,
-      values,
-      rowTotals: totals,
-      columnTotals,
-      grandTotal
+      rowValues,
+      columnValues,
+      pivotTable,
+      totals
     };
-  }, [filteredData, config]);
-
-  // Format a cell value for display
+  }, [data, rowField, columnField, valueField, aggregationMethod]);
+  
+  // Format value for display
   const formatValue = (value: number) => {
-    if (config.values[0] === 'totalRevenue') {
-      return `₹${value.toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
+    if (valueField === 'totalRevenue') {
+      return `₹${value.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
     }
     
-    if (Number.isInteger(value)) {
-      return value.toString();
+    // For percentages or ratios, show 1 decimal
+    if (aggregationMethod === 'average') {
+      return value.toLocaleString('en-IN', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
     }
     
-    return value.toFixed(1);
+    // For counts and integers, no decimals
+    return value.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
   };
-
-  // Download the pivot table as CSV
-  const downloadCSV = () => {
-    if (pivotData.rows.length === 0) {
-      toast({
-        title: "No data to export",
-        description: "The pivot table is empty",
-        variant: "destructive",
-      });
-      return;
+  
+  // Get cell background color based on value
+  const getCellColor = (value: number, columnValue: string) => {
+    // Skip coloring for 0 values
+    if (value === 0) return '';
+    
+    // Get column maximum
+    const columnMax = pivotData.rowValues.reduce((max, rowValue) => {
+      const cellValue = pivotData.pivotTable[rowValue][columnValue];
+      return cellValue > max ? cellValue : max;
+    }, 0);
+    
+    // Skip coloring if max is 0
+    if (columnMax === 0) return '';
+    
+    // Calculate intensity based on ratio to max
+    const ratio = value / columnMax;
+    
+    // For revenue, use a green color scale
+    if (valueField === 'totalRevenue') {
+      return `bg-green-${Math.round(ratio * 500)}/20`;
     }
     
-    let csvContent = "data:text/csv;charset=utf-8,";
-    
-    // Header row
-    csvContent += "," + pivotData.columns.join(",") + ",Total\n";
-    
-    // Data rows
-    pivotData.rows.forEach(row => {
-      let rowContent = row;
-      
-      pivotData.columns.forEach(col => {
-        rowContent += "," + pivotData.values[row][col];
-      });
-      
-      rowContent += "," + pivotData.rowTotals[row];
-      csvContent += rowContent + "\n";
-    });
-    
-    // Column totals
-    let totalRow = "Total";
-    pivotData.columns.forEach(col => {
-      totalRow += "," + pivotData.columnTotals[col];
-    });
-    totalRow += "," + pivotData.grandTotal;
-    csvContent += totalRow;
-    
-    // Create download link
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", "pivot_table.csv");
-    document.body.appendChild(link);
-    
-    link.click();
-    document.body.removeChild(link);
-    
-    toast({
-      title: "Export successful",
-      description: "Pivot table data has been downloaded as CSV",
-    });
-  };
-
-  // Reset configuration to default
-  const resetConfig = () => {
-    setConfig({
-      rows: ['cleanedClass'],
-      columns: ['dayOfWeek'],
-      values: ['totalCheckins'],
-      aggregation: 'sum'
-    });
-    setFilterField('');
-    setFilterValue('');
-    
-    toast({
-      title: "Configuration reset",
-      description: "Pivot table configuration has been reset to default",
-    });
+    // Default blue color scale
+    return `bg-indigo-${Math.round(ratio * 500)}/20`;
   };
 
   return (
-    <div className="space-y-6">
-      <Card className="border shadow-sm">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-xl flex items-center justify-between">
-            <span>Pivot Table Configuration</span>
-            <div className="flex space-x-2">
-              <Button variant="outline" size="sm" onClick={resetConfig}>
-                <RotateCcw className="mr-2 h-4 w-4" />
-                Reset
-              </Button>
-              <Button size="sm" onClick={downloadCSV}>
-                <Download className="mr-2 h-4 w-4" />
-                Export CSV
-              </Button>
-            </div>
+    <div className="p-6 bg-gradient-to-br from-purple-50 to-indigo-50 dark:from-gray-900 dark:to-gray-800">
+      <Card className="mb-6 border-indigo-100 dark:border-indigo-900">
+        <CardHeader className="bg-gradient-to-r from-indigo-500 to-purple-600 dark:from-indigo-800 dark:to-purple-900 text-white pb-4">
+          <CardTitle className="flex items-center gap-2">
+            <Grid2X2 className="h-5 w-5" />
+            Pivot Table Analysis
           </CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div>
-              <label className="text-sm font-medium">Row Field</label>
+        <CardContent className="pt-6 pb-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="row-field">Row Field</Label>
               <Select 
-                value={config.rows[0]} 
-                onValueChange={(value: string) => setConfig({...config, rows: [value as PivotField]})}
+                value={rowField as string} 
+                onValueChange={(value) => setRowField(value as keyof ProcessedData)}
               >
-                <SelectTrigger>
+                <SelectTrigger id="row-field">
                   <SelectValue placeholder="Select row field" />
                 </SelectTrigger>
                 <SelectContent>
-                  {[...stringFields, ...numericFields].map(field => (
-                    <SelectItem key={field} value={field}>{field}</SelectItem>
+                  {displayFields.map(field => (
+                    <SelectItem key={field.key as string} value={field.key as string}>
+                      {field.label}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
             
-            <div>
-              <label className="text-sm font-medium">Column Field</label>
+            <div className="space-y-2">
+              <Label htmlFor="column-field">Column Field</Label>
               <Select 
-                value={config.columns[0]} 
-                onValueChange={(value: string) => setConfig({...config, columns: [value as PivotField]})}
+                value={columnField as string} 
+                onValueChange={(value) => setColumnField(value as keyof ProcessedData)}
               >
-                <SelectTrigger>
+                <SelectTrigger id="column-field">
                   <SelectValue placeholder="Select column field" />
                 </SelectTrigger>
                 <SelectContent>
-                  {[...stringFields, ...numericFields].map(field => (
-                    <SelectItem key={field} value={field}>{field}</SelectItem>
+                  {displayFields.map(field => (
+                    <SelectItem key={field.key as string} value={field.key as string}>
+                      {field.label}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
             
-            <div>
-              <label className="text-sm font-medium">Value Field</label>
+            <div className="space-y-2">
+              <Label htmlFor="value-field">Value Field</Label>
               <Select 
-                value={config.values[0]} 
-                onValueChange={(value: string) => setConfig({...config, values: [value as PivotField]})}
+                value={valueField as string} 
+                onValueChange={(value) => setValueField(value as keyof ProcessedData)}
               >
-                <SelectTrigger>
+                <SelectTrigger id="value-field">
                   <SelectValue placeholder="Select value field" />
                 </SelectTrigger>
                 <SelectContent>
                   {numericFields.map(field => (
-                    <SelectItem key={field} value={field}>{field}</SelectItem>
+                    <SelectItem key={field.key as string} value={field.key as string}>
+                      {field.label}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
             
-            <div>
-              <label className="text-sm font-medium">Aggregation</label>
+            <div className="space-y-2">
+              <Label htmlFor="aggregation">Aggregation Method</Label>
               <Select 
-                value={config.aggregation} 
-                onValueChange={(value: string) => setConfig({...config, aggregation: value as AggregationType})}
+                value={aggregationMethod} 
+                onValueChange={(value) => setAggregationMethod(value as AggregationMethod)}
               >
-                <SelectTrigger>
+                <SelectTrigger id="aggregation">
                   <SelectValue placeholder="Select aggregation" />
                 </SelectTrigger>
                 <SelectContent>
@@ -369,92 +297,80 @@ const PivotView: React.FC<PivotViewProps> = ({ data }) => {
                 </SelectContent>
               </Select>
             </div>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
-            <div className="md:col-span-2 flex items-center space-x-2">
-              <Filter className="h-4 w-4 text-muted-foreground" />
-              <span className="text-sm font-medium">Filter:</span>
-              
-              <Select 
-                value={filterField}
-                onValueChange={(value: string) => setFilterField(value as PivotField)}
-              >
-                <SelectTrigger className="w-[160px]">
-                  <SelectValue placeholder="Select field" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="">No filter</SelectItem>
-                  {[...stringFields, ...numericFields].map(field => (
-                    <SelectItem key={field} value={field}>{field}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              
-              <Input
-                placeholder="Filter value..."
-                value={filterValue}
-                onChange={(e) => setFilterValue(e.target.value)}
-                className="max-w-xs"
-                disabled={!filterField}
-              />
-            </div>
             
-            <div className="text-right text-sm text-muted-foreground">
-              <SlidersHorizontal className="h-4 w-4 inline-block mr-1" />
-              Showing {filteredData.length} of {data.length} records
+            <div className="flex items-end space-x-2">
+              <Button className="w-full">
+                <BarChart3 className="mr-2 h-4 w-4" />
+                Visualize
+              </Button>
+              <Button variant="outline">
+                <Download className="h-4 w-4" />
+              </Button>
             </div>
           </div>
         </CardContent>
       </Card>
       
-      <Card className="border shadow-sm">
-        <CardContent className="p-0 overflow-auto">
-          {pivotData.rows.length > 0 ? (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="font-bold">{String(config.rows[0])}</TableHead>
-                  {pivotData.columns.map(col => (
-                    <TableHead key={col} className="text-center">{col}</TableHead>
-                  ))}
-                  <TableHead className="text-center font-bold bg-muted/50">Total</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {pivotData.rows.map(row => (
-                  <TableRow key={row}>
-                    <TableCell className="font-medium">{row}</TableCell>
-                    {pivotData.columns.map(col => (
-                      <TableCell key={col} className="text-right">
-                        {formatValue(pivotData.values[row][col])}
-                      </TableCell>
-                    ))}
-                    <TableCell className="text-right font-semibold bg-muted/30">
-                      {formatValue(pivotData.rowTotals[row])}
+      <div className="overflow-auto rounded-lg border border-indigo-100 dark:border-indigo-900 bg-white dark:bg-gray-900">
+        <Table>
+          <TableHeader className="bg-indigo-50 dark:bg-indigo-900/30">
+            <TableRow>
+              <TableHead className="text-indigo-700 dark:text-indigo-300 font-bold">
+                {`${displayFields.find(f => f.key === rowField)?.label} / ${displayFields.find(f => f.key === columnField)?.label}`}
+              </TableHead>
+              {pivotData.columnValues.map(colValue => (
+                <TableHead 
+                  key={colValue} 
+                  className="text-indigo-700 dark:text-indigo-300 font-semibold px-3 py-2 text-right"
+                >
+                  {colValue}
+                </TableHead>
+              ))}
+              <TableHead className="text-indigo-700 dark:text-indigo-300 font-bold px-3 py-2 text-right">
+                Total
+              </TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {pivotData.rowValues.map(rowValue => (
+              <TableRow key={rowValue} className="hover:bg-indigo-50/50 dark:hover:bg-indigo-900/20">
+                <TableCell className="font-semibold bg-indigo-50/70 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-300">
+                  {rowValue}
+                </TableCell>
+                {pivotData.columnValues.map(colValue => {
+                  const value = pivotData.pivotTable[rowValue][colValue];
+                  const bgColor = getCellColor(value, colValue);
+                  
+                  return (
+                    <TableCell 
+                      key={colValue} 
+                      className={`text-right ${bgColor} ${value === 0 ? 'text-gray-400' : 'font-medium'}`}
+                    >
+                      {formatValue(value)}
                     </TableCell>
-                  </TableRow>
-                ))}
-                <TableRow className="bg-muted/50">
-                  <TableCell className="font-bold">Total</TableCell>
-                  {pivotData.columns.map(col => (
-                    <TableCell key={col} className="text-right font-semibold">
-                      {formatValue(pivotData.columnTotals[col])}
-                    </TableCell>
-                  ))}
-                  <TableCell className="text-right font-bold">
-                    {formatValue(pivotData.grandTotal)}
-                  </TableCell>
-                </TableRow>
-              </TableBody>
-            </Table>
-          ) : (
-            <div className="flex items-center justify-center h-40 text-muted-foreground">
-              No data available for the selected configuration
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                  );
+                })}
+                <TableCell className="text-right font-bold bg-indigo-50/30 dark:bg-indigo-900/10">
+                  {formatValue(pivotData.totals[`row_${rowValue}`] || 0)}
+                </TableCell>
+              </TableRow>
+            ))}
+            <TableRow className="bg-indigo-50 dark:bg-indigo-900/30 font-bold">
+              <TableCell className="text-indigo-700 dark:text-indigo-300">
+                Total
+              </TableCell>
+              {pivotData.columnValues.map(colValue => (
+                <TableCell key={colValue} className="text-right text-indigo-700 dark:text-indigo-300">
+                  {formatValue(pivotData.totals[`col_${colValue}`] || 0)}
+                </TableCell>
+              ))}
+              <TableCell className="text-right text-indigo-700 dark:text-indigo-300">
+                {formatValue(pivotData.totals.grand || 0)}
+              </TableCell>
+            </TableRow>
+          </TableBody>
+        </Table>
+      </div>
     </div>
   );
 };

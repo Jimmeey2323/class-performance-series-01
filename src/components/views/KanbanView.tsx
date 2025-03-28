@@ -33,12 +33,13 @@ const groupByOptions = [
   { value: 'cleanedClass', label: 'Class Type' },
   { value: 'location', label: 'Location' },
   { value: 'period', label: 'Period' },
-  { value: 'teacherName', label: 'Instructor' }
+  { value: 'teacherName', label: 'Instructor' },
+  { value: 'class', label: 'Class' }, // New option for grouping by class
 ];
 
 const KanbanView: React.FC<KanbanViewProps> = ({ data }) => {
   const [columns, setColumns] = useState<KanbanColumn[]>([]);
-  const [groupBy, setGroupBy] = useState<keyof ProcessedData>('dayOfWeek');
+  const [groupBy, setGroupBy] = useState<keyof ProcessedData | 'class'>('dayOfWeek');
   const [activeItem, setActiveItem] = useState<KanbanItem | null>(null);
   
   const sensors = useSensors(
@@ -57,7 +58,15 @@ const KanbanView: React.FC<KanbanViewProps> = ({ data }) => {
     const groups: Record<string, ProcessedData[]> = {};
     
     data.forEach(item => {
-      const key = String(item[groupBy]);
+      let key;
+      
+      // Special case for 'class' which combines cleanedClass and teacherName
+      if (groupBy === 'class') {
+        key = `${item.cleanedClass} - ${item.teacherName}`;
+      } else {
+        key = String(item[groupBy as keyof ProcessedData]);
+      }
+      
       if (!groups[key]) {
         groups[key] = [];
       }
@@ -74,6 +83,9 @@ const KanbanView: React.FC<KanbanViewProps> = ({ data }) => {
         data: item
       }))
     }));
+    
+    // Sort columns by title
+    newColumns.sort((a, b) => a.title.localeCompare(b.title));
     
     setColumns(newColumns);
   }, [data, groupBy]);
@@ -170,14 +182,14 @@ const KanbanView: React.FC<KanbanViewProps> = ({ data }) => {
   };
 
   return (
-    <div className="p-4 space-y-4">
+    <div className="p-4 space-y-4 bg-gradient-to-br from-purple-50 to-indigo-50 dark:from-gray-900 dark:to-gray-800">
       <div className="w-full md:w-1/3 space-y-1 mb-4">
-        <Label htmlFor="groupBy">Group Classes By</Label>
+        <Label htmlFor="groupBy" className="text-lg font-medium text-indigo-700 dark:text-indigo-300">Group Classes By</Label>
         <Select 
           value={groupBy as string} 
-          onValueChange={(value) => setGroupBy(value as keyof ProcessedData)}
+          onValueChange={(value) => setGroupBy(value as keyof ProcessedData | 'class')}
         >
-          <SelectTrigger id="groupBy">
+          <SelectTrigger id="groupBy" className="bg-white dark:bg-gray-800 border-indigo-200 dark:border-indigo-800">
             <SelectValue placeholder="Select grouping criterion" />
           </SelectTrigger>
           <SelectContent>

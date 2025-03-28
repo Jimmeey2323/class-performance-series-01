@@ -85,15 +85,19 @@ const DataFilters: React.FC<DataFiltersProps> = ({
   const addFilter = () => {
     if (!newFilterField || !newFilterOperator) return;
     
-    // For period field with multiple selections
+    // For period field with multiple selections, using OR logic now
     if (newFilterField === 'period' && selectedPeriods.length > 0) {
-      const periodFilters = selectedPeriods.map(period => ({
-        field: 'period' as keyof ProcessedData,
-        operator: 'equals',
-        value: period
-      }));
+      // First remove any existing period filters
+      const nonPeriodFilters = filters.filter(f => f.field !== 'period');
       
-      const updatedFilters = [...filters.filter(f => f.field !== 'period'), ...periodFilters];
+      // Then add a special "period_or" filter with all selected periods
+      const periodFilter: FilterOption = {
+        field: 'period',
+        operator: 'in',
+        value: selectedPeriods.join(',') // Store selected periods as comma-separated string
+      };
+      
+      const updatedFilters = [...nonPeriodFilters, periodFilter];
       setFilters(updatedFilters);
       onFilterChange(updatedFilters);
     } 

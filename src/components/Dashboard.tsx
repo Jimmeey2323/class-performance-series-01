@@ -24,12 +24,22 @@ import {
   Kanban, 
   Clock, 
   PieChart,
-  Search 
+  Search,
+  FileText,
+  FileCsv,
+  FileJson 
 } from 'lucide-react';
 import ProgressBar from '@/components/ProgressBar';
 import { Card, CardContent } from '@/components/ui/card';
 import { ViewSwitcher } from '@/components/ViewSwitcher';
 import CountUp from 'react-countup';
+import { 
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 interface DashboardProps {
   data: ProcessedData[];
@@ -53,14 +63,29 @@ const Dashboard: React.FC<DashboardProps> = ({
   const [sortOptions, setSortOptions] = useState<SortOption[]>([]);
   const [activeTab, setActiveTab] = useState('data');
   const [searchQuery, setSearchQuery] = useState('');
+  const [searchExpanded, setSearchExpanded] = useState(false);
 
-  // Apply filters and sorting to data
+  // Apply filters and sorting to data, excluding future dates
   useEffect(() => {
     if (!data.length) return;
 
-    let result = [...data];
+    // First, filter out future classes
+    const today = new Date();
+    let result = data.filter(item => {
+      // Check if the class date is in the past or today
+      if (item.period) {
+        const [month, year] = item.period.split('-');
+        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        const monthIndex = months.indexOf(month);
+        const fullYear = 2000 + parseInt(year); // Assuming years are in format '22' for 2022
+        
+        const periodDate = new Date(fullYear, monthIndex);
+        return periodDate <= today; // Only include past or current periods
+      }
+      return true; // Include items without period data
+    });
     
-    // Apply search query first
+    // Apply search query
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
       result = result.filter(item => 
@@ -74,6 +99,12 @@ const Dashboard: React.FC<DashboardProps> = ({
     if (filters.length > 0) {
       result = result.filter(item => {
         return filters.every(filter => {
+          // Special case for period with OR logic
+          if (filter.field === 'period' && filter.operator === 'in') {
+            const selectedPeriods = filter.value.split(',');
+            return selectedPeriods.some(period => item.period === period);
+          }
+          
           const fieldValue = String(item[filter.field]);
           
           switch (filter.operator) {
@@ -133,8 +164,22 @@ const Dashboard: React.FC<DashboardProps> = ({
     setSortOptions(newSortOptions);
   };
 
-  const handleExport = () => {
-    exportToCSV(filteredData);
+  const handleExport = (format: 'csv' | 'json' | 'excel' = 'csv') => {
+    if (format === 'csv') {
+      exportToCSV(filteredData);
+    } else if (format === 'json') {
+      // Export as JSON
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(filteredData, null, 2));
+      const downloadAnchorNode = document.createElement('a');
+      downloadAnchorNode.setAttribute("href", dataStr);
+      downloadAnchorNode.setAttribute("download", "class_data.json");
+      document.body.appendChild(downloadAnchorNode);
+      downloadAnchorNode.click();
+      downloadAnchorNode.remove();
+    } else if (format === 'excel') {
+      // CSV format that Excel can open
+      exportToCSV(filteredData, 'excel');
+    }
   };
 
   const handleSearchChange = (query: string) => {
@@ -173,10 +218,28 @@ const Dashboard: React.FC<DashboardProps> = ({
             <RefreshCw className="mr-2 h-4 w-4" />
             Upload New
           </Button>
-          <Button variant="default" size="sm" onClick={handleExport}>
-            <Download className="mr-2 h-4 w-4" />
-            Export Data
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="default" size="sm">
+                <Download className="mr-2 h-4 w-4" />
+                Export Data
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => handleExport('csv')}>
+                <FileCsv className="mr-2 h-4 w-4" />
+                Export as CSV
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleExport('excel')}>
+                <FileText className="mr-2 h-4 w-4" />
+                Export for Excel
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleExport('json')}>
+                <FileJson className="mr-2 h-4 w-4" />
+                Export as JSON
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 
@@ -190,7 +253,26 @@ const Dashboard: React.FC<DashboardProps> = ({
         </Card>
         <Card>
           <CardContent className="p-6">
-            <SearchBar onSearch={handleSearchChange} data={data} />
+            <Collapsible 
+              open={searchExpanded} 
+              onOpenChange={setSearchExpanded}
+              className="w-full"
+            >
+              <CollapsibleTrigger asChild>
+                <Button variant="outline" className="flex w-full justify-between mb-2">
+                  <span className="flex items-center">
+                    <Search className="mr-2 h-4 w-4" />
+                    Advanced Search
+                  </span>
+                  <span className="text-muted-foreground text-xs">
+                    {searchExpanded ? "Hide" : "Show"}
+                  </span>
+                </Button>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <SearchBar onSearch={handleSearchChange} data={data} />
+              </CollapsibleContent>
+            </Collapsible>
           </CardContent>
         </Card>
       </div>

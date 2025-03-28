@@ -18,13 +18,49 @@ import {
   PaginationPrevious,
 } from '@/components/ui/pagination';
 import { Input } from '@/components/ui/input';
-import { Search, ChevronDown, ChevronRight, ArrowUp, ArrowDown } from 'lucide-react';
+import { 
+  Search, 
+  ChevronDown, 
+  ChevronRight, 
+  ArrowUp, 
+  ArrowDown,
+  Settings,
+  Eye,
+  EyeOff,
+  Layers,
+  Type,
+  Palette
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { 
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogFooter
+} from "@/components/ui/dialog";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Slider } from "@/components/ui/slider";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 
 interface DataTableProps {
   data: ProcessedData[];
 }
+
+type TableView = 'comfortable' | 'compact';
+type TableTheme = 'default' | 'striped' | 'bordered' | 'elegant';
 
 const DataTable: React.FC<DataTableProps> = ({ data }) => {
   const [pageIndex, setPageIndex] = useState(0);
@@ -33,6 +69,35 @@ const DataTable: React.FC<DataTableProps> = ({ data }) => {
   const [expandedRows, setExpandedRows] = useState<Record<string, boolean>>({});
   const [sortField, setSortField] = useState<keyof ProcessedData | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  const [visibleColumns, setVisibleColumns] = useState<Array<keyof ProcessedData>>([
+    'cleanedClass', 'dayOfWeek', 'classTime', 'location', 'teacherName', 'period',
+    'totalOccurrences', 'totalCheckins', 'classAverageIncludingEmpty', 'totalRevenue'
+  ]);
+  const [rowHeight, setRowHeight] = useState(50); // Default row height
+  const [fontSize, setFontSize] = useState(14); // Default font size
+  const [tableView, setTableView] = useState<TableView>('comfortable');
+  const [showIcons, setShowIcons] = useState(true);
+  const [tableTheme, setTableTheme] = useState<TableTheme>('default');
+
+  // All possible columns
+  const allColumns: Array<{ key: keyof ProcessedData; label: string }> = [
+    { key: 'cleanedClass', label: 'Class' },
+    { key: 'dayOfWeek', label: 'Day' },
+    { key: 'classTime', label: 'Time' },
+    { key: 'location', label: 'Location' },
+    { key: 'teacherName', label: 'Instructor' },
+    { key: 'period', label: 'Period' },
+    { key: 'totalOccurrences', label: 'Occurrences' },
+    { key: 'totalCancelled', label: 'Cancelled' },
+    { key: 'totalCheckins', label: 'Check-ins' },
+    { key: 'totalEmpty', label: 'Empty Classes' },
+    { key: 'totalNonEmpty', label: 'Non-Empty' },
+    { key: 'classAverageIncludingEmpty', label: 'Avg. (All)' },
+    { key: 'classAverageExcludingEmpty', label: 'Avg. (Non-Empty)' },
+    { key: 'totalRevenue', label: 'Revenue (₹)' },
+    { key: 'totalTime', label: 'Hours' },
+    { key: 'totalNonPaid', label: 'Non-Paid' },
+  ];
 
   // Filter data based on search query
   const filteredData = data.filter(item => {
@@ -69,25 +134,14 @@ const DataTable: React.FC<DataTableProps> = ({ data }) => {
   const startIndex = pageIndex * pageSize;
   const paginatedData = sortedData.slice(startIndex, startIndex + pageSize);
 
-  // Column definitions - updated as requested
-  const columns: Array<{ key: keyof ProcessedData; label: string }> = [
-    { key: 'cleanedClass', label: 'Class' },
-    { key: 'dayOfWeek', label: 'Day' },
-    { key: 'classTime', label: 'Time' },
-    { key: 'location', label: 'Location' },
-    { key: 'teacherName', label: 'Instructor' },
-    { key: 'period', label: 'Period' },
-    { key: 'totalOccurrences', label: 'Occurrences' },
-    { key: 'totalCancelled', label: 'Cancelled' },
-    { key: 'totalCheckins', label: 'Check-ins' },
-    { key: 'totalEmpty', label: 'Empty Classes' },
-    { key: 'totalNonEmpty', label: 'Non-Empty' },
-    { key: 'classAverageIncludingEmpty', label: 'Avg. (All)' },
-    { key: 'classAverageExcludingEmpty', label: 'Avg. (Non-Empty)' },
-    { key: 'totalRevenue', label: 'Revenue (₹)' },
-    { key: 'totalTime', label: 'Hours' },
-    { key: 'totalNonPaid', label: 'Non-Paid' },
-  ];
+  // Toggle column visibility
+  const toggleColumnVisibility = (key: keyof ProcessedData) => {
+    if (visibleColumns.includes(key)) {
+      setVisibleColumns(visibleColumns.filter(col => col !== key));
+    } else {
+      setVisibleColumns([...visibleColumns, key]);
+    }
+  };
 
   const toggleRowExpand = (rowId: string) => {
     setExpandedRows(prev => ({
@@ -121,45 +175,260 @@ const DataTable: React.FC<DataTableProps> = ({ data }) => {
     if (key === 'totalRevenue') {
       return formatCurrency(String(row[key]));
     }
+    
+    if (key === 'teacherName' && showIcons) {
+      // Get initials for the avatar
+      const initials = row.teacherName
+        .split(' ')
+        .map(part => part.charAt(0))
+        .join('')
+        .toUpperCase()
+        .slice(0, 2);
+      
+      // Generate a color for the avatar
+      const hash = row.teacherName.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+      const colors = [
+        'bg-blue-500', 'bg-indigo-500', 'bg-purple-500', 'bg-pink-500', 
+        'bg-red-500', 'bg-orange-500', 'bg-amber-500', 'bg-yellow-500',
+        'bg-lime-500', 'bg-green-500', 'bg-emerald-500', 'bg-teal-500', 
+        'bg-cyan-500', 'bg-sky-500'
+      ];
+      const avatarColor = colors[hash % colors.length];
+      
+      return (
+        <div className="flex items-center gap-2">
+          <Avatar className="h-6 w-6">
+            <AvatarFallback className={`text-xs text-white ${avatarColor}`}>
+              {initials}
+            </AvatarFallback>
+          </Avatar>
+          <span>{row[key]}</span>
+        </div>
+      );
+    }
+    
     return String(row[key]);
+  };
+  
+  // Get the table CSS classes based on theme
+  const getTableClasses = () => {
+    let baseClasses = "w-full";
+    
+    if (tableTheme === 'striped') {
+      baseClasses += " [&_tr:nth-child(odd)]:bg-slate-50 dark:[&_tr:nth-child(odd)]:bg-slate-900/20";
+    } else if (tableTheme === 'bordered') {
+      baseClasses += " [&_td]:border [&_th]:border [&_td]:border-slate-200 [&_th]:border-slate-200 dark:[&_td]:border-slate-700 dark:[&_th]:border-slate-700";
+    } else if (tableTheme === 'elegant') {
+      baseClasses += " [&_thead]:bg-indigo-50 [&_thead_th]:text-indigo-700 dark:[&_thead]:bg-indigo-900/30 dark:[&_thead_th]:text-indigo-300";
+    }
+    
+    return baseClasses;
+  };
+  
+  // Row height style based on the view mode and custom setting
+  const getRowStyle = () => {
+    const height = tableView === 'compact' ? Math.max(30, rowHeight - 10) : rowHeight;
+    return {
+      height: `${height}px`,
+      fontSize: `${fontSize}px`
+    };
   };
 
   return (
     <div className="space-y-4">
-      <div className="relative w-full">
-        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input
-          placeholder="Search data across all columns..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="pl-10 w-full"
-        />
+      <div className="flex justify-between items-center p-4 border-b">
+        <div className="relative w-full max-w-sm">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search data across all columns..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-10 w-full"
+          />
+        </div>
+        
+        <Dialog>
+          <DialogTrigger asChild>
+            <Button variant="outline" size="sm" className="flex items-center gap-1">
+              <Settings className="h-4 w-4" />
+              Customize Table
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Table Customization</DialogTitle>
+            </DialogHeader>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-4">
+              <div className="space-y-4">
+                <h4 className="font-medium flex items-center gap-2 text-indigo-700 dark:text-indigo-300">
+                  <Eye className="h-4 w-4" />
+                  Column Visibility
+                </h4>
+                <div className="grid grid-cols-2 gap-2 max-h-60 overflow-y-auto p-2 border rounded-md">
+                  {allColumns.map(column => (
+                    <div key={column.key as string} className="flex items-center space-x-2">
+                      <Checkbox 
+                        id={`column-${column.key}`} 
+                        checked={visibleColumns.includes(column.key)}
+                        onCheckedChange={() => toggleColumnVisibility(column.key)}
+                      />
+                      <label
+                        htmlFor={`column-${column.key}`}
+                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                      >
+                        {column.label}
+                      </label>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              
+              <div className="space-y-4">
+                <div className="space-y-3">
+                  <h4 className="font-medium flex items-center gap-2 text-indigo-700 dark:text-indigo-300">
+                    <Layers className="h-4 w-4" />
+                    Row Height
+                  </h4>
+                  <div className="px-1">
+                    <Slider 
+                      defaultValue={[rowHeight]} 
+                      min={30} 
+                      max={80} 
+                      step={5}
+                      onValueChange={(value) => setRowHeight(value[0])}
+                    />
+                    <div className="flex justify-between text-xs text-muted-foreground mt-1">
+                      <span>Compact</span>
+                      <span>Comfortable</span>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="space-y-3 mt-6">
+                  <h4 className="font-medium flex items-center gap-2 text-indigo-700 dark:text-indigo-300">
+                    <Type className="h-4 w-4" />
+                    Font Size
+                  </h4>
+                  <div className="px-1">
+                    <Slider 
+                      defaultValue={[fontSize]} 
+                      min={10} 
+                      max={18} 
+                      step={1}
+                      onValueChange={(value) => setFontSize(value[0])}
+                    />
+                    <div className="flex justify-between text-xs text-muted-foreground mt-1">
+                      <span>Small</span>
+                      <span>Large</span>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="space-y-3 mt-6">
+                  <h4 className="font-medium flex items-center gap-2 text-indigo-700 dark:text-indigo-300">
+                    <Palette className="h-4 w-4" />
+                    Display Options
+                  </h4>
+                  
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label>Table View</Label>
+                      <RadioGroup 
+                        defaultValue={tableView}
+                        onValueChange={(value) => setTableView(value as TableView)}
+                        className="flex gap-4"
+                      >
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="comfortable" id="comfortable" />
+                          <Label htmlFor="comfortable">Comfortable</Label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="compact" id="compact" />
+                          <Label htmlFor="compact">Compact</Label>
+                        </div>
+                      </RadioGroup>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label>Table Theme</Label>
+                      <RadioGroup 
+                        defaultValue={tableTheme}
+                        onValueChange={(value) => setTableTheme(value as TableTheme)}
+                        className="grid grid-cols-2 gap-2"
+                      >
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="default" id="default" />
+                          <Label htmlFor="default">Default</Label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="striped" id="striped" />
+                          <Label htmlFor="striped">Striped</Label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="bordered" id="bordered" />
+                          <Label htmlFor="bordered">Bordered</Label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="elegant" id="elegant" />
+                          <Label htmlFor="elegant">Elegant</Label>
+                        </div>
+                      </RadioGroup>
+                    </div>
+                    
+                    <div className="flex items-center space-x-2">
+                      <Checkbox 
+                        id="show-icons" 
+                        checked={showIcons}
+                        onCheckedChange={(checked) => setShowIcons(checked as boolean)}
+                      />
+                      <Label htmlFor="show-icons">Show Icons & Avatars</Label>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <DialogFooter>
+              <Button type="button" variant="default">Apply Changes</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
       
       <div className="border rounded-lg overflow-hidden bg-white dark:bg-gray-950">
         <div className="overflow-x-auto">
-          <Table>
-            <TableHeader className="bg-slate-100 dark:bg-slate-800 sticky top-0">
+          <Table className={getTableClasses()}>
+            <TableHeader className={cn(
+              "bg-slate-100 dark:bg-slate-800 sticky top-0",
+              tableTheme === 'elegant' && "bg-indigo-50 dark:bg-indigo-900/30"
+            )}>
               <TableRow>
                 <TableHead className="w-14 p-2"></TableHead> {/* Expand button column */}
-                {columns.map((column) => (
-                  <TableHead 
-                    key={column.key} 
-                    className="font-semibold text-xs uppercase whitespace-nowrap px-6 py-4 cursor-pointer min-w-[120px]"
-                    onClick={() => handleSort(column.key)}
-                  >
-                    <div className="flex items-center gap-1">
-                      {column.label}
-                      {sortField === column.key ? (
-                        sortDirection === 'asc' ? (
-                          <ArrowUp className="h-3 w-3" />
-                        ) : (
-                          <ArrowDown className="h-3 w-3" />
-                        )
-                      ) : null}
-                    </div>
-                  </TableHead>
-                ))}
+                {visibleColumns.map((key) => {
+                  const column = allColumns.find(col => col.key === key);
+                  return column ? (
+                    <TableHead 
+                      key={column.key as string} 
+                      className={cn(
+                        "font-semibold text-xs uppercase whitespace-nowrap px-6 py-4 cursor-pointer min-w-[120px]",
+                        tableTheme === 'elegant' && "text-indigo-700 dark:text-indigo-300"
+                      )}
+                      onClick={() => handleSort(column.key)}
+                    >
+                      <div className="flex items-center gap-1">
+                        {column.label}
+                        {sortField === column.key ? (
+                          sortDirection === 'asc' ? (
+                            <ArrowUp className="h-3 w-3" />
+                          ) : (
+                            <ArrowDown className="h-3 w-3" />
+                          )
+                        ) : null}
+                      </div>
+                    </TableHead>
+                  ) : null;
+                })}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -169,8 +438,10 @@ const DataTable: React.FC<DataTableProps> = ({ data }) => {
                     <TableRow 
                       className={cn(
                         "hover:bg-gray-50 dark:hover:bg-gray-900/50 transition-colors",
-                        expandedRows[row.uniqueID] && "bg-slate-50 dark:bg-slate-900/75"
+                        expandedRows[row.uniqueID] && "bg-slate-50 dark:bg-slate-900/75",
+                        tableTheme === 'striped' && rowIndex % 2 === 0 && "bg-slate-50/50 dark:bg-slate-900/20"
                       )}
+                      style={getRowStyle()}
                     >
                       <TableCell className="w-14 p-2">
                         <Button 
@@ -185,12 +456,12 @@ const DataTable: React.FC<DataTableProps> = ({ data }) => {
                           }
                         </Button>
                       </TableCell>
-                      {columns.map((column) => (
+                      {visibleColumns.map((key) => (
                         <TableCell 
-                          key={`${rowIndex}-${column.key}`} 
+                          key={`${rowIndex}-${key}`} 
                           className="py-3 px-6 whitespace-nowrap"
                         >
-                          {renderCellValue(row, column.key)}
+                          {renderCellValue(row, key)}
                         </TableCell>
                       ))}
                     </TableRow>
@@ -198,7 +469,7 @@ const DataTable: React.FC<DataTableProps> = ({ data }) => {
                     {/* Expanded row details */}
                     {expandedRows[row.uniqueID] && (
                       <TableRow className="bg-slate-50 dark:bg-slate-900/30">
-                        <TableCell colSpan={columns.length + 1} className="p-6">
+                        <TableCell colSpan={visibleColumns.length + 1} className="p-6">
                           <div className="space-y-6">
                             <h4 className="text-lg font-medium border-b pb-2">Class Details</h4>
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
@@ -216,7 +487,16 @@ const DataTable: React.FC<DataTableProps> = ({ data }) => {
                               </div>
                               <div className="space-y-1">
                                 <p className="text-sm font-medium text-gray-500">Instructor</p>
-                                <p className="text-base font-semibold">{row.teacherName}</p>
+                                <p className="text-base font-semibold flex items-center gap-2">
+                                  {showIcons && (
+                                    <Avatar className="h-6 w-6">
+                                      <AvatarFallback className="text-xs text-white bg-indigo-500">
+                                        {row.teacherName.split(' ').map(n => n[0]).join('')}
+                                      </AvatarFallback>
+                                    </Avatar>
+                                  )}
+                                  {row.teacherName}
+                                </p>
                               </div>
                             </div>
                             
@@ -263,7 +543,7 @@ const DataTable: React.FC<DataTableProps> = ({ data }) => {
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={columns.length + 1} className="h-48 text-center">
+                  <TableCell colSpan={visibleColumns.length + 1} className="h-48 text-center">
                     No data available
                   </TableCell>
                 </TableRow>
