@@ -50,3 +50,48 @@ export interface MetricData {
   icon?: React.ReactNode;
   color?: string;
 }
+
+export type ViewMode = 'table' | 'grid' | 'kanban' | 'timeline' | 'pivot';
+
+export interface ChartConfig {
+  type: 'bar' | 'line' | 'pie' | 'donut' | 'scatter';
+  dataKey: keyof ProcessedData;
+  labelKey?: keyof ProcessedData;
+  title: string;
+  showLegend?: boolean;
+}
+
+export interface TopBottomClassData {
+  cleanedClass: string;
+  averageAttendance: number;
+  totalOccurrences: number;
+  isTopPerformer: boolean;
+}
+
+export interface KanbanItem {
+  id: string;
+  title: string;
+  data: ProcessedData;
+}
+
+export interface KanbanColumn {
+  id: string;
+  title: string;
+  items: KanbanItem[];
+}
+
+export interface TimelineEvent {
+  id: string;
+  title: string;
+  date: string;
+  content: string;
+  data: ProcessedData;
+}
+
+// Only for the interface, we'll use simple column/row/value structure for the actual data
+export interface PivotData {
+  rowField: keyof ProcessedData;
+  columnField: keyof ProcessedData;
+  valueField: keyof ProcessedData;
+  aggregation: 'sum' | 'average' | 'count' | 'min' | 'max';
+}

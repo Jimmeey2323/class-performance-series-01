@@ -19,15 +19,33 @@ import {
 } from '@/components/ui/accordion';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Filter, SortAsc, SortDesc, X, Plus, Save, RotateCcw } from 'lucide-react';
+import { 
+  Filter, 
+  SortAsc, 
+  SortDesc, 
+  X, 
+  Plus, 
+  Save, 
+  RotateCcw,
+  FileDown,
+  FileUp,
+  Settings,
+  Star
+} from 'lucide-react';
 
 interface DataFiltersProps {
   onFilterChange: (filters: FilterOption[]) => void;
   onSortChange: (sortOptions: SortOption[]) => void;
   data: ProcessedData[];
+  activeFilters: number;
 }
 
-const DataFilters: React.FC<DataFiltersProps> = ({ onFilterChange, onSortChange, data }) => {
+const DataFilters: React.FC<DataFiltersProps> = ({ 
+  onFilterChange, 
+  onSortChange, 
+  data, 
+  activeFilters 
+}) => {
   const [filters, setFilters] = useState<FilterOption[]>([]);
   const [sortOptions, setSortOptions] = useState<SortOption[]>([]);
   const [newFilterField, setNewFilterField] = useState<keyof ProcessedData>('cleanedClass');
@@ -35,6 +53,9 @@ const DataFilters: React.FC<DataFiltersProps> = ({ onFilterChange, onSortChange,
   const [newFilterValue, setNewFilterValue] = useState('');
   const [newSortField, setNewSortField] = useState<keyof ProcessedData>('cleanedClass');
   const [newSortDirection, setNewSortDirection] = useState<'asc' | 'desc'>('asc');
+  const [savedFilters, setSavedFilters] = useState<{name: string, filters: FilterOption[]}[]>([]);
+  const [newFilterSetName, setNewFilterSetName] = useState('');
+  const [expanded, setExpanded] = useState<string[]>(activeFilters > 0 ? ['filters'] : []);
 
   const fields: Array<{ key: keyof ProcessedData; label: string }> = [
     { key: 'cleanedClass', label: 'Class Type' },
@@ -46,6 +67,8 @@ const DataFilters: React.FC<DataFiltersProps> = ({ onFilterChange, onSortChange,
     { key: 'totalOccurrences', label: 'Total Occurrences' },
     { key: 'totalCheckins', label: 'Total Check-ins' },
     { key: 'totalRevenue', label: 'Total Revenue' },
+    { key: 'classAverageIncludingEmpty', label: 'Average Attendance (All)' },
+    { key: 'classAverageExcludingEmpty', label: 'Average Attendance (Non-Empty)' },
   ];
 
   const operators = [
@@ -70,6 +93,11 @@ const DataFilters: React.FC<DataFiltersProps> = ({ onFilterChange, onSortChange,
     setFilters(updatedFilters);
     onFilterChange(updatedFilters);
     setNewFilterValue('');
+    
+    // Make sure the filters section is expanded
+    if (!expanded.includes('filters')) {
+      setExpanded([...expanded, 'filters']);
+    }
   };
 
   const removeFilter = (index: number) => {
@@ -87,6 +115,11 @@ const DataFilters: React.FC<DataFiltersProps> = ({ onFilterChange, onSortChange,
     const updatedSortOptions = [...sortOptions, newSort];
     setSortOptions(updatedSortOptions);
     onSortChange(updatedSortOptions);
+    
+    // Make sure the sort section is expanded
+    if (!expanded.includes('sort')) {
+      setExpanded([...expanded, 'sort']);
+    }
   };
 
   const removeSortOption = (index: number) => {
@@ -102,6 +135,26 @@ const DataFilters: React.FC<DataFiltersProps> = ({ onFilterChange, onSortChange,
     onSortChange([]);
   };
 
+  const saveCurrentFilters = () => {
+    if (!newFilterSetName || filters.length === 0) return;
+    
+    const newSavedFilters = [
+      ...savedFilters,
+      { name: newFilterSetName, filters: [...filters] }
+    ];
+    
+    setSavedFilters(newSavedFilters);
+    setNewFilterSetName('');
+    
+    // Save to localStorage
+    localStorage.setItem('savedFilters', JSON.stringify(newSavedFilters));
+  };
+
+  const loadSavedFilter = (savedFilter: {name: string, filters: FilterOption[]}) => {
+    setFilters(savedFilter.filters);
+    onFilterChange(savedFilter.filters);
+  };
+
   // Function to get unique values for a field
   const getUniqueValues = (field: keyof ProcessedData): string[] => {
     const values = data.map(item => String(item[field]));
@@ -109,39 +162,44 @@ const DataFilters: React.FC<DataFiltersProps> = ({ onFilterChange, onSortChange,
   };
 
   return (
-    <Card className="bg-white dark:bg-gray-950">
+    <Card className="bg-white dark:bg-gray-950 shadow-sm">
       <CardContent className="pt-6">
-        <Accordion type="multiple" className="w-full" defaultValue={["filters", "sort"]}>
-          <AccordionItem value="filters">
-            <AccordionTrigger className="text-lg font-medium">
+        <Accordion 
+          type="multiple" 
+          className="w-full" 
+          value={expanded}
+          onValueChange={setExpanded}
+        >
+          <AccordionItem value="filters" className="border px-4 py-2 rounded-lg mb-4 border-primary/20 shadow-sm">
+            <AccordionTrigger className="text-lg font-medium hover:no-underline">
               <div className="flex items-center">
-                <Filter className="mr-2 h-5 w-5" />
-                Filters
+                <Filter className="mr-2 h-5 w-5 text-primary" />
+                Advanced Filters
                 {filters.length > 0 && (
-                  <Badge variant="secondary" className="ml-2">
+                  <Badge variant="default" className="ml-2 bg-primary">
                     {filters.length}
                   </Badge>
                 )}
               </div>
             </AccordionTrigger>
-            <AccordionContent>
+            <AccordionContent className="pt-4">
               <div className="space-y-4">
                 {/* Current filters */}
                 {filters.length > 0 && (
-                  <div className="flex flex-wrap gap-2 mb-4">
+                  <div className="flex flex-wrap gap-2 mb-4 p-3 bg-slate-50 dark:bg-slate-900 rounded-lg">
                     {filters.map((filter, index) => {
                       const fieldLabel = fields.find(f => f.key === filter.field)?.label || filter.field;
                       const operatorLabel = operators.find(o => o.value === filter.operator)?.label || filter.operator;
                       
                       return (
-                        <Badge key={index} variant="outline" className="p-2 flex items-center gap-2">
-                          <span>{fieldLabel}</span>
-                          <span className="text-muted-foreground">{operatorLabel}</span>
-                          <span className="font-semibold">{filter.value}</span>
+                        <Badge key={index} variant="outline" className="p-2 flex items-center gap-2 bg-white dark:bg-slate-800 border-primary/30">
+                          <span className="text-sm font-medium">{fieldLabel}</span>
+                          <span className="text-xs text-muted-foreground">{operatorLabel}</span>
+                          <span className="font-semibold text-primary">{filter.value}</span>
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-4 w-4 p-0 text-muted-foreground hover:text-foreground"
+                            className="h-4 w-4 p-0 text-muted-foreground hover:text-foreground hover:bg-transparent"
                             onClick={() => removeFilter(index)}
                           >
                             <X className="h-3 w-3" />
@@ -149,18 +207,59 @@ const DataFilters: React.FC<DataFiltersProps> = ({ onFilterChange, onSortChange,
                         </Badge>
                       );
                     })}
+                    
+                    <div className="flex-1 min-w-[200px] flex justify-end items-center gap-2">
+                      <Input
+                        placeholder="Save as..."
+                        value={newFilterSetName}
+                        onChange={(e) => setNewFilterSetName(e.target.value)}
+                        className="max-w-[150px] h-8"
+                      />
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={saveCurrentFilters}
+                        className="h-8"
+                        disabled={!newFilterSetName || filters.length === 0}
+                      >
+                        <Save className="mr-1 h-3 w-3" />
+                        Save
+                      </Button>
+                    </div>
+                  </div>
+                )}
+                
+                {/* Saved filters */}
+                {savedFilters.length > 0 && (
+                  <div className="mb-4">
+                    <h4 className="text-sm font-medium mb-2 flex items-center">
+                      <Star className="mr-1 h-3 w-3 text-amber-500" />
+                      Saved Filters
+                    </h4>
+                    <div className="flex flex-wrap gap-2">
+                      {savedFilters.map((savedFilter, index) => (
+                        <Badge 
+                          key={index} 
+                          variant="secondary" 
+                          className="cursor-pointer hover:bg-secondary/80 transition-colors"
+                          onClick={() => loadSavedFilter(savedFilter)}
+                        >
+                          {savedFilter.name} ({savedFilter.filters.length})
+                        </Badge>
+                      ))}
+                    </div>
                   </div>
                 )}
                 
                 {/* Add new filter */}
                 <div className="grid grid-cols-1 sm:grid-cols-5 gap-3 items-end">
                   <div>
-                    <Label htmlFor="filter-field">Field</Label>
+                    <Label htmlFor="filter-field" className="text-sm mb-1">Field</Label>
                     <Select 
                       value={newFilterField as string} 
                       onValueChange={(value) => setNewFilterField(value as keyof ProcessedData)}
                     >
-                      <SelectTrigger id="filter-field">
+                      <SelectTrigger id="filter-field" className="h-9">
                         <SelectValue placeholder="Select field" />
                       </SelectTrigger>
                       <SelectContent>
@@ -174,9 +273,9 @@ const DataFilters: React.FC<DataFiltersProps> = ({ onFilterChange, onSortChange,
                   </div>
                   
                   <div>
-                    <Label htmlFor="filter-operator">Operator</Label>
+                    <Label htmlFor="filter-operator" className="text-sm mb-1">Operator</Label>
                     <Select value={newFilterOperator} onValueChange={setNewFilterOperator}>
-                      <SelectTrigger id="filter-operator">
+                      <SelectTrigger id="filter-operator" className="h-9">
                         <SelectValue placeholder="Select operator" />
                       </SelectTrigger>
                       <SelectContent>
@@ -190,12 +289,12 @@ const DataFilters: React.FC<DataFiltersProps> = ({ onFilterChange, onSortChange,
                   </div>
                   
                   <div className="sm:col-span-2">
-                    <Label htmlFor="filter-value">Value</Label>
+                    <Label htmlFor="filter-value" className="text-sm mb-1">Value</Label>
                     <Select
                       value={newFilterValue}
                       onValueChange={setNewFilterValue}
                     >
-                      <SelectTrigger id="filter-value" className="w-full">
+                      <SelectTrigger id="filter-value" className="w-full h-9">
                         <SelectValue placeholder="Select or type a value" />
                       </SelectTrigger>
                       <SelectContent>
@@ -214,7 +313,7 @@ const DataFilters: React.FC<DataFiltersProps> = ({ onFilterChange, onSortChange,
                     </Select>
                   </div>
                   
-                  <Button onClick={addFilter} className="flex items-center">
+                  <Button onClick={addFilter} className="flex items-center h-9">
                     <Plus className="mr-2 h-4 w-4" />
                     Add Filter
                   </Button>
@@ -223,40 +322,45 @@ const DataFilters: React.FC<DataFiltersProps> = ({ onFilterChange, onSortChange,
             </AccordionContent>
           </AccordionItem>
           
-          <AccordionItem value="sort">
-            <AccordionTrigger className="text-lg font-medium">
+          <AccordionItem value="sort" className="border px-4 py-2 rounded-lg mb-4 border-primary/20 shadow-sm">
+            <AccordionTrigger className="text-lg font-medium hover:no-underline">
               <div className="flex items-center">
                 {newSortDirection === 'asc' ? (
-                  <SortAsc className="mr-2 h-5 w-5" />
+                  <SortAsc className="mr-2 h-5 w-5 text-primary" />
                 ) : (
-                  <SortDesc className="mr-2 h-5 w-5" />
+                  <SortDesc className="mr-2 h-5 w-5 text-primary" />
                 )}
-                Sort Options
+                Advanced Sorting
                 {sortOptions.length > 0 && (
-                  <Badge variant="secondary" className="ml-2">
+                  <Badge variant="default" className="ml-2 bg-primary">
                     {sortOptions.length}
                   </Badge>
                 )}
               </div>
             </AccordionTrigger>
-            <AccordionContent>
+            <AccordionContent className="pt-4">
               <div className="space-y-4">
                 {/* Current sort options */}
                 {sortOptions.length > 0 && (
-                  <div className="flex flex-wrap gap-2 mb-4">
+                  <div className="flex flex-wrap gap-2 mb-4 p-3 bg-slate-50 dark:bg-slate-900 rounded-lg">
                     {sortOptions.map((sort, index) => {
                       const fieldLabel = fields.find(f => f.key === sort.field)?.label || sort.field;
                       
                       return (
-                        <Badge key={index} variant="outline" className="p-2 flex items-center gap-2">
-                          <span>{fieldLabel}</span>
-                          <span className="text-muted-foreground">
+                        <Badge key={index} variant="outline" className="p-2 flex items-center gap-2 bg-white dark:bg-slate-800 border-primary/30">
+                          <span className="text-sm font-medium">{fieldLabel}</span>
+                          <span className="text-xs text-muted-foreground flex items-center">
+                            {sort.direction === 'asc' ? (
+                              <SortAsc className="h-3 w-3 mr-1" />
+                            ) : (
+                              <SortDesc className="h-3 w-3 mr-1" />
+                            )}
                             {sort.direction === 'asc' ? 'Ascending' : 'Descending'}
                           </span>
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-4 w-4 p-0 text-muted-foreground hover:text-foreground"
+                            className="h-4 w-4 p-0 text-muted-foreground hover:text-foreground hover:bg-transparent"
                             onClick={() => removeSortOption(index)}
                           >
                             <X className="h-3 w-3" />
@@ -270,12 +374,12 @@ const DataFilters: React.FC<DataFiltersProps> = ({ onFilterChange, onSortChange,
                 {/* Add new sort option */}
                 <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 items-end">
                   <div className="sm:col-span-2">
-                    <Label htmlFor="sort-field">Field</Label>
+                    <Label htmlFor="sort-field" className="text-sm mb-1">Field</Label>
                     <Select 
                       value={newSortField as string} 
                       onValueChange={(value) => setNewSortField(value as keyof ProcessedData)}
                     >
-                      <SelectTrigger id="sort-field">
+                      <SelectTrigger id="sort-field" className="h-9">
                         <SelectValue placeholder="Select field" />
                       </SelectTrigger>
                       <SelectContent>
@@ -289,12 +393,12 @@ const DataFilters: React.FC<DataFiltersProps> = ({ onFilterChange, onSortChange,
                   </div>
                   
                   <div>
-                    <Label htmlFor="sort-direction">Direction</Label>
+                    <Label htmlFor="sort-direction" className="text-sm mb-1">Direction</Label>
                     <Select 
                       value={newSortDirection} 
                       onValueChange={(value) => setNewSortDirection(value as 'asc' | 'desc')}
                     >
-                      <SelectTrigger id="sort-direction">
+                      <SelectTrigger id="sort-direction" className="h-9">
                         <SelectValue placeholder="Select direction" />
                       </SelectTrigger>
                       <SelectContent>
@@ -304,9 +408,32 @@ const DataFilters: React.FC<DataFiltersProps> = ({ onFilterChange, onSortChange,
                     </Select>
                   </div>
                   
-                  <Button onClick={addSortOption} className="flex items-center">
+                  <Button onClick={addSortOption} className="flex items-center h-9">
                     <Plus className="mr-2 h-4 w-4" />
                     Add Sort
+                  </Button>
+                </div>
+              </div>
+            </AccordionContent>
+          </AccordionItem>
+          
+          <AccordionItem value="advanced" className="border px-4 py-2 rounded-lg border-primary/20 shadow-sm">
+            <AccordionTrigger className="text-lg font-medium hover:no-underline">
+              <div className="flex items-center">
+                <Settings className="mr-2 h-5 w-5 text-primary" />
+                Advanced Options
+              </div>
+            </AccordionTrigger>
+            <AccordionContent className="pt-4">
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <Button variant="outline" className="flex items-center w-full justify-start">
+                    <FileDown className="mr-2 h-4 w-4" />
+                    Export Filters & Sorts
+                  </Button>
+                  <Button variant="outline" className="flex items-center w-full justify-start">
+                    <FileUp className="mr-2 h-4 w-4" />
+                    Import Filters & Sorts
                   </Button>
                 </div>
               </div>

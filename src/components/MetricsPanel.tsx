@@ -2,7 +2,16 @@
 import React, { useMemo } from 'react';
 import { ProcessedData, MetricData } from '@/types/data';
 import { Card, CardContent } from '@/components/ui/card';
-import { Users, DollarSign, Calendar, CheckSquare, Clock, Tag } from 'lucide-react';
+import { 
+  Users, 
+  IndianRupee, 
+  Calendar, 
+  CheckSquare, 
+  Clock, 
+  Tag, 
+  BarChart, 
+  Divide 
+} from 'lucide-react';
 
 interface MetricsPanelProps {
   data: ProcessedData[];
@@ -18,10 +27,13 @@ const MetricsPanel: React.FC<MetricsPanelProps> = ({ data }) => {
     const totalRevenue = data.reduce((sum, item) => sum + parseFloat(item.totalRevenue), 0);
     const totalTime = data.reduce((sum, item) => sum + parseFloat(item.totalTime), 0);
     const nonPaidCustomers = data.reduce((sum, item) => sum + item.totalNonPaid, 0);
+    const totalCancelled = data.reduce((sum, item) => sum + item.totalCancelled, 0);
+    const totalEmptyClasses = data.reduce((sum, item) => sum + item.totalEmpty, 0);
     
     // Calculate averages
     const avgAttendance = totalClasses > 0 ? (totalCheckins / totalClasses).toFixed(1) : '0';
     const revenuePerClass = totalClasses > 0 ? (totalRevenue / totalClasses).toFixed(2) : '0';
+    const avgUtilization = totalClasses > 0 ? ((totalClasses - totalEmptyClasses) / totalClasses * 100).toFixed(1) : '0';
     
     // Get unique values
     const uniqueClassTypes = new Set(data.map(item => item.cleanedClass)).size;
@@ -42,13 +54,13 @@ const MetricsPanel: React.FC<MetricsPanelProps> = ({ data }) => {
       },
       {
         title: 'Revenue',
-        value: `$${totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-        icon: <DollarSign className="h-6 w-6 text-amber-500" />,
+        value: `₹${totalRevenue.toLocaleString('en-IN')}`,
+        icon: <IndianRupee className="h-6 w-6 text-amber-500" />,
         color: 'bg-amber-50 dark:bg-amber-950'
       },
       {
         title: 'Revenue Per Class',
-        value: `$${revenuePerClass}`,
+        value: `₹${parseFloat(revenuePerClass).toLocaleString('en-IN')}`,
         icon: <Tag className="h-6 w-6 text-purple-500" />,
         color: 'bg-purple-50 dark:bg-purple-950'
       },
@@ -57,6 +69,18 @@ const MetricsPanel: React.FC<MetricsPanelProps> = ({ data }) => {
         value: avgAttendance,
         icon: <Users className="h-6 w-6 text-indigo-500" />,
         color: 'bg-indigo-50 dark:bg-indigo-950'
+      },
+      {
+        title: 'Utilization Rate',
+        value: `${avgUtilization}%`,
+        icon: <BarChart className="h-6 w-6 text-pink-500" />,
+        color: 'bg-pink-50 dark:bg-pink-950'
+      },
+      {
+        title: 'Cancelled Classes',
+        value: totalCancelled,
+        icon: <Divide className="h-6 w-6 text-orange-500" />,
+        color: 'bg-orange-50 dark:bg-orange-950'
       },
       {
         title: 'Total Hours',
@@ -68,7 +92,7 @@ const MetricsPanel: React.FC<MetricsPanelProps> = ({ data }) => {
   }, [data]);
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
+    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4 mb-6">
       {metrics.map((metric, index) => (
         <Card key={index} className="overflow-hidden border shadow-sm">
           <CardContent className={`p-6 ${metric.color}`}>

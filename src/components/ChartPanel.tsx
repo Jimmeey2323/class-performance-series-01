@@ -1,301 +1,303 @@
 
-import React, { useState, useMemo } from 'react';
-import { ProcessedData } from '@/types/data';
+import React, { useState } from 'react';
+import { ProcessedData, ChartConfig } from '@/types/data';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import {
-  Bar,
-  BarChart,
-  Cell,
-  Legend,
-  Line,
-  LineChart,
-  Pie,
-  PieChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis
-} from 'recharts';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+  LineChart,
+  Line,
+  PieChart,
+  Pie,
+  Cell,
+  ScatterChart,
+  Scatter,
+  ZAxis,
+} from 'recharts';
+import { ChevronDown, Download, Share2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 interface ChartPanelProps {
   data: ProcessedData[];
 }
 
-const COLORS = [
-  '#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8',
-  '#8DD1E1', '#A4DE6C', '#D0ED57', '#FFC658', '#FF6B6B'
-];
-
 const ChartPanel: React.FC<ChartPanelProps> = ({ data }) => {
-  const [chartTab, setChartTab] = useState('attendance');
-  const [groupBy, setGroupBy] = useState<keyof ProcessedData>('dayOfWeek');
+  const [chartType, setChartType] = useState<ChartConfig['type']>('bar');
+  const [primaryMetric, setPrimaryMetric] = useState<keyof ProcessedData>('totalCheckins');
+  const [groupBy, setGroupBy] = useState<keyof ProcessedData>('cleanedClass');
   
-  const groupOptions = [
-    { key: 'dayOfWeek', label: 'Day of Week' },
-    { key: 'cleanedClass', label: 'Class Type' },
-    { key: 'period', label: 'Period' },
-    { key: 'location', label: 'Location' },
-    { key: 'teacherName', label: 'Instructor' }
+  // COLORS
+  const COLORS = [
+    '#8884d8', '#82ca9d', '#ffc658', '#ff8042', '#0088FE', 
+    '#00C49F', '#FFBB28', '#FF8042', '#a4de6c', '#d0ed57'
   ];
 
-  // Grouped data for charts
-  const chartData = useMemo(() => {
-    if (!data.length) return [];
-    
-    const groupedData: Record<string, any> = {};
-    
-    data.forEach(item => {
+  const metrics = [
+    { key: 'totalCheckins', label: 'Total Check-ins' },
+    { key: 'totalOccurrences', label: 'Total Occurrences' },
+    { key: 'totalRevenue', label: 'Total Revenue' },
+    { key: 'totalCancelled', label: 'Total Cancellations' },
+    { key: 'totalEmpty', label: 'Empty Classes' },
+    { key: 'totalNonEmpty', label: 'Non-Empty Classes' },
+    { key: 'classAverageIncludingEmpty', label: 'Average Attendance (All)' },
+    { key: 'classAverageExcludingEmpty', label: 'Average Attendance (Non-Empty)' },
+    { key: 'totalTime', label: 'Total Hours' },
+    { key: 'totalNonPaid', label: 'Non-Paid Customers' },
+  ];
+
+  const dimensions = [
+    { key: 'cleanedClass', label: 'Class Type' },
+    { key: 'dayOfWeek', label: 'Day of Week' },
+    { key: 'location', label: 'Location' },
+    { key: 'teacherName', label: 'Instructor' },
+    { key: 'period', label: 'Period' },
+  ];
+
+  // Prepare chart data by grouping
+  const chartData = React.useMemo(() => {
+    if (data.length === 0) return [];
+
+    const groups = data.reduce((acc, item) => {
       const key = String(item[groupBy]);
-      
-      if (!groupedData[key]) {
-        groupedData[key] = {
+      if (!acc[key]) {
+        acc[key] = {
           name: key,
-          totalClasses: 0,
-          totalAttendance: 0,
-          totalRevenue: 0,
-          avgAttendance: 0,
-          revenuePerClass: 0
+          value: 0,
+          count: 0,
         };
       }
       
-      groupedData[key].totalClasses += item.totalOccurrences;
-      groupedData[key].totalAttendance += item.totalCheckins;
-      groupedData[key].totalRevenue += parseFloat(item.totalRevenue);
-    });
-    
-    // Calculate averages
-    Object.keys(groupedData).forEach(key => {
-      const group = groupedData[key];
-      group.avgAttendance = group.totalClasses > 0 
-        ? parseFloat((group.totalAttendance / group.totalClasses).toFixed(1))
-        : 0;
-      group.revenuePerClass = group.totalClasses > 0
-        ? parseFloat((group.totalRevenue / group.totalClasses).toFixed(2))
-        : 0;
-    });
-    
-    return Object.values(groupedData);
-  }, [data, groupBy]);
-
-  // Sort data for better visualization
-  const sortedChartData = useMemo(() => {
-    if (!chartData.length) return [];
-    
-    let sortKey = '';
-    switch (chartTab) {
-      case 'attendance':
-        sortKey = 'avgAttendance';
-        break;
-      case 'classes':
-        sortKey = 'totalClasses';
-        break;
-      case 'revenue':
-        sortKey = 'totalRevenue';
-        break;
-      default:
-        sortKey = 'totalClasses';
-    }
-    
-    return [...chartData].sort((a, b) => b[sortKey] - a[sortKey]).slice(0, 10);
-  }, [chartData, chartTab]);
-
-  // Line chart data by period
-  const periodData = useMemo(() => {
-    if (!data.length) return [];
-    
-    const periods: Record<string, any> = {};
-    
-    data.forEach(item => {
-      const period = item.period;
-      
-      if (!periods[period]) {
-        periods[period] = {
-          name: period,
-          totalCheckins: 0,
-          totalClasses: 0,
-          totalRevenue: 0
-        };
+      // Handle numeric conversion for different metrics
+      let value = 0;
+      if (primaryMetric === 'totalRevenue' || primaryMetric === 'totalTime') {
+        value = parseFloat(String(item[primaryMetric]) || '0');
+      } else if (
+        primaryMetric === 'classAverageIncludingEmpty' || 
+        primaryMetric === 'classAverageExcludingEmpty'
+      ) {
+        const strValue = String(item[primaryMetric]);
+        value = strValue === 'N/A' ? 0 : parseFloat(strValue);
+      } else {
+        value = Number(item[primaryMetric]);
       }
       
-      periods[period].totalCheckins += item.totalCheckins;
-      periods[period].totalClasses += item.totalOccurrences;
-      periods[period].totalRevenue += parseFloat(item.totalRevenue);
-    });
-    
-    // Sort by period (assuming format is 'MMM-YY')
-    return Object.values(periods).sort((a, b) => {
-      const [monthA, yearA] = a.name.split('-');
-      const [monthB, yearB] = b.name.split('-');
+      acc[key].value += value;
+      acc[key].count += 1;
       
-      if (yearA !== yearB) return parseInt(yearA) - parseInt(yearB);
-      
-      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-      return months.indexOf(monthA) - months.indexOf(monthB);
-    });
-  }, [data]);
+      return acc;
+    }, {} as Record<string, { name: string; value: number; count: number }>);
+
+    return Object.values(groups)
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 10); // Limit to top 10 for better visualization
+  }, [data, groupBy, primaryMetric]);
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-4">
-        <Tabs value={chartTab} onValueChange={setChartTab} className="w-full sm:w-auto">
-          <TabsList className="grid grid-cols-3 w-full sm:w-[400px]">
-            <TabsTrigger value="attendance">Attendance</TabsTrigger>
-            <TabsTrigger value="classes">Classes</TabsTrigger>
-            <TabsTrigger value="revenue">Revenue</TabsTrigger>
-          </TabsList>
-        </Tabs>
-        
-        <div className="flex items-center gap-3 w-full sm:w-auto">
-          <Label htmlFor="group-by" className="whitespace-nowrap">Group By:</Label>
-          <Select value={groupBy as string} onValueChange={(value) => setGroupBy(value as keyof ProcessedData)}>
-            <SelectTrigger id="group-by" className="w-full sm:w-[180px]">
-              <SelectValue placeholder="Select grouping" />
-            </SelectTrigger>
-            <SelectContent>
-              {groupOptions.map((option) => (
-                <SelectItem key={option.key as string} value={option.key as string}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+    <Card className="bg-white dark:bg-gray-950">
+      <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between space-y-2 sm:space-y-0 sm:space-x-4 pb-2">
+        <CardTitle className="text-xl font-bold">Advanced Analytics</CardTitle>
+        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+          <Button variant="outline" size="sm">
+            <Download className="mr-2 h-4 w-4" />
+            Export Chart
+          </Button>
+          <Button variant="outline" size="sm">
+            <Share2 className="mr-2 h-4 w-4" />
+            Share
+          </Button>
         </div>
-      </div>
+      </CardHeader>
       
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Bar Chart */}
-        <Card className="shadow-sm">
-          <CardHeader className="pb-2">
-            <CardTitle>
-              {chartTab === 'attendance' && 'Average Attendance'}
-              {chartTab === 'classes' && 'Total Classes'}
-              {chartTab === 'revenue' && 'Revenue'}
-              {` by ${groupOptions.find(o => o.key === groupBy)?.label}`}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="h-[350px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart
-                  data={sortedChartData}
-                  margin={{ top: 20, right: 30, left: 20, bottom: 70 }}
-                >
-                  <XAxis 
-                    dataKey="name" 
-                    angle={-45} 
-                    textAnchor="end" 
-                    height={70} 
-                    tick={{ fontSize: 12 }}
-                  />
-                  <YAxis />
-                  <Tooltip />
-                  <Bar 
-                    dataKey={
-                      chartTab === 'attendance' ? 'avgAttendance' : 
-                      chartTab === 'classes' ? 'totalClasses' : 'totalRevenue'
-                    }
-                    fill="#8884d8"
-                  >
-                    {sortedChartData.map((_, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </CardContent>
-        </Card>
+      <CardContent className="px-6 pb-6">
+        <div className="flex flex-col md:flex-row gap-4 mb-6">
+          <div className="w-full md:w-1/3 space-y-1">
+            <Label htmlFor="chartType">Chart Type</Label>
+            <Select value={chartType} onValueChange={(value) => setChartType(value as ChartConfig['type'])}>
+              <SelectTrigger id="chartType">
+                <SelectValue placeholder="Select chart type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="bar">Bar Chart</SelectItem>
+                <SelectItem value="line">Line Chart</SelectItem>
+                <SelectItem value="pie">Pie Chart</SelectItem>
+                <SelectItem value="scatter">Scatter Plot</SelectItem>
+                <SelectItem value="donut">Donut Chart</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          
+          <div className="w-full md:w-1/3 space-y-1">
+            <Label htmlFor="primaryMetric">Metric</Label>
+            <Select 
+              value={primaryMetric as string} 
+              onValueChange={(value) => setPrimaryMetric(value as keyof ProcessedData)}
+            >
+              <SelectTrigger id="primaryMetric">
+                <SelectValue placeholder="Select metric" />
+              </SelectTrigger>
+              <SelectContent>
+                {metrics.map(metric => (
+                  <SelectItem key={metric.key} value={metric.key}>
+                    {metric.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          
+          <div className="w-full md:w-1/3 space-y-1">
+            <Label htmlFor="groupBy">Group By</Label>
+            <Select 
+              value={groupBy as string} 
+              onValueChange={(value) => setGroupBy(value as keyof ProcessedData)}
+            >
+              <SelectTrigger id="groupBy">
+                <SelectValue placeholder="Select dimension" />
+              </SelectTrigger>
+              <SelectContent>
+                {dimensions.map(dimension => (
+                  <SelectItem key={dimension.key} value={dimension.key}>
+                    {dimension.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
         
-        {/* Pie Chart */}
-        <Card className="shadow-sm">
-          <CardHeader className="pb-2">
-            <CardTitle>
-              Distribution by {groupOptions.find(o => o.key === groupBy)?.label}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="h-[350px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={sortedChartData}
-                    cx="50%"
-                    cy="50%"
-                    labelLine={false}
-                    outerRadius={80}
-                    fill="#8884d8"
-                    dataKey={
-                      chartTab === 'attendance' ? 'totalAttendance' : 
-                      chartTab === 'classes' ? 'totalClasses' : 'totalRevenue'
+        <div className="h-[500px] w-full">
+          {chartData.length === 0 ? (
+            <div className="flex items-center justify-center h-full">
+              <p className="text-muted-foreground">No data available for the selected filters.</p>
+            </div>
+          ) : chartType === 'bar' ? (
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 80 }}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis 
+                  dataKey="name" 
+                  angle={-45} 
+                  textAnchor="end" 
+                  height={80} 
+                  tick={{ fontSize: 12 }} 
+                />
+                <YAxis />
+                <Tooltip 
+                  formatter={(value) => {
+                    if (primaryMetric === 'totalRevenue') {
+                      return [`₹${Number(value).toLocaleString('en-IN')}`, 'Value'];
                     }
-                    label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                  >
-                    {sortedChartData.map((_, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip formatter={(value) => chartTab === 'revenue' ? `$${value}` : value} />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-          </CardContent>
-        </Card>
-        
-        {/* Line Chart - Trends Over Time */}
-        <Card className="shadow-sm lg:col-span-2">
-          <CardHeader className="pb-2">
-            <CardTitle>Trends Over Time</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="h-[350px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart
-                  data={periodData}
-                  margin={{ top: 20, right: 30, left: 20, bottom: 20 }}
+                    return [value, 'Value'];
+                  }}
+                />
+                <Legend />
+                <Bar dataKey="value" fill="#8884d8" name={metrics.find(m => m.key === primaryMetric)?.label || primaryMetric} />
+              </BarChart>
+            </ResponsiveContainer>
+          ) : chartType === 'line' ? (
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 80 }}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis 
+                  dataKey="name" 
+                  angle={-45} 
+                  textAnchor="end" 
+                  height={80} 
+                  tick={{ fontSize: 12 }} 
+                />
+                <YAxis />
+                <Tooltip 
+                  formatter={(value) => {
+                    if (primaryMetric === 'totalRevenue') {
+                      return [`₹${Number(value).toLocaleString('en-IN')}`, 'Value'];
+                    }
+                    return [value, 'Value'];
+                  }}
+                />
+                <Legend />
+                <Line 
+                  type="monotone" 
+                  dataKey="value" 
+                  stroke="#8884d8" 
+                  activeDot={{ r: 8 }} 
+                  name={metrics.find(m => m.key === primaryMetric)?.label || primaryMetric} 
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          ) : chartType === 'pie' || chartType === 'donut' ? (
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
+                <Pie
+                  data={chartData}
+                  cx="50%"
+                  cy="50%"
+                  labelLine={true}
+                  outerRadius={chartType === 'pie' ? 150 : 150}
+                  innerRadius={chartType === 'donut' ? 100 : 0}
+                  fill="#8884d8"
+                  dataKey="value"
+                  nameKey="name"
+                  label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(1)}%`}
                 >
-                  <XAxis dataKey="name" />
-                  <YAxis yAxisId="left" />
-                  <YAxis yAxisId="right" orientation="right" />
-                  <Tooltip />
-                  <Legend />
-                  <Line
-                    yAxisId="left"
-                    type="monotone"
-                    dataKey="totalCheckins"
-                    stroke="#8884d8"
-                    activeDot={{ r: 8 }}
-                    name="Total Check-ins"
-                  />
-                  <Line
-                    yAxisId="left"
-                    type="monotone"
-                    dataKey="totalClasses"
-                    stroke="#82ca9d"
-                    name="Total Classes"
-                  />
-                  <Line
-                    yAxisId="right"
-                    type="monotone"
-                    dataKey="totalRevenue"
-                    stroke="#ff7300"
-                    name="Revenue ($)"
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    </div>
+                  {chartData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip 
+                  formatter={(value) => {
+                    if (primaryMetric === 'totalRevenue') {
+                      return [`₹${Number(value).toLocaleString('en-IN')}`, 'Value'];
+                    }
+                    return [value, 'Value'];
+                  }}
+                />
+                <Legend />
+              </PieChart>
+            </ResponsiveContainer>
+          ) : (
+            <ResponsiveContainer width="100%" height="100%">
+              <ScatterChart margin={{ top: 20, right: 30, left: 20, bottom: 80 }}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis 
+                  dataKey="name" 
+                  type="category" 
+                  name={dimensions.find(d => d.key === groupBy)?.label || groupBy}
+                  angle={-45} 
+                  textAnchor="end" 
+                  height={80} 
+                  tick={{ fontSize: 12 }} 
+                />
+                <YAxis 
+                  dataKey="value" 
+                  name={metrics.find(m => m.key === primaryMetric)?.label || primaryMetric} 
+                />
+                <ZAxis dataKey="count" range={[50, 500]} name="Count" />
+                <Tooltip 
+                  formatter={(value, name) => {
+                    if (name === 'Value' && primaryMetric === 'totalRevenue') {
+                      return [`₹${Number(value).toLocaleString('en-IN')}`, metrics.find(m => m.key === primaryMetric)?.label || primaryMetric];
+                    }
+                    return [value, name];
+                  }}
+                  cursor={{ strokeDasharray: '3 3' }} 
+                />
+                <Legend />
+                <Scatter name={metrics.find(m => m.key === primaryMetric)?.label || primaryMetric} data={chartData} fill="#8884d8" />
+              </ScatterChart>
+            </ResponsiveContainer>
+          )}
+        </div>
+      </CardContent>
+    </Card>
   );
 };
 
