@@ -26,7 +26,7 @@ import {
   PieChart,
   Search,
   FileText,
-  FileCsv,
+  FileSpreadsheet,
   FileJson 
 } from 'lucide-react';
 import ProgressBar from '@/components/ProgressBar';
@@ -164,7 +164,7 @@ const Dashboard: React.FC<DashboardProps> = ({
     setSortOptions(newSortOptions);
   };
 
-  const handleExport = (format: 'csv' | 'json' | 'excel' = 'csv') => {
+  const handleExport = (format: 'csv' | 'json' | 'excel') => {
     if (format === 'csv') {
       exportToCSV(filteredData);
     } else if (format === 'json') {
@@ -178,7 +178,7 @@ const Dashboard: React.FC<DashboardProps> = ({
       downloadAnchorNode.remove();
     } else if (format === 'excel') {
       // CSV format that Excel can open
-      exportToCSV(filteredData, 'excel');
+      exportToCSV(filteredData);
     }
   };
 
@@ -227,7 +227,7 @@ const Dashboard: React.FC<DashboardProps> = ({
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuItem onClick={() => handleExport('csv')}>
-                <FileCsv className="mr-2 h-4 w-4" />
+                <FileSpreadsheet className="mr-2 h-4 w-4" />
                 Export as CSV
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => handleExport('excel')}>
