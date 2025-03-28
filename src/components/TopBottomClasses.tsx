@@ -4,6 +4,7 @@ import { ProcessedData, TopBottomClassData } from '@/types/data';
 import { Card, CardContent } from '@/components/ui/card';
 import { TrendingUp, TrendingDown } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import CountUp from 'react-countup';
 
 interface TopBottomClassesProps {
   data: ProcessedData[];
@@ -12,9 +13,27 @@ interface TopBottomClassesProps {
 const TopBottomClasses: React.FC<TopBottomClassesProps> = ({ data }) => {
   const { topClasses, bottomClasses } = useMemo(() => {
     // Filter out classes with "Recovery" or "Hosted" in the name
+    // Also filter classes with only 1 occurrence and future dates
+    const today = new Date();
+    
     const filteredData = data.filter(item => {
       const name = item.cleanedClass.toLowerCase();
-      return !name.includes('recovery') && !name.includes('hosted');
+      const isValidClass = !name.includes('recovery') && !name.includes('hosted');
+      const hasMultipleOccurrences = item.totalOccurrences > 1;
+      
+      // Parse period (e.g., "Jan-22") to check if it's before today
+      let isPastClass = true;
+      if (item.period) {
+        const [month, year] = item.period.split('-');
+        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        const monthIndex = months.indexOf(month);
+        const fullYear = 2000 + parseInt(year); // Assuming years are in format '22' for 2022
+        
+        const periodDate = new Date(fullYear, monthIndex);
+        isPastClass = periodDate <= today;
+      }
+      
+      return isValidClass && hasMultipleOccurrences && isPastClass;
     });
     
     // Sort by class average (excluding empty)
@@ -43,7 +62,7 @@ const TopBottomClasses: React.FC<TopBottomClassesProps> = ({ data }) => {
   }, [data]);
 
   const renderClassItem = (classData: TopBottomClassData, index: number) => (
-    <div key={index} className="flex items-center gap-3 p-3 rounded-lg bg-slate-50 dark:bg-slate-900">
+    <div key={index} className="flex items-center gap-3 p-3 rounded-lg bg-slate-50 dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
       <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
         classData.isTopPerformer ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
       }`}>
@@ -57,7 +76,12 @@ const TopBottomClasses: React.FC<TopBottomClassesProps> = ({ data }) => {
       </div>
       <div className="text-right">
         <div className="text-xl font-bold">
-          {classData.averageAttendance.toFixed(1)}
+          <CountUp 
+            end={classData.averageAttendance} 
+            decimals={1}
+            duration={1.5}
+            delay={index * 0.1}
+          />
         </div>
         <div className={`flex items-center text-xs ${
           classData.isTopPerformer ? 'text-green-600' : 'text-red-600'
@@ -77,7 +101,7 @@ const TopBottomClasses: React.FC<TopBottomClassesProps> = ({ data }) => {
     <div className="space-y-4">
       <h3 className="text-lg font-semibold">Class Performance Ranking</h3>
       <p className="text-sm text-muted-foreground mb-4">
-        Top and bottom performing classes by average attendance (excluding Recovery and Hosted classes)
+        Classes with multiple occurrences (excluding Recovery and Hosted classes)
       </p>
       
       <Tabs defaultValue="top">
@@ -99,7 +123,7 @@ const TopBottomClasses: React.FC<TopBottomClassesProps> = ({ data }) => {
             </div>
           ) : (
             <div className="text-center p-6 text-muted-foreground">
-              No class data available
+              No qualifying class data available
             </div>
           )}
         </TabsContent>
@@ -111,7 +135,7 @@ const TopBottomClasses: React.FC<TopBottomClassesProps> = ({ data }) => {
             </div>
           ) : (
             <div className="text-center p-6 text-muted-foreground">
-              No class data available
+              No qualifying class data available
             </div>
           )}
         </TabsContent>

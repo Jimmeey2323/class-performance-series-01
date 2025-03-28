@@ -12,6 +12,7 @@ import {
   BarChart, 
   Divide 
 } from 'lucide-react';
+import CountUp from 'react-countup';
 
 interface MetricsPanelProps {
   data: ProcessedData[];
@@ -92,25 +93,60 @@ const MetricsPanel: React.FC<MetricsPanelProps> = ({ data }) => {
   }, [data]);
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4 mb-6">
-      {metrics.map((metric, index) => (
-        <Card key={index} className="overflow-hidden border shadow-sm">
-          <CardContent className={`p-6 ${metric.color}`}>
-            <div className="flex flex-col space-y-2">
-              <div className="flex justify-between items-start">
-                <span className="text-sm font-medium text-muted-foreground">{metric.title}</span>
-                {metric.icon}
-              </div>
-              <div className="text-2xl font-bold">{metric.value}</div>
-              {metric.change !== undefined && (
-                <div className={metric.change >= 0 ? 'text-green-600' : 'text-red-600'}>
-                  {metric.change >= 0 ? '+' : ''}{metric.change}%
+    <div className="space-y-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+        {metrics.slice(0, 4).map((metric, index) => (
+          <Card key={index} className="overflow-hidden border shadow-sm">
+            <CardContent className={`p-6 ${metric.color}`}>
+              <div className="flex flex-col space-y-2">
+                <div className="flex justify-between items-start">
+                  <span className="text-sm font-medium text-muted-foreground">{metric.title}</span>
+                  {metric.icon}
                 </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      ))}
+                <div className="text-2xl font-bold">
+                  {typeof metric.value === 'number' ? (
+                    <CountUp end={metric.value} duration={2.5} separator="," />
+                  ) : (
+                    metric.value
+                  )}
+                </div>
+                {metric.change !== undefined && (
+                  <div className={metric.change >= 0 ? 'text-green-600' : 'text-red-600'}>
+                    {metric.change >= 0 ? '+' : ''}{metric.change}%
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+      
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+        {metrics.slice(4).map((metric, index) => (
+          <Card key={index + 4} className="overflow-hidden border shadow-sm">
+            <CardContent className={`p-6 ${metric.color}`}>
+              <div className="flex flex-col space-y-2">
+                <div className="flex justify-between items-start">
+                  <span className="text-sm font-medium text-muted-foreground">{metric.title}</span>
+                  {metric.icon}
+                </div>
+                <div className="text-2xl font-bold">
+                  {typeof metric.value === 'number' ? (
+                    <CountUp end={metric.value} duration={2.5} separator="," />
+                  ) : (
+                    metric.value
+                  )}
+                </div>
+                {metric.change !== undefined && (
+                  <div className={metric.change >= 0 ? 'text-green-600' : 'text-red-600'}>
+                    {metric.change >= 0 ? '+' : ''}{metric.change}%
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
     </div>
   );
 };

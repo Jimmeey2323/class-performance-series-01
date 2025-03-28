@@ -29,6 +29,7 @@ import {
 import ProgressBar from '@/components/ProgressBar';
 import { Card, CardContent } from '@/components/ui/card';
 import { ViewSwitcher } from '@/components/ViewSwitcher';
+import CountUp from 'react-countup';
 
 interface DashboardProps {
   data: ProcessedData[];
@@ -142,10 +143,18 @@ const Dashboard: React.FC<DashboardProps> = ({
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center space-y-4 p-8">
-        <h2 className="text-xl font-semibold">Processing Data</h2>
+      <div className="flex flex-col items-center justify-center space-y-6 p-12 min-h-[60vh]">
+        <h2 className="text-2xl font-semibold">Processing Data</h2>
         <ProgressBar progress={progress} />
-        <p className="text-sm text-muted-foreground">Please wait while we process your file...</p>
+        <div className="text-center">
+          <p className="text-lg font-medium mb-2">Analyzed 
+            <span className="text-primary mx-1">
+              <CountUp end={data.length} duration={2} separator="," />
+            </span> 
+            records so far
+          </p>
+          <p className="text-sm text-muted-foreground">Please wait while we process your file...</p>
+        </div>
       </div>
     );
   }
@@ -159,7 +168,7 @@ const Dashboard: React.FC<DashboardProps> = ({
             {filteredData.length} Classes
           </span>
         </div>
-        <div className="flex space-x-2">
+        <div className="flex flex-wrap gap-2">
           <Button variant="outline" size="sm" onClick={onReset}>
             <RefreshCw className="mr-2 h-4 w-4" />
             Upload New
@@ -173,8 +182,8 @@ const Dashboard: React.FC<DashboardProps> = ({
 
       <MetricsPanel data={filteredData} />
       
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card className="md:col-span-2">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <Card className="lg:col-span-2">
           <CardContent className="p-6">
             <TopBottomClasses data={filteredData} />
           </CardContent>

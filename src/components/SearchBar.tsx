@@ -159,19 +159,19 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch, data }) => {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 w-full">
       <h3 className="text-lg font-semibold">Search Classes</h3>
       
-      <div className="relative">
-        <div className="flex gap-2">
-          <div className="relative flex-1">
+      <div className="w-full">
+        <div className="flex gap-2 w-full">
+          <div className="relative flex-1 w-full">
             <Input
               type="text"
               placeholder="Search by class, teacher, location..."
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSearch(query)}
-              className="pr-20 pl-10"
+              className="pr-20 pl-10 w-full"
             />
             <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
             {query && (
