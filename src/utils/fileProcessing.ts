@@ -1,4 +1,3 @@
-
 import JSZip from 'jszip';
 import Papa from 'papaparse';
 import { ClassData, ProcessedData } from '@/types/data';
@@ -192,98 +191,101 @@ const getCleanedClassName = (className: string): string => {
 };
 
 const consolidateCSVData = (csvContents: string[]): ProcessedData[] => {
-  const consolidatedData: ProcessedData[] = [];
-  const uniqueData: Record<string, any> = {};
-  
-  csvContents.forEach(content => {
-    const parsedData = Papa.parse(content, { header: true }).data as ClassData[];
+    const consolidatedData: ProcessedData[] = [];
+    const uniqueData: Record<string, any> = {};
     
-    parsedData.forEach(row => {
-      if (!row['Class name']) return;
-      
-      const className = row['Class name'];
-      const classDate = row['Class date'];
-      const location = row['Location'];
-      const teacherFirstName = row['Teacher First Name'];
-      const teacherLastName = row['Teacher Last Name'];
-      const checkedIn = parseInt(row['Checked in']) || 0;
-      const lateCancelled = parseInt(row['Late cancellations']) || 0;
-      const totalRevenue = parseFloat(row['Total Revenue']) || 0;
-      const totalTime = parseFloat(row['Time (h)']) || 0;
-      const totalNonPaid = parseInt(row['Non Paid Customers']) || 0;
-      
-      const dayOfWeek = getDayOfWeek(classDate);
-      const classTime = getTime(classDate);
-      const period = getMonthYear(classDate);
-      const cleanedClass = getCleanedClassName(className);
-      
-      const uniqueID = `${cleanedClass}-${dayOfWeek}-${classTime}-${period}`;
-      
-      if (!uniqueData[uniqueID]) {
-        uniqueData[uniqueID] = {
-          cleanedClass,
-          dayOfWeek,
-          classTime,
-          location,
-          teacherName: `${teacherFirstName} ${teacherLastName}`,
-          period,
-          totalOccurrences: 0,
-          totalCancelled: 0,
-          totalCheckins: 0,
-          totalEmpty: 0,
-          totalLateCancelled: 0,
-          totalRevenue: 0,
-          totalTime: 0,
-          totalNonPaid: 0
-        };
-      }
-      
-      uniqueData[uniqueID].totalOccurrences++;
-      uniqueData[uniqueID].totalCancelled += lateCancelled;
-      uniqueData[uniqueID].totalCheckins += checkedIn;
-      uniqueData[uniqueID].totalEmpty += checkedIn === 0 ? 1 : 0;
-      uniqueData[uniqueID].totalLateCancelled += lateCancelled;
-      uniqueData[uniqueID].totalRevenue += totalRevenue;
-      uniqueData[uniqueID].totalTime += totalTime;
-      uniqueData[uniqueID].totalNonPaid += totalNonPaid;
+    csvContents.forEach(content => {
+        const parsedData = Papa.parse(content, { header: true }).data as ClassData[];
+        
+        parsedData.forEach(row => {
+            if (!row['Class name']) return;
+            
+            const className = row['Class name'];
+            const classDate = row['Class date'];
+            const location = row['Location'];
+            const teacherFirstName = row['Teacher First Name'];
+            const teacherLastName = row['Teacher Last Name'];
+            const checkedIn = parseInt(row['Checked in']) || 0;
+            const lateCancelled = parseInt(row['Late cancellations']) || 0;
+            const totalRevenue = parseFloat(row['Total Revenue']) || 0;
+            const totalTime = parseFloat(row['Time (h)']) || 0;
+            const totalNonPaid = parseInt(row['Non Paid Customers']) || 0;
+            
+            const dayOfWeek = getDayOfWeek(classDate);
+            const classTime = getTime(classDate);
+            const period = getMonthYear(classDate);
+            const cleanedClass = getCleanedClassName(className);
+            
+            const uniqueID = `${cleanedClass}-${dayOfWeek}-${classTime}`;
+            
+            if (!uniqueData[uniqueID]) {
+                uniqueData[uniqueID] = {
+                    cleanedClass,
+                    dayOfWeek,
+                    classTime,
+                    location,
+                    teacherName: `${teacherFirstName} ${teacherLastName}`,
+                    period,
+                    classDate, // Add classDate to the uniqueData object
+                    totalOccurrences: 0,
+                    totalCancelled: 0,
+                    totalCheckins: 0,
+                    totalEmpty: 0,
+                    totalLateCancelled: 0,
+                    totalRevenue: 0,
+                    totalTime: 0,
+                    totalNonPaid: 0
+                };
+            }
+            
+            uniqueData[uniqueID].totalOccurrences++;
+            uniqueData[uniqueID].totalCancelled += lateCancelled;
+            uniqueData[uniqueID].totalCheckins += checkedIn;
+            uniqueData[uniqueID].totalEmpty += checkedIn === 0 ? 1 : 0;
+            uniqueData[uniqueID].totalLateCancelled += lateCancelled;
+            uniqueData[uniqueID].totalRevenue += totalRevenue;
+            uniqueData[uniqueID].totalTime += totalTime;
+            uniqueData[uniqueID].totalNonPaid += totalNonPaid;
+        });
     });
-  });
-  
-  for (const uniqueID in uniqueData) {
-    const data = uniqueData[uniqueID];
-    const totalNonEmpty = data.totalOccurrences - data.totalEmpty;
-    const classAverageIncludingEmpty = (data.totalCheckins / data.totalOccurrences).toFixed(1);
-    const classAverageExcludingEmpty = totalNonEmpty > 0 ? (data.totalCheckins / totalNonEmpty).toFixed(1) : 'N/A';
     
-    consolidatedData.push({
-      uniqueID,
-      cleanedClass: data.cleanedClass,
-      dayOfWeek: data.dayOfWeek,
-      classTime: data.classTime,
-      location: data.location,
-      teacherName: data.teacherName,
-      period: data.period,
-      totalOccurrences: data.totalOccurrences,
-      totalCancelled: data.totalCancelled,
-      totalCheckins: data.totalCheckins,
-      totalEmpty: data.totalEmpty,
-      totalNonEmpty: totalNonEmpty,
-      classAverageIncludingEmpty: classAverageIncludingEmpty,
-      classAverageExcludingEmpty: classAverageExcludingEmpty,
-      totalRevenue: data.totalRevenue.toFixed(2),
-      totalTime: data.totalTime.toFixed(2),
-      totalNonPaid: data.totalNonPaid
-    });
-  }
-  
-  return consolidatedData;
+    for (const uniqueID in uniqueData) {
+        const data = uniqueData[uniqueID];
+        const totalNonEmpty = data.totalOccurrences - data.totalEmpty;
+        const classAverageIncludingEmpty = (data.totalCheckins / data.totalOccurrences).toFixed(1);
+        const classAverageExcludingEmpty = totalNonEmpty > 0 ? (data.totalCheckins / totalNonEmpty).toFixed(1) : 'N/A';
+        
+        consolidatedData.push({
+            uniqueID,
+            cleanedClass: data.cleanedClass,
+            dayOfWeek: data.dayOfWeek,
+            classTime: data.classTime,
+            location: data.location,
+            teacherName: data.teacherName,
+            period: data.period,
+            totalOccurrences: data.totalOccurrences,
+            totalCancelled: data.totalCancelled,
+            totalCheckins: data.totalCheckins,
+            totalEmpty: data.totalEmpty,
+            totalNonEmpty: totalNonEmpty,
+            classAverageIncludingEmpty: classAverageIncludingEmpty,
+            classAverageExcludingEmpty: classAverageExcludingEmpty,
+            totalRevenue: data.totalRevenue.toFixed(2),
+            totalTime: data.totalTime.toFixed(2),
+            totalNonPaid: data.totalNonPaid,
+            date: new Date(data.classDate).toISOString(), // Use actual class date from uniqueData
+            attendance: data.totalCheckins // Add the required 'attendance' property
+        });
+    }
+    
+    return consolidatedData;
 };
 
 export const exportToCSV = (data: ProcessedData[]): void => {
-  let csvContent = 'Unique ID,Cleaned Class,Day of the Week,Class Time,Location,Trainer Name,Period,Total Occurrences,Total Cancelled,Total Checkins,Total Empty,Total Non-Empty,Class Average (Including Empty),Class Average (Excluding Empty),Total Revenue,Total Time,Total Non-Paid\n';
+  let csvContent = 'Unique ID,Cleaned Class,Day of the Week,Class Time,Location,Trainer Name,Period,Total Occurrences,Total Cancelled,Total Checkins,Total Empty,Total Non-Empty,Class Average (Including Empty),Class Average (Excluding Empty),Total Revenue,Total Time,Total Non-Paid,Date\n';
   
   data.forEach(row => {
-    csvContent += `${row.uniqueID},${row.cleanedClass},${row.dayOfWeek},${row.classTime},${row.location},${row.teacherName},${row.period},${row.totalOccurrences},${row.totalCancelled},${row.totalCheckins},${row.totalEmpty},${row.totalNonEmpty},${row.classAverageIncludingEmpty},${row.classAverageExcludingEmpty},${row.totalRevenue},${row.totalTime},${row.totalNonPaid}\n`;
+    csvContent += `${row.uniqueID},${row.cleanedClass},${row.dayOfWeek},${row.classTime},${row.location},${row.teacherName},${row.period},${row.totalOccurrences},${row.totalCancelled},${row.totalCheckins},${row.totalEmpty},${row.totalNonEmpty},${row.classAverageIncludingEmpty},${row.classAverageExcludingEmpty},${row.totalRevenue},${row.totalTime},${row.totalNonPaid},${row.date}\n`;
   });
   
   const blob = new Blob([csvContent], { type: 'text/csv' });

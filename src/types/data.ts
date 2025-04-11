@@ -17,6 +17,7 @@ export interface ProcessedData {
   cleanedClass: string;
   dayOfWeek: string;
   classTime: string;
+  date: string;
   location: string;
   teacherName: string;
   period: string;
@@ -30,6 +31,7 @@ export interface ProcessedData {
   totalRevenue: string;
   totalTime: string;
   totalNonPaid: number;
+  attendance: number; // Added attendance property
 }
 
 export interface FilterOption {

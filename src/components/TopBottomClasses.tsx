@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { ProcessedData } from '@/types/data';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -47,85 +46,70 @@ const TopBottomClasses: React.FC<TopBottomClassesProps> = ({ data }) => {
     );
   }, [data]);
 
-  // Calculate top classes based on average attendance with unique combinations
+  // Calculate class statistics with proper aggregation
+  const classStatistics = React.useMemo(() => {
+    const classStats: Record<string, ClassStatsItem> = {};
+
+    filteredData.forEach(item => {
+      // Create a unique key based on day, time, class, and optionally teacher
+      const uniqueKey = includeTrainers 
+        ? `${item.dayOfWeek}-${item.classTime}-${item.cleanedClass}-${item.teacherName}`
+        : `${item.dayOfWeek}-${item.classTime}-${item.cleanedClass}`;
+      
+      const attendance = parseFloat(item.classAverageExcludingEmpty) || 0;
+      const occurrences = item.totalOccurrences || 0;
+      const checkins = item.totalCheckins || 0;
+      
+      if (!classStats[uniqueKey]) {
+        classStats[uniqueKey] = { 
+          key: uniqueKey,
+          dayOfWeek: item.dayOfWeek,
+          classTime: item.classTime,
+          cleanedClass: item.cleanedClass,
+          teacherName: item.teacherName,
+          avgAttendance: attendance,
+          totalOccurrences: occurrences,
+          totalCheckins: checkins
+        };
+      } else {
+        // For duplicate entries, we should calculate a weighted average based on occurrences
+        const existingStats = classStats[uniqueKey];
+        const totalOccurrences = existingStats.totalOccurrences + occurrences;
+        
+        // Calculate weighted average attendance
+        const weightedAvg = totalOccurrences > 0 
+          ? ((existingStats.avgAttendance * existingStats.totalOccurrences) + 
+             (attendance * occurrences)) / totalOccurrences
+          : 0;
+        
+        // Update the stats with aggregated values
+        classStats[uniqueKey] = {
+          ...existingStats,
+          avgAttendance: weightedAvg,
+          totalOccurrences: totalOccurrences,
+          totalCheckins: existingStats.totalCheckins + checkins
+        };
+      }
+    });
+
+    return classStats;
+  }, [filteredData, includeTrainers]);
+
+  // Calculate top classes based on average attendance
   const topClasses = React.useMemo(() => {
-    const classStats: Record<string, ClassStatsItem> = {};
-
-    filteredData.forEach(item => {
-      // Create a unique key based on day, time, class, and optionally teacher
-      const uniqueKey = includeTrainers 
-        ? `${item.dayOfWeek}-${item.classTime}-${item.cleanedClass}-${item.teacherName}`
-        : `${item.dayOfWeek}-${item.classTime}-${item.cleanedClass}`;
-      
-      const avgAttendance = parseFloat(item.classAverageExcludingEmpty) || 0;
-      
-      if (!classStats[uniqueKey]) {
-        classStats[uniqueKey] = { 
-          key: uniqueKey,
-          dayOfWeek: item.dayOfWeek,
-          classTime: item.classTime,
-          cleanedClass: item.cleanedClass,
-          teacherName: item.teacherName,
-          avgAttendance: avgAttendance,
-          totalOccurrences: item.totalOccurrences,
-          totalCheckins: item.totalCheckins
-        };
-      } else {
-        // If we already have this combination, use the higher average value
-        if (avgAttendance > classStats[uniqueKey].avgAttendance) {
-          classStats[uniqueKey].avgAttendance = avgAttendance;
-          classStats[uniqueKey].totalOccurrences = item.totalOccurrences;
-          classStats[uniqueKey].totalCheckins = item.totalCheckins;
-        }
-      }
-    });
-
-    const sortedClasses = Object.values(classStats)
+    return Object.values(classStatistics)
       .filter(item => item.avgAttendance > 0 && item.totalOccurrences >= 2) // Filter out zero attendance and low occurrence classes
-      .sort((a, b) => b.avgAttendance - a.avgAttendance);
-    
-    return sortedClasses.slice(0, topClassesCount);
-  }, [filteredData, topClassesCount, includeTrainers]);
+      .sort((a, b) => b.avgAttendance - a.avgAttendance)
+      .slice(0, topClassesCount);
+  }, [classStatistics, topClassesCount]);
 
-  // Calculate bottom classes based on average attendance with unique combinations
+  // Calculate bottom classes based on average attendance
   const bottomClasses = React.useMemo(() => {
-    const classStats: Record<string, ClassStatsItem> = {};
-
-    filteredData.forEach(item => {
-      // Create a unique key based on day, time, class, and optionally teacher
-      const uniqueKey = includeTrainers 
-        ? `${item.dayOfWeek}-${item.classTime}-${item.cleanedClass}-${item.teacherName}`
-        : `${item.dayOfWeek}-${item.classTime}-${item.cleanedClass}`;
-      
-      const avgAttendance = parseFloat(item.classAverageExcludingEmpty) || 0;
-      
-      if (!classStats[uniqueKey]) {
-        classStats[uniqueKey] = { 
-          key: uniqueKey,
-          dayOfWeek: item.dayOfWeek,
-          classTime: item.classTime,
-          cleanedClass: item.cleanedClass,
-          teacherName: item.teacherName,
-          avgAttendance: avgAttendance,
-          totalOccurrences: item.totalOccurrences,
-          totalCheckins: item.totalCheckins
-        };
-      } else {
-        // If we already have this combination, use the lower average value
-        if (avgAttendance < classStats[uniqueKey].avgAttendance || classStats[uniqueKey].avgAttendance === 0) {
-          classStats[uniqueKey].avgAttendance = avgAttendance;
-          classStats[uniqueKey].totalOccurrences = item.totalOccurrences;
-          classStats[uniqueKey].totalCheckins = item.totalCheckins;
-        }
-      }
-    });
-
-    const sortedClasses = Object.values(classStats)
+    return Object.values(classStatistics)
       .filter(item => item.avgAttendance > 0 && item.totalOccurrences >= 2) // Filter out zero attendance and low occurrence classes
-      .sort((a, b) => a.avgAttendance - b.avgAttendance);
-    
-    return sortedClasses.slice(0, bottomClassesCount);
-  }, [filteredData, bottomClassesCount, includeTrainers]);
+      .sort((a, b) => a.avgAttendance - b.avgAttendance)
+      .slice(0, bottomClassesCount);
+  }, [classStatistics, bottomClassesCount]);
 
   return (
     <div className="space-y-4">
