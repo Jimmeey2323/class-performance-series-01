@@ -30,7 +30,11 @@ import {
   FileText,
   FileSpreadsheet,
   FileJson,
-  Users
+  Users,
+  Filter,
+  ChevronUp,
+  ChevronDown,
+  Sparkles
 } from 'lucide-react';
 import ProgressBar from '@/components/ProgressBar';
 import { Card, CardContent } from '@/components/ui/card';
@@ -52,6 +56,8 @@ import {
 } from "@/components/ui/dialog";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 
 interface DashboardProps {
   data: ProcessedData[];
@@ -90,10 +96,9 @@ const Dashboard: React.FC<DashboardProps> = ({
   const [filteredData, setFilteredData] = useState<ProcessedData[]>([]);
   const [filters, setFilters] = useState<FilterOption[]>([]);
   const [sortOptions, setSortOptions] = useState<SortOption[]>([]);
-  const [activeTab, setActiveTab] = useState('data');
   const [searchQuery, setSearchQuery] = useState('');
-  const [showSearchDialog, setShowSearchDialog] = useState(false);
   const [showTrainerComparison, setShowTrainerComparison] = useState(false);
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
 
   // Apply filters and sorting to data, excluding future dates
   useEffect(() => {
@@ -194,8 +199,12 @@ const Dashboard: React.FC<DashboardProps> = ({
     setSortOptions(newSortOptions);
   };
 
+  const handleSearchChange = (query: string) => {
+    setSearchQuery(query);
+  };
+
   const handleExport = (format: 'csv' | 'json' | 'excel') => {
-    if (format === 'csv') {
+    if (format === 'csv' || format === 'excel') {
       exportToCSV(filteredData);
     } else if (format === 'json') {
       // Export as JSON
@@ -206,16 +215,8 @@ const Dashboard: React.FC<DashboardProps> = ({
       document.body.appendChild(downloadAnchorNode);
       downloadAnchorNode.click();
       downloadAnchorNode.remove();
-    } else if (format === 'excel') {
-      // CSV format that Excel can open
-      exportToCSV(filteredData);
     }
   };
-
-  const handleSearchChange = (query: string) => {
-    setSearchQuery(query);
-    setShowSearchDialog(false);
-  }; 
 
   if (loading) {
     return (
@@ -235,11 +236,18 @@ const Dashboard: React.FC<DashboardProps> = ({
     );
   }
 
+  // Format currency values without decimals
+  const formatCurrency = (value: string) => {
+    if (!value) return '₹0';
+    return `₹${parseInt(value).toLocaleString('en-IN')}`;
+  };
+
   return (
     <div className="space-y-6 animate-fade-in">
+      {/* Enhanced Header Section */}
       <div className="flex flex-col justify-between items-center mb-6 relative">
         <div className="absolute right-0 top-0">
-          <Button variant="ghost" size="icon" onClick={onLogout}>
+          <Button variant="ghost" size="icon" onClick={onLogout} title="Sign Out">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
             </svg>
@@ -248,12 +256,16 @@ const Dashboard: React.FC<DashboardProps> = ({
         
         <div className="flex flex-col items-center w-full animate-fade-in">
           <div className="flex items-center justify-center mb-3 animate-scale-in">
-            <img src="https://i.imgur.com/9mOm7gP.png" alt="Logo" className="h-16 w-auto hover:animate-pulse transition-all" />
+            <img 
+              src="https://i.imgur.com/9mOm7gP.png" 
+              alt="Logo" 
+              className="h-16 w-auto hover:animate-pulse transition-all duration-300 animate-enter" 
+            />
           </div>
-          <h1 className="text-3xl font-bold text-center mb-2 text-slate-800 dark:text-slate-100 flex items-center justify-center gap-2 animate-enter">
-            <span className="h-8 w-8 text-amber-500 animate-pulse">✨</span>
+          <h1 className="text-3xl font-bold text-center mb-2 text-slate-800 dark:text-slate-100 flex items-center justify-center gap-2 animate-enter bg-clip-text bg-gradient-to-r from-indigo-600 to-violet-500 text-transparent">
+            <span className="h-8 w-8 text-amber-500"><Sparkles className="h-6 w-6 animate-pulse" /></span>
             Class Performance & Analytics
-            <span className="h-8 w-8 text-amber-500 animate-pulse">✨</span>
+            <span className="h-8 w-8 text-amber-500"><Sparkles className="h-6 w-6 animate-pulse" /></span>
           </h1>
           <p className="text-center text-slate-600 dark:text-slate-400 max-w-2xl animate-fade-in transition-all hover:text-slate-800 dark:hover:text-slate-200">
             Analyze class performance metrics, explore trends, and gain insights to optimize your fitness studio operations
@@ -270,12 +282,13 @@ const Dashboard: React.FC<DashboardProps> = ({
         </div>
       </div>
 
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+      {/* Top Action Bar */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-2">
         <div className="flex items-center gap-2">
           <h2 className="text-2xl font-bold">Analytics Dashboard</h2>
-          <span className="px-2 py-1 bg-primary/10 text-primary text-xs rounded-full">
+          <Badge variant="outline" className="bg-indigo-50 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-300">
             {filteredData.length} Classes
-          </span>
+          </Badge>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" size="sm" onClick={onReset}>
@@ -305,26 +318,6 @@ const Dashboard: React.FC<DashboardProps> = ({
             </DropdownMenuContent>
           </DropdownMenu>
           
-          <Dialog open={showSearchDialog} onOpenChange={setShowSearchDialog}>
-            <DialogTrigger asChild>
-              <Button variant="outline" size="sm">
-                <Search className="mr-2 h-4 w-4" />
-                Advanced Search
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-3xl">
-              <DialogHeader>
-                <DialogTitle>Advanced Search</DialogTitle>
-              </DialogHeader>
-              <SearchBar onSearch={handleSearchChange} data={data} />
-              <div className="flex justify-end mt-4">
-                <DialogClose asChild>
-                  <Button variant="outline" size="sm">Close</Button>
-                </DialogClose>
-              </div>
-            </DialogContent>
-          </Dialog>
-          
           <Button 
             variant={showTrainerComparison ? "default" : "outline"} 
             size="sm" 
@@ -333,39 +326,124 @@ const Dashboard: React.FC<DashboardProps> = ({
             <Users className="mr-2 h-4 w-4" />
             Trainer Comparison
           </Button>
+          
+          <Button
+            variant={isFilterOpen ? "default" : "outline"}
+            size="sm"
+            onClick={() => setIsFilterOpen(!isFilterOpen)}
+            className="ml-auto sm:ml-0"
+          >
+            <Filter className="mr-2 h-4 w-4" />
+            Filters
+            {filters.length > 0 && (
+              <Badge variant="outline" className="ml-2 bg-indigo-100 dark:bg-indigo-900 text-xs">
+                {filters.length}
+              </Badge>
+            )}
+          </Button>
         </div>
       </div>
+      
+      {/* Collapsible Filter Section */}
+      <Collapsible open={isFilterOpen} onOpenChange={setIsFilterOpen} className="mb-4">
+        <CollapsibleTrigger asChild>
+          <div className="cursor-pointer"></div>
+        </CollapsibleTrigger>
+        <CollapsibleContent className="overflow-hidden animate-accordion-down">
+          <Card className="border border-indigo-100 dark:border-indigo-900">
+            <CardContent className="p-4">
+              <div className="flex flex-col space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Filter className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
+                    <h3 className="font-medium">Filter & Search</h3>
+                  </div>
+                  <Button variant="ghost" size="sm" onClick={() => setFilters([])} disabled={filters.length === 0}>
+                    Clear All
+                  </Button>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="relative">
+                    <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Search across all fields..."
+                      value={searchQuery}
+                      onChange={(e) => handleSearchChange(e.target.value)}
+                      className="pl-8"
+                    />
+                  </div>
+                  
+                  <div className="md:col-span-2">
+                    <DataFilters 
+                      onFilterChange={handleFilterChange}
+                      onSortChange={handleSortChange}
+                      data={data}
+                      activeFilters={filters.length}
+                      compact={true}
+                    />
+                  </div>
+                </div>
+                
+                {/* Active Filters Display */}
+                {filters.length > 0 && (
+                  <div className="flex flex-wrap gap-2 pt-2">
+                    {filters.map((filter, index) => (
+                      <Badge 
+                        key={index} 
+                        variant="outline"
+                        className="bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 px-2 py-1 flex items-center gap-1"
+                      >
+                        <span className="font-medium">{filter.field}:</span> 
+                        <span>{filter.operator} "{filter.value}"</span>
+                        <button 
+                          className="ml-1 text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300"
+                          onClick={() => {
+                            const newFilters = [...filters];
+                            newFilters.splice(index, 1);
+                            setFilters(newFilters);
+                          }}
+                        >
+                          ×
+                        </button>
+                      </Badge>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </CollapsibleContent>
+      </Collapsible>
 
+      {/* Metrics Panel */}
       <MetricsPanel data={filteredData} />
       
+      {/* Top & Bottom Classes */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <Card className="lg:col-span-3">
+        <Card className="lg:col-span-3 border-indigo-100 dark:border-indigo-900 shadow-sm hover:shadow-md transition-shadow">
           <CardContent className="p-6">
             <TopBottomClasses data={filteredData} />
           </CardContent>
         </Card>
       </div>
       
+      {/* Trainer Comparison (Conditionally Shown) */}
       {showTrainerComparison && (
         <div className="grid grid-cols-1 gap-6">
-          <Card>
+          <Card className="border-indigo-100 dark:border-indigo-900 shadow-sm hover:shadow-md transition-shadow">
             <CardContent className="p-6">
               <TrainerComparisonView data={filteredData} trainerAvatars={trainerAvatars} />
             </CardContent>
           </Card>
         </div>
       )}
-      
-      <DataFilters 
-        onFilterChange={handleFilterChange} 
-        onSortChange={handleSortChange}
-        data={data}
-        activeFilters={filters.length}
-      />
 
+      {/* View Switcher */}
       <ViewSwitcherWrapper viewMode={viewMode} setViewMode={setViewMode} />
 
-      <div className="bg-white dark:bg-gray-950 border rounded-lg shadow-sm">
+      {/* Main Data Display (Table/Grid/Kanban/etc) */}
+      <div className="bg-white dark:bg-gray-950 border border-indigo-100 dark:border-indigo-900 rounded-lg shadow-sm hover:shadow-md transition-shadow">
         {viewMode === 'table' && <DataTable data={filteredData} trainerAvatars={trainerAvatars} />}
         {viewMode === 'grid' && <GridView data={filteredData} trainerAvatars={trainerAvatars} />}
         {viewMode === 'kanban' && <KanbanView data={filteredData} trainerAvatars={trainerAvatars} />}
@@ -373,6 +451,7 @@ const Dashboard: React.FC<DashboardProps> = ({
         {viewMode === 'pivot' && <PivotView data={filteredData} trainerAvatars={trainerAvatars} />}
       </div>
       
+      {/* Charts Panel */}
       <ChartPanel data={filteredData} />
     </div>
   );

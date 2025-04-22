@@ -98,3 +98,31 @@ export interface PivotData {
   valueField: keyof ProcessedData;
   aggregation: 'sum' | 'average' | 'count' | 'min' | 'max' | 'count-unique';
 }
+
+export interface ClassStatsItem {
+  key: string;
+  dayOfWeek: string;
+  classTime: string;
+  cleanedClass: string;
+  teacherName: string;
+  avgAttendance: number;
+  totalOccurrences: number;
+  totalCheckins: number;
+  totalRevenue: string;
+}
+
+export interface TrainerComparisonStats {
+  name: string;
+  avatarUrl: string;
+  avgAttendance: number;
+  totalOccurrences: number;
+  totalCheckins: number;
+  totalRevenue: string;
+}
+
+export interface TrainerClassStats {
+  dayOfWeek: string;
+  classTime: string;
+  cleanedClass: string;
+  trainers: TrainerComparisonStats[];
+}

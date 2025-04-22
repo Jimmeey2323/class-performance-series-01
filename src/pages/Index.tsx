@@ -50,6 +50,27 @@ const Index = () => {
     };
   }, []);
 
+  // Load saved data from localStorage
+  useEffect(() => {
+    const savedData = localStorage.getItem('classAnalyticsData');
+    if (savedData) {
+      try {
+        const parsedData = JSON.parse(savedData);
+        if (Array.isArray(parsedData) && parsedData.length > 0) {
+          setData(parsedData);
+          setShowUploader(false);
+          toast({
+            title: "Data Loaded",
+            description: "Previously uploaded data has been loaded.",
+            variant: "default",
+          });
+        }
+      } catch (error) {
+        console.error("Error loading saved data:", error);
+      }
+    }
+  }, []);
+
   // Redirect to login if not authenticated
   useEffect(() => {
     if (authChecked && !user && !adminBypass) {
@@ -65,9 +86,11 @@ const Index = () => {
       setProgress(0);
       setShowUploader(false);
       
-      const processedData = await processZipFile(file, (percentage) => {
-        setProgress(percentage);
-      });
+      const processedData = await processZipFile(
+        file, 
+        (percentage) => setProgress(percentage),
+        "momence-teachers-payroll-report-aggregate-combined" // Specifically look for this filename pattern
+      );
       
       // Filter out future dates before setting data
       const today = new Date();
@@ -86,6 +109,10 @@ const Index = () => {
       });
       
       setData(filteredData);
+      
+      // Save data to localStorage
+      localStorage.setItem('classAnalyticsData', JSON.stringify(filteredData));
+      
       toast({
         title: "Success",
         description: "Data processed successfully!",
@@ -107,6 +134,8 @@ const Index = () => {
   const resetUpload = () => {
     setShowUploader(true);
     setData([]);
+    // Clear saved data
+    localStorage.removeItem('classAnalyticsData');
   };
 
   const handleLogout = async () => {

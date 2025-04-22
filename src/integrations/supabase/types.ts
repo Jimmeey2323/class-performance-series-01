@@ -9,6 +9,24 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      Auth: {
+        Row: {
+          cookie: string | null
+          created_at: string
+          id: number
+        }
+        Insert: {
+          cookie?: string | null
+          created_at?: string
+          id?: number
+        }
+        Update: {
+          cookie?: string | null
+          created_at?: string
+          id?: number
+        }
+        Relationships: []
+      }
       Bookings: {
         Row: {
           Cancelled: string | null
@@ -84,6 +102,60 @@ export type Database = {
           embedding?: string | null
           id?: number
           metadata?: Json | null
+        }
+        Relationships: []
+      }
+      FAQ: {
+        Row: {
+          Category: string | null
+          Question: string
+          Response: string | null
+          "Side Note": string | null
+          Variations: string | null
+        }
+        Insert: {
+          Category?: string | null
+          Question: string
+          Response?: string | null
+          "Side Note"?: string | null
+          Variations?: string | null
+        }
+        Update: {
+          Category?: string | null
+          Question?: string
+          Response?: string | null
+          "Side Note"?: string | null
+          Variations?: string | null
+        }
+        Relationships: []
+      }
+      fitness_classes: {
+        Row: {
+          checkins: number
+          class_average: number
+          class_name: string
+          day_of_week: string
+          id: string
+          occurrences: number
+          time: string
+        }
+        Insert: {
+          checkins?: number
+          class_average?: number
+          class_name: string
+          day_of_week: string
+          id: string
+          occurrences?: number
+          time: string
+        }
+        Update: {
+          checkins?: number
+          class_average?: number
+          class_name?: string
+          day_of_week?: string
+          id?: string
+          occurrences?: number
+          time?: string
         }
         Relationships: []
       }
@@ -192,6 +264,220 @@ export type Database = {
         }
         Relationships: []
       }
+      nods_page: {
+        Row: {
+          checksum: string | null
+          id: number
+          meta: Json | null
+          parent_page_id: number | null
+          path: string
+          source: string | null
+          type: string | null
+        }
+        Insert: {
+          checksum?: string | null
+          id?: number
+          meta?: Json | null
+          parent_page_id?: number | null
+          path: string
+          source?: string | null
+          type?: string | null
+        }
+        Update: {
+          checksum?: string | null
+          id?: number
+          meta?: Json | null
+          parent_page_id?: number | null
+          path?: string
+          source?: string | null
+          type?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "nods_page_parent_page_id_fkey"
+            columns: ["parent_page_id"]
+            isOneToOne: false
+            referencedRelation: "nods_page"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      nods_page_section: {
+        Row: {
+          content: string | null
+          embedding: string | null
+          heading: string | null
+          id: number
+          page_id: number
+          slug: string | null
+          token_count: number | null
+        }
+        Insert: {
+          content?: string | null
+          embedding?: string | null
+          heading?: string | null
+          id?: number
+          page_id: number
+          slug?: string | null
+          token_count?: number | null
+        }
+        Update: {
+          content?: string | null
+          embedding?: string | null
+          heading?: string | null
+          id?: number
+          page_id?: number
+          slug?: string | null
+          token_count?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "nods_page_section_page_id_fkey"
+            columns: ["page_id"]
+            isOneToOne: false
+            referencedRelation: "nods_page"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      "Product Info": {
+        Row: {
+          "Freeze Duration": string | null
+          "Host Id": number | null
+          id: number
+          Name: string | null
+          "No of Freeze Attempts": string | null
+          "No of Sessions": string | null
+          "Price Post Tax": string | null
+          "Price Pre Tax": string | null
+          "Product Type": string | null
+          "Purchase Link": string | null
+          "Suggested Audience": string | null
+          "Tax Percentage": string | null
+          "Valid For": string | null
+        }
+        Insert: {
+          "Freeze Duration"?: string | null
+          "Host Id"?: number | null
+          id: number
+          Name?: string | null
+          "No of Freeze Attempts"?: string | null
+          "No of Sessions"?: string | null
+          "Price Post Tax"?: string | null
+          "Price Pre Tax"?: string | null
+          "Product Type"?: string | null
+          "Purchase Link"?: string | null
+          "Suggested Audience"?: string | null
+          "Tax Percentage"?: string | null
+          "Valid For"?: string | null
+        }
+        Update: {
+          "Freeze Duration"?: string | null
+          "Host Id"?: number | null
+          id?: number
+          Name?: string | null
+          "No of Freeze Attempts"?: string | null
+          "No of Sessions"?: string | null
+          "Price Post Tax"?: string | null
+          "Price Pre Tax"?: string | null
+          "Product Type"?: string | null
+          "Purchase Link"?: string | null
+          "Suggested Audience"?: string | null
+          "Tax Percentage"?: string | null
+          "Valid For"?: string | null
+        }
+        Relationships: []
+      }
+      Products: {
+        Row: {
+          "Freeze Duration": string | null
+          "Host Id": number | null
+          id: number
+          Name: string | null
+          "No of Freeze Attempts": number | null
+          "No of Sessions": string | null
+          "Price Post Tax": number | null
+          "Price Pre Tax": number | null
+          "Product Type": string | null
+          "Purchase Link": string | null
+          "Suggested Audience": string | null
+          "Tax Percentage": string | null
+          "Valid For": string | null
+        }
+        Insert: {
+          "Freeze Duration"?: string | null
+          "Host Id"?: number | null
+          id: number
+          Name?: string | null
+          "No of Freeze Attempts"?: number | null
+          "No of Sessions"?: string | null
+          "Price Post Tax"?: number | null
+          "Price Pre Tax"?: number | null
+          "Product Type"?: string | null
+          "Purchase Link"?: string | null
+          "Suggested Audience"?: string | null
+          "Tax Percentage"?: string | null
+          "Valid For"?: string | null
+        }
+        Update: {
+          "Freeze Duration"?: string | null
+          "Host Id"?: number | null
+          id?: number
+          Name?: string | null
+          "No of Freeze Attempts"?: number | null
+          "No of Sessions"?: string | null
+          "Price Post Tax"?: number | null
+          "Price Pre Tax"?: number | null
+          "Product Type"?: string | null
+          "Purchase Link"?: string | null
+          "Suggested Audience"?: string | null
+          "Tax Percentage"?: string | null
+          "Valid For"?: string | null
+        }
+        Relationships: []
+      }
+      "schedule-n8n": {
+        Row: {
+          capacity: number | null
+          checkins: number | null
+          description: string | null
+          embed: string | null
+          id: number
+          ID: number
+          location: string | null
+          name: string | null
+          startsAt: string | null
+          teacherFirstName: string | null
+          teacherLastName: string | null
+        }
+        Insert: {
+          capacity?: number | null
+          checkins?: number | null
+          description?: string | null
+          embed?: string | null
+          id?: number
+          ID: number
+          location?: string | null
+          name?: string | null
+          startsAt?: string | null
+          teacherFirstName?: string | null
+          teacherLastName?: string | null
+        }
+        Update: {
+          capacity?: number | null
+          checkins?: number | null
+          description?: string | null
+          embed?: string | null
+          id?: number
+          ID?: number
+          location?: string | null
+          name?: string | null
+          startsAt?: string | null
+          teacherFirstName?: string | null
+          teacherLastName?: string | null
+        }
+        Relationships: []
+      }
       users: {
         Row: {
           created_at: string
@@ -210,128 +496,99 @@ export type Database = {
         }
         Relationships: []
       }
+      "Whatsapp Agent": {
+        Row: {
+          created_at: string
+          id: number
+          memory: string | null
+          sessionID: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: number
+          memory?: string | null
+          sessionID?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: number
+          memory?: string | null
+          sessionID?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      binary_quantize:
-        | {
-            Args: {
-              "": string
-            }
-            Returns: unknown
-          }
-        | {
-            Args: {
-              "": unknown
-            }
-            Returns: unknown
-          }
+      binary_quantize: {
+        Args: { "": string } | { "": unknown }
+        Returns: unknown
+      }
+      get_page_parents: {
+        Args: { page_id: number }
+        Returns: {
+          id: number
+          parent_page_id: number
+          path: string
+          meta: Json
+        }[]
+      }
       halfvec_avg: {
-        Args: {
-          "": number[]
-        }
+        Args: { "": number[] }
         Returns: unknown
       }
       halfvec_out: {
-        Args: {
-          "": unknown
-        }
+        Args: { "": unknown }
         Returns: unknown
       }
       halfvec_send: {
-        Args: {
-          "": unknown
-        }
+        Args: { "": unknown }
         Returns: string
       }
       halfvec_typmod_in: {
-        Args: {
-          "": unknown[]
-        }
+        Args: { "": unknown[] }
         Returns: number
       }
       hnsw_bit_support: {
-        Args: {
-          "": unknown
-        }
+        Args: { "": unknown }
         Returns: unknown
       }
       hnsw_halfvec_support: {
-        Args: {
-          "": unknown
-        }
+        Args: { "": unknown }
         Returns: unknown
       }
       hnsw_sparsevec_support: {
-        Args: {
-          "": unknown
-        }
+        Args: { "": unknown }
         Returns: unknown
       }
       hnswhandler: {
-        Args: {
-          "": unknown
-        }
+        Args: { "": unknown }
         Returns: unknown
       }
       ivfflat_bit_support: {
-        Args: {
-          "": unknown
-        }
+        Args: { "": unknown }
         Returns: unknown
       }
       ivfflat_halfvec_support: {
-        Args: {
-          "": unknown
-        }
+        Args: { "": unknown }
         Returns: unknown
       }
       ivfflathandler: {
-        Args: {
-          "": unknown
-        }
+        Args: { "": unknown }
         Returns: unknown
       }
-      l2_norm:
-        | {
-            Args: {
-              "": unknown
-            }
-            Returns: number
-          }
-        | {
-            Args: {
-              "": unknown
-            }
-            Returns: number
-          }
-      l2_normalize:
-        | {
-            Args: {
-              "": string
-            }
-            Returns: string
-          }
-        | {
-            Args: {
-              "": unknown
-            }
-            Returns: unknown
-          }
-        | {
-            Args: {
-              "": unknown
-            }
-            Returns: unknown
-          }
+      l2_norm: {
+        Args: { "": unknown } | { "": unknown }
+        Returns: number
+      }
+      l2_normalize: {
+        Args: { "": string } | { "": unknown } | { "": unknown }
+        Returns: string
+      }
       match_documents: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
+        Args: { query_embedding: string; match_count?: number; filter?: Json }
         Returns: {
           id: number
           content: string
@@ -339,65 +596,56 @@ export type Database = {
           similarity: number
         }[]
       }
-      sparsevec_out: {
+      match_page_sections: {
         Args: {
-          "": unknown
+          embedding: string
+          match_threshold: number
+          match_count: number
+          min_content_length: number
         }
+        Returns: {
+          id: number
+          page_id: number
+          slug: string
+          heading: string
+          content: string
+          similarity: number
+        }[]
+      }
+      sparsevec_out: {
+        Args: { "": unknown }
         Returns: unknown
       }
       sparsevec_send: {
-        Args: {
-          "": unknown
-        }
+        Args: { "": unknown }
         Returns: string
       }
       sparsevec_typmod_in: {
-        Args: {
-          "": unknown[]
-        }
+        Args: { "": unknown[] }
         Returns: number
       }
       vector_avg: {
-        Args: {
-          "": number[]
-        }
+        Args: { "": number[] }
         Returns: string
       }
-      vector_dims:
-        | {
-            Args: {
-              "": string
-            }
-            Returns: number
-          }
-        | {
-            Args: {
-              "": unknown
-            }
-            Returns: number
-          }
+      vector_dims: {
+        Args: { "": string } | { "": unknown }
+        Returns: number
+      }
       vector_norm: {
-        Args: {
-          "": string
-        }
+        Args: { "": string }
         Returns: number
       }
       vector_out: {
-        Args: {
-          "": string
-        }
+        Args: { "": string }
         Returns: unknown
       }
       vector_send: {
-        Args: {
-          "": string
-        }
+        Args: { "": string }
         Returns: string
       }
       vector_typmod_in: {
-        Args: {
-          "": unknown[]
-        }
+        Args: { "": unknown[] }
         Returns: number
       }
     }
@@ -410,27 +658,29 @@ export type Database = {
   }
 }
 
-type PublicSchema = Database[Extract<keyof Database, "public">]
+type DefaultSchema = Database[Extract<keyof Database, "public">]
 
 export type Tables<
-  PublicTableNameOrOptions extends
-    | keyof (PublicSchema["Tables"] & PublicSchema["Views"])
+  DefaultSchemaTableNameOrOptions extends
+    | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof Database },
-  TableName extends PublicTableNameOrOptions extends { schema: keyof Database }
-    ? keyof (Database[PublicTableNameOrOptions["schema"]]["Tables"] &
-        Database[PublicTableNameOrOptions["schema"]]["Views"])
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof Database
+  }
+    ? keyof (Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+        Database[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
     : never = never,
-> = PublicTableNameOrOptions extends { schema: keyof Database }
-  ? (Database[PublicTableNameOrOptions["schema"]]["Tables"] &
-      Database[PublicTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+> = DefaultSchemaTableNameOrOptions extends { schema: keyof Database }
+  ? (Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+      Database[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
       Row: infer R
     }
     ? R
     : never
-  : PublicTableNameOrOptions extends keyof (PublicSchema["Tables"] &
-        PublicSchema["Views"])
-    ? (PublicSchema["Tables"] &
-        PublicSchema["Views"])[PublicTableNameOrOptions] extends {
+  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])
+    ? (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
         Row: infer R
       }
       ? R
@@ -438,20 +688,22 @@ export type Tables<
     : never
 
 export type TablesInsert<
-  PublicTableNameOrOptions extends
-    | keyof PublicSchema["Tables"]
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
     | { schema: keyof Database },
-  TableName extends PublicTableNameOrOptions extends { schema: keyof Database }
-    ? keyof Database[PublicTableNameOrOptions["schema"]]["Tables"]
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof Database
+  }
+    ? keyof Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
     : never = never,
-> = PublicTableNameOrOptions extends { schema: keyof Database }
-  ? Database[PublicTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+> = DefaultSchemaTableNameOrOptions extends { schema: keyof Database }
+  ? Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
       Insert: infer I
     }
     ? I
     : never
-  : PublicTableNameOrOptions extends keyof PublicSchema["Tables"]
-    ? PublicSchema["Tables"][PublicTableNameOrOptions] extends {
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
         Insert: infer I
       }
       ? I
@@ -459,20 +711,22 @@ export type TablesInsert<
     : never
 
 export type TablesUpdate<
-  PublicTableNameOrOptions extends
-    | keyof PublicSchema["Tables"]
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
     | { schema: keyof Database },
-  TableName extends PublicTableNameOrOptions extends { schema: keyof Database }
-    ? keyof Database[PublicTableNameOrOptions["schema"]]["Tables"]
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof Database
+  }
+    ? keyof Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
     : never = never,
-> = PublicTableNameOrOptions extends { schema: keyof Database }
-  ? Database[PublicTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+> = DefaultSchemaTableNameOrOptions extends { schema: keyof Database }
+  ? Database[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
       Update: infer U
     }
     ? U
     : never
-  : PublicTableNameOrOptions extends keyof PublicSchema["Tables"]
-    ? PublicSchema["Tables"][PublicTableNameOrOptions] extends {
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
         Update: infer U
       }
       ? U
@@ -480,21 +734,23 @@ export type TablesUpdate<
     : never
 
 export type Enums<
-  PublicEnumNameOrOptions extends
-    | keyof PublicSchema["Enums"]
+  DefaultSchemaEnumNameOrOptions extends
+    | keyof DefaultSchema["Enums"]
     | { schema: keyof Database },
-  EnumName extends PublicEnumNameOrOptions extends { schema: keyof Database }
-    ? keyof Database[PublicEnumNameOrOptions["schema"]]["Enums"]
+  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+    schema: keyof Database
+  }
+    ? keyof Database[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
     : never = never,
-> = PublicEnumNameOrOptions extends { schema: keyof Database }
-  ? Database[PublicEnumNameOrOptions["schema"]]["Enums"][EnumName]
-  : PublicEnumNameOrOptions extends keyof PublicSchema["Enums"]
-    ? PublicSchema["Enums"][PublicEnumNameOrOptions]
+> = DefaultSchemaEnumNameOrOptions extends { schema: keyof Database }
+  ? Database[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
+  : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
+    ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
     : never
 
 export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
-    | keyof PublicSchema["CompositeTypes"]
+    | keyof DefaultSchema["CompositeTypes"]
     | { schema: keyof Database },
   CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
     schema: keyof Database
@@ -503,6 +759,12 @@ export type CompositeTypes<
     : never = never,
 > = PublicCompositeTypeNameOrOptions extends { schema: keyof Database }
   ? Database[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
-  : PublicCompositeTypeNameOrOptions extends keyof PublicSchema["CompositeTypes"]
-    ? PublicSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
+  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
+    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
     : never
+
+export const Constants = {
+  public: {
+    Enums: {},
+  },
+} as const
