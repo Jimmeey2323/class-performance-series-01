@@ -8,6 +8,7 @@ import { ClassData, ProcessedData, ViewMode } from '@/types/data';
 import { processZipFile } from '@/utils/fileProcessing';
 import { Sparkles } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { motion } from 'framer-motion';
 
 const Index = () => {
   const [loading, setLoading] = useState(false);
@@ -87,6 +88,10 @@ const Index = () => {
     if (!file) return;
     
     try {
+      // Clear existing data before processing new file
+      setData([]);
+      localStorage.removeItem('classAnalyticsData');
+      
       setLoading(true);
       setProgress(0);
       setShowUploader(false);
@@ -160,17 +165,38 @@ const Index = () => {
         <div className="container mx-auto px-4 py-8 animate-fade-in">
           <div className="flex flex-col items-center mb-8">
             <div className="flex flex-col items-center animate-scale-in">
-              <img src="https://i.imgur.com/9mOm7gP.png" alt="Logo" className="h-24 w-auto mb-4 animate-pulse hover:scale-110 transition-all duration-300" />
-              <h1 className="text-4xl font-bold mb-4 text-slate-800 dark:text-slate-100 text-center bg-clip-text bg-gradient-to-r from-purple-600 to-blue-500 text-transparent">
+              <motion.img 
+                src="https://i.imgur.com/9mOm7gP.png" 
+                alt="Logo" 
+                className="h-24 w-auto mb-4 hover:scale-110 transition-all duration-300" 
+                initial={{ rotate: 0, scale: 0.8, opacity: 0 }}
+                animate={{ rotate: 360, scale: 1, opacity: 1 }}
+                transition={{ 
+                  duration: 1.5, 
+                  ease: "easeOut",
+                  scale: { duration: 0.5 } 
+                }}
+              />
+              <motion.h1 
+                className="text-4xl font-bold mb-4 text-slate-800 dark:text-slate-100 text-center bg-clip-text bg-gradient-to-r from-purple-600 to-blue-500 text-transparent"
+                initial={{ y: 20, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ delay: 0.3, duration: 0.5 }}
+              >
                 Class Performance & Analytics
-              </h1>
-              <div className="flex items-center justify-center mb-4">
+              </motion.h1>
+              <motion.div 
+                className="flex items-center justify-center mb-4"
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ delay: 0.6, duration: 0.5 }}
+              >
                 <Sparkles className="h-6 w-6 text-amber-500 animate-pulse mr-2" />
                 <p className="text-center text-slate-600 dark:text-slate-400 max-w-2xl mx-auto">
                   Analyze class performance metrics, explore trends, and gain insights
                 </p>
                 <Sparkles className="h-6 w-6 text-amber-500 animate-pulse ml-2" />
-              </div>
+              </motion.div>
             </div>
             
             <button 
@@ -183,7 +209,13 @@ const Index = () => {
               </svg>
             </button>
           </div>
-          <FileUploader onFileUpload={handleFileUpload} />
+          <motion.div
+            initial={{ y: 30, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ delay: 0.9, duration: 0.5 }}
+          >
+            <FileUploader onFileUpload={handleFileUpload} />
+          </motion.div>
         </div>
       ) : (
         <Dashboard 

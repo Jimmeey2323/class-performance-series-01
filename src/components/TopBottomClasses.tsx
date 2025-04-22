@@ -21,6 +21,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { motion } from "framer-motion";
+import { formatIndianCurrency } from '@/components/views/kanban/KanbanCard';
 
 interface TopBottomClassesProps {
   data: ProcessedData[];
@@ -53,7 +54,7 @@ const TopBottomClasses: React.FC<TopBottomClassesProps> = ({ data }) => {
       const attendance = parseFloat(item.classAverageExcludingEmpty) || 0;
       const occurrences = item.totalOccurrences || 0;
       const checkins = item.totalCheckins || 0;
-      const revenue = typeof item.totalRevenue === 'number' ? item.totalRevenue : parseInt(item.totalRevenue) || 0;
+      const revenue = typeof item.totalRevenue === 'number' ? item.totalRevenue : parseFloat(item.totalRevenue) || 0;
       
       if (!classStats[uniqueKey]) {
         classStats[uniqueKey] = { 
@@ -135,10 +136,10 @@ const TopBottomClasses: React.FC<TopBottomClassesProps> = ({ data }) => {
         </CardTitle>
         <div className="flex items-center gap-2">
           <Button 
-            variant="ghost" 
+            variant={includeTrainers ? "default" : "outline"}
             size="sm"
             onClick={() => setIncludeTrainers(!includeTrainers)}
-            className={includeTrainers ? "bg-primary/10 text-primary" : ""}
+            className="transition-all duration-300"
           >
             {includeTrainers ? <Check className="h-3.5 w-3.5 mr-1.5" /> : null}
             {includeTrainers ? 'Trainers Included' : 'Include Trainers'}
@@ -262,7 +263,7 @@ const TopBottomClasses: React.FC<TopBottomClassesProps> = ({ data }) => {
                                 </div>
                                 <div className="bg-blue-50 dark:bg-blue-900/30 p-2 rounded">
                                   <div className="text-gray-500 dark:text-gray-400">Revenue</div>
-                                  <div className="font-medium">${item.totalRevenue.toLocaleString()}</div>
+                                  <div className="font-medium">{formatIndianCurrency(item.totalRevenue)}</div>
                                 </div>
                               </div>
                             </div>
@@ -302,7 +303,7 @@ const TopBottomClasses: React.FC<TopBottomClassesProps> = ({ data }) => {
                               </div>
                               <div className="flex justify-between items-center">
                                 <span className="text-gray-600 dark:text-gray-300">Revenue per Class:</span>
-                                <span className="font-medium">${(item.totalRevenue / item.totalOccurrences).toLocaleString(undefined, {maximumFractionDigits: 0})}</span>
+                                <span className="font-medium">{formatIndianCurrency(item.totalRevenue / item.totalOccurrences)}</span>
                               </div>
                             </div>
                           </div>
@@ -326,7 +327,7 @@ const TopBottomClasses: React.FC<TopBottomClassesProps> = ({ data }) => {
                           <div className="col-span-2">
                             <h4 className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Total Revenue</h4>
                             <div className="text-lg font-semibold text-blue-700 dark:text-blue-300">
-                              ${item.totalRevenue.toLocaleString(undefined, {maximumFractionDigits: 0})}
+                              {formatIndianCurrency(item.totalRevenue)}
                             </div>
                           </div>
                         </div>
@@ -412,7 +413,7 @@ const TopBottomClasses: React.FC<TopBottomClassesProps> = ({ data }) => {
                                 </div>
                                 <div className="bg-amber-50 dark:bg-amber-900/30 p-2 rounded">
                                   <div className="text-gray-500 dark:text-gray-400">Revenue</div>
-                                  <div className="font-medium">${item.totalRevenue.toLocaleString()}</div>
+                                  <div className="font-medium">{formatIndianCurrency(item.totalRevenue)}</div>
                                 </div>
                               </div>
                             </div>
@@ -452,7 +453,7 @@ const TopBottomClasses: React.FC<TopBottomClassesProps> = ({ data }) => {
                               </div>
                               <div className="flex justify-between items-center">
                                 <span className="text-gray-600 dark:text-gray-300">Revenue per Class:</span>
-                                <span className="font-medium">${(item.totalRevenue / item.totalOccurrences).toLocaleString(undefined, {maximumFractionDigits: 0})}</span>
+                                <span className="font-medium">{formatIndianCurrency(item.totalRevenue / item.totalOccurrences)}</span>
                               </div>
                             </div>
                           </div>
@@ -476,7 +477,7 @@ const TopBottomClasses: React.FC<TopBottomClassesProps> = ({ data }) => {
                           <div className="col-span-2">
                             <h4 className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Total Revenue</h4>
                             <div className="text-lg font-semibold text-amber-700 dark:text-amber-300">
-                              ${item.totalRevenue.toLocaleString(undefined, {maximumFractionDigits: 0})}
+                              {formatIndianCurrency(item.totalRevenue)}
                             </div>
                           </div>
                         </div>

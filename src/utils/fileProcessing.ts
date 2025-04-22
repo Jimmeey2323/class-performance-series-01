@@ -1,3 +1,4 @@
+
 import JSZip from 'jszip';
 import Papa from 'papaparse';
 import { ClassData, ProcessedData } from '@/types/data';
@@ -22,7 +23,7 @@ export const processZipFile = async (file: File, onProgress: (progress: number) 
           let processedFiles = 0;
           
           Object.keys(contents.files).forEach((filename) => {
-            if (filename.includes('aggregate-combined')) {
+            if (filename.includes('momence-teachers-payroll-report-aggregate-combined')) {
               csvFiles.push(
                 contents.files[filename].async('string').then(content => {
                   processedFiles++;
@@ -270,7 +271,7 @@ const consolidateCSVData = (csvContents: string[]): ProcessedData[] => {
             totalNonEmpty: totalNonEmpty,
             classAverageIncludingEmpty: classAverageIncludingEmpty,
             classAverageExcludingEmpty: classAverageExcludingEmpty,
-            totalRevenue: data.totalRevenue.toFixed(2),
+            totalRevenue: data.totalRevenue,
             totalTime: data.totalTime.toFixed(2),
             totalNonPaid: data.totalNonPaid,
             date: new Date(data.classDate).toISOString(), // Use actual class date from uniqueData
