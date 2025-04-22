@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from "@/hooks/use-toast";
@@ -49,27 +50,6 @@ const Index = () => {
     };
   }, []);
 
-  // Load saved data from localStorage and fix build error (processZipFile argument count)
-  useEffect(() => {
-    const savedData = localStorage.getItem('classAnalyticsData');
-    if (savedData) {
-      try {
-        const parsedData = JSON.parse(savedData);
-        if (Array.isArray(parsedData) && parsedData.length > 0) {
-          setData(parsedData);
-          setShowUploader(false);
-          toast({
-            title: "Data Loaded",
-            description: "Previously uploaded data has been loaded.",
-            variant: "default",
-          });
-        }
-      } catch (error) {
-        console.error("Error loading saved data:", error);
-      }
-    }
-  }, []);
-
   // Redirect to login if not authenticated
   useEffect(() => {
     if (authChecked && !user && !adminBypass) {
@@ -79,39 +59,33 @@ const Index = () => {
 
   const handleFileUpload = async (file: File) => {
     if (!file) return;
-
+    
     try {
       setLoading(true);
       setProgress(0);
       setShowUploader(false);
-
-      // Fix: Call processZipFile with only 2 arguments as required by utils
-      const processedData = await processZipFile(
-        file,
-        (percentage) => setProgress(percentage)
-      );
-
-      // Remove decimals in revenue
+      
+      const processedData = await processZipFile(file, (percentage) => {
+        setProgress(percentage);
+      });
+      
+      // Filter out future dates before setting data
       const today = new Date();
       const filteredData = processedData.filter(item => {
+        // Check if the class date is in the past or today
         if (item.period) {
           const [month, year] = item.period.split('-');
           const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
           const monthIndex = months.indexOf(month);
-          const fullYear = 2000 + parseInt(year);
+          const fullYear = 2000 + parseInt(year); // Assuming years are in format '22' for 2022
+          
           const periodDate = new Date(fullYear, monthIndex);
           return periodDate <= today;
         }
-        return true;
-      }).map(item => ({
-        ...item,
-        totalRevenue: item.totalRevenue ? parseInt(item.totalRevenue).toString() : "0"
-      }));
-
+        return true; // Include items without period data
+      });
+      
       setData(filteredData);
-
-      localStorage.setItem('classAnalyticsData', JSON.stringify(filteredData));
-
       toast({
         title: "Success",
         description: "Data processed successfully!",
@@ -133,8 +107,6 @@ const Index = () => {
   const resetUpload = () => {
     setShowUploader(true);
     setData([]);
-    // Clear saved data
-    localStorage.removeItem('classAnalyticsData');
   };
 
   const handleLogout = async () => {
@@ -152,34 +124,28 @@ const Index = () => {
     );
   }
 
-  // Modern, refined animated header moved above uploader/Dashboard.
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-[#1A1F2C] dark:to-[#232631] transition-colors duration-700">
-      <div className="container mx-auto px-1 py-2">
-        {/* Logo and theme toggle */}
-        <div className="w-full flex items-center justify-between py-3 mb-2">
-          <img src="https://i.imgur.com/9mOm7gP.png" alt="Logo" className="h-8 w-auto mr-2 float-left" loading="eager" />
-          {/* Theme Toggle here (minimize shifting on navigation) */}
-          <div className="ml-auto">
-            {/* Only reference the ThemeToggle here for layout consistency */}
-          </div>
-        </div>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
+      <div className="container mx-auto px-4 py-8">
         {showUploader ? (
           <div className="animate-fade-in">
-            {/* ... modern animated intro and uploader, as before ... */}
             <div className="flex flex-col items-center mb-8">
               <div className="flex flex-col items-center animate-scale-in">
-                <h1 className="text-4xl sm:text-5xl font-black mb-4 text-slate-800 dark:text-slate-100 text-center bg-clip-text bg-gradient-to-r from-purple-600 to-blue-500 text-transparent animate-fade-in">
+                <img src="https://i.imgur.com/9mOm7gP.png" alt="Logo" className="h-24 w-auto mb-4 animate-pulse hover:scale-110 transition-all duration-300" />
+                <h1 className="text-4xl font-bold mb-4 text-slate-800 dark:text-slate-100 text-center bg-clip-text bg-gradient-to-r from-purple-600 to-blue-500 text-transparent">
                   Class Performance & Analytics
                 </h1>
                 <div className="flex items-center justify-center mb-4">
+                  <Sparkles className="h-6 w-6 text-amber-500 animate-pulse mr-2" />
                   <p className="text-center text-slate-600 dark:text-slate-400 max-w-2xl mx-auto">
                     Analyze class performance metrics, explore trends, and gain insights
                   </p>
+                  <Sparkles className="h-6 w-6 text-amber-500 animate-pulse ml-2" />
                 </div>
               </div>
-              <button
-                onClick={handleLogout}
+              
+              <button 
+                onClick={handleLogout} 
                 className="absolute top-4 right-4 p-2 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
                 title="Sign Out"
               >
@@ -191,10 +157,10 @@ const Index = () => {
             <FileUploader onFileUpload={handleFileUpload} />
           </div>
         ) : (
-          <Dashboard
-            data={data}
-            loading={loading}
-            progress={progress}
+          <Dashboard 
+            data={data} 
+            loading={loading} 
+            progress={progress} 
             onReset={resetUpload}
             viewMode={viewMode}
             setViewMode={setViewMode}
