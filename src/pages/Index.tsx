@@ -19,6 +19,7 @@ const Index = () => {
   const [session, setSession] = useState(null);
   const [authChecked, setAuthChecked] = useState(false);
   const [adminBypass, setAdminBypass] = useState(false);
+  const [dataLoaded, setDataLoaded] = useState(false);
   const navigate = useNavigate();
 
   // Check authentication status
@@ -57,6 +58,31 @@ const Index = () => {
     }
   }, [authChecked, user, adminBypass, navigate]);
 
+  // Load saved data from localStorage
+  useEffect(() => {
+    if (authChecked && (user || adminBypass) && !dataLoaded) {
+      const savedData = localStorage.getItem('classAnalyticsData');
+      if (savedData) {
+        try {
+          const parsedData = JSON.parse(savedData) as ProcessedData[];
+          if (Array.isArray(parsedData) && parsedData.length > 0) {
+            setData(parsedData);
+            setShowUploader(false);
+            setDataLoaded(true);
+            toast({
+              title: "Loaded saved data",
+              description: `Loaded ${parsedData.length} classes from your previous session.`,
+              variant: "default",
+            });
+          }
+        } catch (error) {
+          console.error("Error loading saved data:", error);
+          // If there's an error loading the data, we'll just continue with an empty state
+        }
+      }
+    }
+  }, [authChecked, user, adminBypass, dataLoaded]);
+
   const handleFileUpload = async (file: File) => {
     if (!file) return;
     
@@ -80,12 +106,15 @@ const Index = () => {
           const fullYear = 2000 + parseInt(year); // Assuming years are in format '22' for 2022
           
           const periodDate = new Date(fullYear, monthIndex);
-          return periodDate <= today;
+          return periodDate <= today; // Include items without period data
         }
-        return true; // Include items without period data
+        return true;
       });
       
       setData(filteredData);
+      // Save data to localStorage for future sessions
+      localStorage.setItem('classAnalyticsData', JSON.stringify(filteredData));
+      
       toast({
         title: "Success",
         description: "Data processed successfully!",
@@ -107,6 +136,7 @@ const Index = () => {
   const resetUpload = () => {
     setShowUploader(true);
     setData([]);
+    localStorage.removeItem('classAnalyticsData');
   };
 
   const handleLogout = async () => {
@@ -125,49 +155,47 @@ const Index = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
-      <div className="container mx-auto px-4 py-8">
-        {showUploader ? (
-          <div className="animate-fade-in">
-            <div className="flex flex-col items-center mb-8">
-              <div className="flex flex-col items-center animate-scale-in">
-                <img src="https://i.imgur.com/9mOm7gP.png" alt="Logo" className="h-24 w-auto mb-4 animate-pulse hover:scale-110 transition-all duration-300" />
-                <h1 className="text-4xl font-bold mb-4 text-slate-800 dark:text-slate-100 text-center bg-clip-text bg-gradient-to-r from-purple-600 to-blue-500 text-transparent">
-                  Class Performance & Analytics
-                </h1>
-                <div className="flex items-center justify-center mb-4">
-                  <Sparkles className="h-6 w-6 text-amber-500 animate-pulse mr-2" />
-                  <p className="text-center text-slate-600 dark:text-slate-400 max-w-2xl mx-auto">
-                    Analyze class performance metrics, explore trends, and gain insights
-                  </p>
-                  <Sparkles className="h-6 w-6 text-amber-500 animate-pulse ml-2" />
-                </div>
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      {showUploader ? (
+        <div className="container mx-auto px-4 py-8 animate-fade-in">
+          <div className="flex flex-col items-center mb-8">
+            <div className="flex flex-col items-center animate-scale-in">
+              <img src="https://i.imgur.com/9mOm7gP.png" alt="Logo" className="h-24 w-auto mb-4 animate-pulse hover:scale-110 transition-all duration-300" />
+              <h1 className="text-4xl font-bold mb-4 text-slate-800 dark:text-slate-100 text-center bg-clip-text bg-gradient-to-r from-purple-600 to-blue-500 text-transparent">
+                Class Performance & Analytics
+              </h1>
+              <div className="flex items-center justify-center mb-4">
+                <Sparkles className="h-6 w-6 text-amber-500 animate-pulse mr-2" />
+                <p className="text-center text-slate-600 dark:text-slate-400 max-w-2xl mx-auto">
+                  Analyze class performance metrics, explore trends, and gain insights
+                </p>
+                <Sparkles className="h-6 w-6 text-amber-500 animate-pulse ml-2" />
               </div>
-              
-              <button 
-                onClick={handleLogout} 
-                className="absolute top-4 right-4 p-2 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
-                title="Sign Out"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                </svg>
-              </button>
             </div>
-            <FileUploader onFileUpload={handleFileUpload} />
+            
+            <button 
+              onClick={handleLogout} 
+              className="absolute top-4 right-4 p-2 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+              title="Sign Out"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+              </svg>
+            </button>
           </div>
-        ) : (
-          <Dashboard 
-            data={data} 
-            loading={loading} 
-            progress={progress} 
-            onReset={resetUpload}
-            viewMode={viewMode}
-            setViewMode={setViewMode}
-            onLogout={handleLogout}
-          />
-        )}
-      </div>
+          <FileUploader onFileUpload={handleFileUpload} />
+        </div>
+      ) : (
+        <Dashboard 
+          data={data} 
+          loading={loading} 
+          progress={progress} 
+          onReset={resetUpload}
+          viewMode={viewMode}
+          setViewMode={setViewMode}
+          onLogout={handleLogout}
+        />
+      )}
     </div>
   );
 };

@@ -28,10 +28,10 @@ export interface ProcessedData {
   totalNonEmpty: number;
   classAverageIncludingEmpty: string;
   classAverageExcludingEmpty: string;
-  totalRevenue: string;
+  totalRevenue: number; // Changed to number for easier formatting
   totalTime: string;
   totalNonPaid: number;
-  attendance: number; // Added attendance property
+  attendance: number;
 }
 
 export interface FilterOption {
@@ -91,10 +91,24 @@ export interface TimelineEvent {
   data: ProcessedData;
 }
 
-// Only for the interface, we'll use simple column/row/value structure for the actual data
 export interface PivotData {
   rowField: keyof ProcessedData;
   columnField: keyof ProcessedData;
   valueField: keyof ProcessedData;
   aggregation: 'sum' | 'average' | 'count' | 'min' | 'max' | 'count-unique';
 }
+
+export interface ClassStatsItem {
+  key: string;
+  dayOfWeek: string;
+  classTime: string;
+  cleanedClass: string;
+  teacherName: string;
+  avgAttendance: number;
+  totalOccurrences: number;
+  totalCheckins: number;
+  totalRevenue: number;
+}
+
+// For theme toggling
+export type Theme = 'light' | 'dark' | 'system';

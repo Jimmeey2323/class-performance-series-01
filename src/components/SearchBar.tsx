@@ -126,7 +126,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch, data }) => {
     } else {
       setShowSuggestions(false);
     }
-  }, [query]);
+  }, [query, data]);
 
   const handleSearch = (searchQuery: string) => {
     if (searchQuery.trim()) {
@@ -159,21 +159,19 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch, data }) => {
   };
 
   return (
-    <div className="space-y-4 w-full">
-      <h3 className="text-lg font-semibold">Search Classes</h3>
-      
+    <div className="space-y-2 w-full">
       <div className="w-full">
         <div className="flex gap-2 w-full">
           <div className="relative flex-1 w-full">
+            <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
               type="text"
               placeholder="Search by class, teacher, location..."
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSearch(query)}
-              className="pr-20 pl-10 w-full"
+              className="pl-9 pr-8 w-full"
             />
-            <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
             {query && (
               <button 
                 onClick={clearSearch}
@@ -188,7 +186,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch, data }) => {
             variant="outline" 
             size="icon" 
             onClick={toggleListening}
-            className={isListening ? "bg-red-100 text-red-600" : ""}
+            className={isListening ? "bg-red-100 text-red-600 dark:bg-red-900 dark:text-red-300" : ""}
           >
             {isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
           </Button>
@@ -229,11 +227,11 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch, data }) => {
         </div>
         
         {showSuggestions && (
-          <div className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-md shadow-lg">
+          <div className="absolute z-10 mt-1 w-full max-w-md bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-lg">
             {suggestions.map((suggestion, index) => (
               <div 
                 key={index}
-                className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
+                className="px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer"
                 onClick={() => {
                   setQuery(suggestion);
                   handleSearch(suggestion);
@@ -252,10 +250,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch, data }) => {
           Listening... Speak now
         </div>
       )}
-      
-      <div className="text-xs text-muted-foreground">
-        Search by class type, teacher name, location, or day of week
-      </div>
     </div>
   );
 };
