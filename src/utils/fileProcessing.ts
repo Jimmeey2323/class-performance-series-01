@@ -1,298 +1,201 @@
+
 import JSZip from 'jszip';
 import Papa from 'papaparse';
 import { ClassData, ProcessedData } from '@/types/data';
 
-export const processZipFile = async (file: File, onProgress: (progress: number) => void): Promise<ProcessedData[]> => {
-  return new Promise(async (resolve, reject) => {
-    try {
-      const reader = new FileReader();
-      
-      reader.onload = async (event) => {
-        if (!event.target?.result) {
-          reject(new Error('Failed to read file'));
-          return;
-        }
-        
-        try {
-          const zip = new JSZip();
-          const contents = await zip.loadAsync(event.target.result);
-          
-          const csvFiles: Promise<string>[] = [];
-          const totalFiles = Object.keys(contents.files).length;
-          let processedFiles = 0;
-          
-          Object.keys(contents.files).forEach((filename) => {
-            if (filename.includes('aggregate-combined')) {
-              csvFiles.push(
-                contents.files[filename].async('string').then(content => {
-                  processedFiles++;
-                  onProgress(Math.round((processedFiles / totalFiles) * 100));
-                  return content;
-                })
-              );
-            } else {
-              processedFiles++;
-              onProgress(Math.round((processedFiles / totalFiles) * 100));
-            }
-          });
-          
-          const csvContents = await Promise.all(csvFiles);
-          const consolidatedData = consolidateCSVData(csvContents);
-          resolve(consolidatedData);
-        } catch (error) {
-          console.error('Error processing ZIP:', error);
+export const processZipFile = async (
+  zipFile: File,
+  onProgress: (progress: number) => void
+): Promise<ProcessedData[]> => {
+  try {
+    const zip = new JSZip();
+    const zipContents = await zip.loadAsync(zipFile);
+    
+    // Find the CSV file with the specific name
+    const csvFiles = Object.keys(zipContents.files).filter(
+      filename => filename.endsWith(".csv") && filename.includes("momence-teachers-payroll-report-aggregate-combined")
+    );
+    
+    if (csvFiles.length === 0) {
+      throw new Error("No matching CSV file found in the ZIP archive");
+    }
+    
+    // Get the first matching CSV file
+    const csvFile = csvFiles[0];
+    const csvContent = await zipContents.files[csvFile].async("string");
+    
+    // Parse CSV data
+    return new Promise((resolve, reject) => {
+      Papa.parse(csvContent, {
+        header: true,
+        dynamicTyping: true,
+        skipEmptyLines: true,
+        complete: (results) => {
+          try {
+            console.log("Raw CSV data loaded:", results.data.length, "rows");
+            const rawData = results.data as ClassData[];
+            
+            // Start processing the data
+            const cleanedData = processRawData(rawData, onProgress);
+            resolve(cleanedData);
+          } catch (error) {
+            console.error("Error processing CSV data:", error);
+            reject(error);
+          }
+        },
+        error: (error) => {
+          console.error("Error parsing CSV:", error);
           reject(error);
         }
-      };
-      
-      reader.onerror = () => {
-        reject(new Error('Error reading file'));
-      };
-      
-      reader.readAsArrayBuffer(file);
-    } catch (error) {
-      reject(error);
+      });
+    });
+  } catch (error) {
+    console.error("Error processing ZIP file:", error);
+    throw error;
+  }
+};
+
+// Helper function to clean class names
+const cleanClassName = (className: string): string => {
+  // Remove trailing numbers and clean up the string
+  return className
+    .replace(/\s+\d+$/, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+};
+
+// Process the raw CSV data into the format needed for the application
+const processRawData = (
+  data: ClassData[],
+  onProgress: (progress: number) => void
+): ProcessedData[] => {
+  const totalRows = data.length;
+  let processedRows = 0;
+  const processedData: ProcessedData[] = [];
+  
+  // Group data by class name, day, time, etc.
+  const groupedData: Record<string, ClassData[]> = {};
+  
+  // First pass - group data
+  data.forEach((row, index) => {
+    // Skip rows with missing essential data
+    if (!row.class_name || !row.day_of_week || !row.class_time) {
+      processedRows++;
+      onProgress(Math.round((processedRows / totalRows) * 100));
+      return;
+    }
+    
+    // Create a unique key for grouping
+    const cleanedClassName = cleanClassName(row.class_name);
+    const key = `${row.day_of_week}-${row.class_time}-${cleanedClassName}-${row.teacher_name}`;
+    
+    if (!groupedData[key]) {
+      groupedData[key] = [];
+    }
+    
+    groupedData[key].push(row);
+    
+    processedRows++;
+    if (index % 10 === 0) { // Update progress every 10 rows for performance
+      onProgress(Math.round((processedRows / totalRows) * 50)); // First pass is 0-50%
     }
   });
-};
-
-const getMonthYear = (dateString: string): string => {
-  const date = new Date(dateString);
-  const month = date.toLocaleString('default', { month: 'short' });
-  const year = date.getFullYear().toString().slice(-2);
-  return `${month}-${year}`;
-};
-
-const getDayOfWeek = (dateString: string): string => {
-  const date = new Date(dateString);
-  return date.toLocaleString('default', { weekday: 'long' });
-};
-
-const getTime = (dateString: string): string => {
-  const date = new Date(dateString);
-  return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-};
-
-const getCleanedClassName = (className: string): string => {
-  className = className.toLowerCase();
   
-  if (className.includes('amped')) {
-    return 'Studio Amped Up!';
-  } else if (
-    className.includes('hosted') || 
-    className.includes('bridal shower class!') || 
-    className.includes('sign up link') || 
-    className.includes('hc')
-  ) {
-    return 'Studio Hosted Class';
-  } else if (className.includes('please see pop up @ kitab mahal')) {
-    return 'Outdoor Class';
-  } else if (className.includes('n/a')) {
-    return 'Invalid';
-  } else if (className.includes('express') && className.includes('back')) {
-    return 'Studio Back Body Blaze Express';
-  } else if (!className.includes('express') && className.includes('back')) {
-    return 'Studio Back Body Blaze';
-  } else if (!className.includes('express') && className.includes('barre 57')) {
-    return 'Studio Barre 57';
-  } else if (className.includes('express') && className.includes('barre 57')) {
-    return 'Studio Barre 57 Express';
-  } else if (!className.includes('express') && className.includes('cardio')) {
-    return 'Studio Cardio Barre';
-  } else if (className.includes('express') && className.includes('cardio')) {
-    return 'Studio Cardio Barre Express';
-  } else if (!className.includes('express') && className.includes('mat')) {
-    return 'Studio Mat 57';
-  } else if (className.includes('express') && className.includes('mat')) {
-    return 'Studio Mat 57 Express';
-  } else if (!className.includes('express') && className.includes('hiit')) {
-    return 'Studio HIIT';
-  } else if (className.includes('express') && className.includes('hiit')) {
-    return 'Studio HIIT Express';
-  } else if (!className.includes('express') && className.includes('foundation')) {
-    return 'Studio Foundations';
-  } else if (className.includes('express') && className.includes('foundation')) {
-    return 'Studio Foundations Express';
-  } else if (!className.includes('express') && className.includes('fit')) {
-    return 'Studio FIT';
-  } else if (className.includes('express') && className.includes('fit')) {
-    return 'Studio FIT Express';
-  } else if (!className.includes('express') && className.includes('trainer')) {
-    return 'Studio Trainers Choice';
-  } else if (className.includes('express') && className.includes('trainer')) {
-    return 'Studio Trainers Choice Express';
-  } else if (className.includes('sweat')) {
-    return 'Studio Sweat in 30';
-  } else if (className.includes('recovery')) {
-    return 'Studio Recovery';
-  } else if (
-    className.includes('p57 x') || 
-    className.includes('physique 57 x') || 
-    className.includes('x physique 57') || 
-    className.includes('birthday') || 
-    className.includes('sundowner') || 
-    className.includes('bridal')
-  ) {
-    return 'Studio Hosted Class';
-  } else if (className.includes('powercycle') && className.includes('express')) {
-    return 'Studio powerCycle Express';
-  } else if (className.includes('powercycle')) {
-    return 'Studio powerCycle';
-  } else if (
-    className.includes('studio pre/post natal class') ||
-    className.includes('olympics finale') ||
-    className.includes('pop up class at raheja vivarea') ||
-    className.includes('bangalore rugby club x physique 57')
-  ) {
-    return 'Others';
-  } else if (className.includes('flex 30 single class')) {
-    return 'Flex 30 Single Class';
-  } else if (className.includes('studio 1 month unlimited')) {
-    return 'Studio 1 Month Unlimited';
-  } else if (className.includes('studio 8 class package')) {
-    return 'Studio 8 Class Package';
-  } else if (className.includes('studio single class')) {
-    return 'Studio Single Class';
-  } else if (className.includes('studio 12 class package')) {
-    return 'Studio 12 Class Package';
-  } else if (className.includes('studio 4 class package')) {
-    return 'Studio 4 Class Package';
-  } else if (className.includes('studio open barre class')) {
-    return 'Studio Open Barre Class';
-  } else if (className.includes('studio 2 week unlimited')) {
-    return 'Studio 2 Week Unlimited';
-  } else if (className.includes('studio complimentary class')) {
-    return 'Studio Complimentary Class';
-  } else if (className.includes('studio free influencer class')) {
-    return 'Studio Free Influencer Class';
-  } else if (className.includes('studio newcomers 2 week unlimited')) {
-    return 'Studio Newcomers 2 Week Unlimited';
-  } else if (className.includes('studio annual unlimited')) {
-    return 'Studio Annual Unlimited';
-  } else if (className.includes('outdoor complimentary class')) {
-    return 'Outdoor Complimentary Class';
-  } else if (className.includes('studio community barre')) {
-    return 'Studio Community Barre';
-  } else if (className.includes('sunrise class')) {
-    return 'SUNRISE CLASS';
-  } else if (className.includes('virtual private apt')) {
-    return 'Virtual Private Apt';
-  } else if (className.includes('studio private apt')) {
-    return 'Studio Private Apt';
-  } else if (className.includes('open barre complimentary class')) {
-    return 'OPEN BARRE CLASS';
-  } else if (className.includes('ff class test')) {
-    return 'FF CLASS TEST';
-  } else if (className.includes('open barre class')) {
-    return 'OPEN BARRE CLASS';
-  }
+  // Reset counter for second pass
+  processedRows = 0;
   
-  return 'Uncategorized';
-};
-
-const consolidateCSVData = (csvContents: string[]): ProcessedData[] => {
-    const consolidatedData: ProcessedData[] = [];
-    const uniqueData: Record<string, any> = {};
+  // Second pass - aggregate data for each group
+  Object.keys(groupedData).forEach((key, index) => {
+    const group = groupedData[key];
+    const firstItem = group[0];
     
-    csvContents.forEach(content => {
-        const parsedData = Papa.parse(content, { header: true }).data as ClassData[];
-        
-        parsedData.forEach(row => {
-            if (!row['Class name']) return;
-            
-            const className = row['Class name'];
-            const classDate = row['Class date'];
-            const location = row['Location'];
-            const teacherFirstName = row['Teacher First Name'];
-            const teacherLastName = row['Teacher Last Name'];
-            const checkedIn = parseInt(row['Checked in']) || 0;
-            const lateCancelled = parseInt(row['Late cancellations']) || 0;
-            const totalRevenue = parseFloat(row['Total Revenue']) || 0;
-            const totalTime = parseFloat(row['Time (h)']) || 0;
-            const totalNonPaid = parseInt(row['Non Paid Customers']) || 0;
-            
-            const dayOfWeek = getDayOfWeek(classDate);
-            const classTime = getTime(classDate);
-            const period = getMonthYear(classDate);
-            const cleanedClass = getCleanedClassName(className);
-            
-            const uniqueID = `${cleanedClass}-${dayOfWeek}-${classTime}`;
-            
-            if (!uniqueData[uniqueID]) {
-                uniqueData[uniqueID] = {
-                    cleanedClass,
-                    dayOfWeek,
-                    classTime,
-                    location,
-                    teacherName: `${teacherFirstName} ${teacherLastName}`,
-                    period,
-                    classDate, // Add classDate to the uniqueData object
-                    totalOccurrences: 0,
-                    totalCancelled: 0,
-                    totalCheckins: 0,
-                    totalEmpty: 0,
-                    totalLateCancelled: 0,
-                    totalRevenue: 0,
-                    totalTime: 0,
-                    totalNonPaid: 0
-                };
-            }
-            
-            uniqueData[uniqueID].totalOccurrences++;
-            uniqueData[uniqueID].totalCancelled += lateCancelled;
-            uniqueData[uniqueID].totalCheckins += checkedIn;
-            uniqueData[uniqueID].totalEmpty += checkedIn === 0 ? 1 : 0;
-            uniqueData[uniqueID].totalLateCancelled += lateCancelled;
-            uniqueData[uniqueID].totalRevenue += totalRevenue;
-            uniqueData[uniqueID].totalTime += totalTime;
-            uniqueData[uniqueID].totalNonPaid += totalNonPaid;
-        });
+    // Parse date information for period sorting
+    const periodMatch = firstItem.period?.match(/([A-Za-z]{3})-(\d{2})/);
+    const period = periodMatch ? firstItem.period : 'Unknown';
+    
+    // Skip empty or invalid groups
+    if (!firstItem.class_name || !firstItem.day_of_week || !firstItem.class_time) {
+      processedRows++;
+      onProgress(50 + Math.round((processedRows / Object.keys(groupedData).length) * 50));
+      return;
+    }
+    
+    // Calculate aggregates
+    const totalCheckins = group.reduce((sum, item) => sum + (item.total_check_ins || 0), 0);
+    const totalOccurrences = group.reduce((sum, item) => sum + (item.occurrences || 0), 0);
+    const totalTime = group.reduce((sum, item) => sum + (parseFloat(item.total_time) || 0), 0);
+    const totalRevenue = group.reduce((sum, item) => sum + (item.total_revenue || 0), 0);
+    const totalCancelled = group.reduce((sum, item) => sum + (item.cancelled || 0), 0);
+    const totalEmpty = group.reduce((sum, item) => sum + (item.is_empty || 0), 0);
+    const totalNonPaid = group.reduce((sum, item) => sum + (item.total_non_paid || 0), 0);
+    
+    // Calculate weighted average (account for occurrences)
+    let weightedSum = 0;
+    let weightedCount = 0;
+    
+    group.forEach(item => {
+      if (item.occurrences && item.average_excluding_empty) {
+        weightedSum += item.occurrences * item.average_excluding_empty;
+        weightedCount += item.occurrences;
+      }
     });
     
-    for (const uniqueID in uniqueData) {
-        const data = uniqueData[uniqueID];
-        const totalNonEmpty = data.totalOccurrences - data.totalEmpty;
-        const classAverageIncludingEmpty = (data.totalCheckins / data.totalOccurrences).toFixed(1);
-        const classAverageExcludingEmpty = totalNonEmpty > 0 ? (data.totalCheckins / totalNonEmpty).toFixed(1) : 'N/A';
-        
-        consolidatedData.push({
-            uniqueID,
-            cleanedClass: data.cleanedClass,
-            dayOfWeek: data.dayOfWeek,
-            classTime: data.classTime,
-            location: data.location,
-            teacherName: data.teacherName,
-            period: data.period,
-            totalOccurrences: data.totalOccurrences,
-            totalCancelled: data.totalCancelled,
-            totalCheckins: data.totalCheckins,
-            totalEmpty: data.totalEmpty,
-            totalNonEmpty: totalNonEmpty,
-            classAverageIncludingEmpty: classAverageIncludingEmpty,
-            classAverageExcludingEmpty: classAverageExcludingEmpty,
-            totalRevenue: data.totalRevenue.toFixed(2),
-            totalTime: data.totalTime.toFixed(2),
-            totalNonPaid: data.totalNonPaid,
-            date: new Date(data.classDate).toISOString(), // Use actual class date from uniqueData
-            attendance: data.totalCheckins // Add the required 'attendance' property
-        });
-    }
+    const classAverageExcludingEmpty = weightedCount > 0 
+      ? (weightedSum / weightedCount).toFixed(2) 
+      : "0";
     
-    return consolidatedData;
-};
-
-export const exportToCSV = (data: ProcessedData[]): void => {
-  let csvContent = 'Unique ID,Cleaned Class,Day of the Week,Class Time,Location,Trainer Name,Period,Total Occurrences,Total Cancelled,Total Checkins,Total Empty,Total Non-Empty,Class Average (Including Empty),Class Average (Excluding Empty),Total Revenue,Total Time,Total Non-Paid,Date\n';
-  
-  data.forEach(row => {
-    csvContent += `${row.uniqueID},${row.cleanedClass},${row.dayOfWeek},${row.classTime},${row.location},${row.teacherName},${row.period},${row.totalOccurrences},${row.totalCancelled},${row.totalCheckins},${row.totalEmpty},${row.totalNonEmpty},${row.classAverageIncludingEmpty},${row.classAverageExcludingEmpty},${row.totalRevenue},${row.totalTime},${row.totalNonPaid},${row.date}\n`;
+    // Push the aggregated data
+    processedData.push({
+      id: key,
+      period: period,
+      cleanedClass: cleanClassName(firstItem.class_name),
+      rawClassName: firstItem.class_name,
+      dayOfWeek: firstItem.day_of_week,
+      classTime: firstItem.class_time,
+      teacherName: firstItem.teacher_name,
+      totalCheckins: totalCheckins,
+      totalOccurrences: totalOccurrences,
+      totalTime: totalTime,
+      totalRevenue: totalRevenue,
+      totalCancelled: totalCancelled,
+      totalEmpty: totalEmpty,
+      totalNonPaid: totalNonPaid,
+      classAverageExcludingEmpty: classAverageExcludingEmpty,
+      occurrencesList: group.map(item => item.occurrences || 0)
+    });
+    
+    processedRows++;
+    if (index % 5 === 0) { // Update progress every 5 groups for performance
+      onProgress(50 + Math.round((processedRows / Object.keys(groupedData).length) * 50)); // Second pass is 50-100%
+    }
   });
   
-  const blob = new Blob([csvContent], { type: 'text/csv' });
+  onProgress(100); // Ensure progress reaches 100% at the end
+  
+  return processedData;
+};
+
+// Helper function to export data as CSV
+export const exportToCSV = (data: any[]) => {
+  if (!data || data.length === 0) {
+    console.error("No data to export");
+    return;
+  }
+  
+  const csvData = Papa.unparse(data);
+  const blob = new Blob([csvData], { type: 'text/csv;charset=utf-8;' });
+  const link = document.createElement('a');
+  
+  // Create a URL for the blob
   const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = 'consolidated_data.csv';
-  a.click();
+  link.href = url;
+  link.setAttribute('download', 'class_analytics_export.csv');
+  document.body.appendChild(link);
+  
+  // Trigger the download
+  link.click();
+  
+  // Clean up
+  document.body.removeChild(link);
   URL.revokeObjectURL(url);
 };

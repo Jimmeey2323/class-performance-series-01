@@ -1,8 +1,7 @@
-
 import React, { useState, useMemo } from 'react';
 import { ProcessedData } from '@/types/data';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Users, ChevronDown, ChevronUp, BarChart3, Info, Search, Filter } from 'lucide-react';
+import { Users, ChevronDown, ChevronUp, BarChart3, Info, Search, Filter, X } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card';
 import { Button } from '@/components/ui/button';
@@ -39,7 +38,6 @@ const TrainerComparisonView: React.FC<TrainerComparisonViewProps> = ({ data, tra
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTrainers, setSelectedTrainers] = useState<string[]>([]);
 
-  // Get all unique trainers
   const allTrainers = useMemo(() => {
     const trainers = new Set<string>();
     data.forEach(item => {
@@ -48,17 +46,14 @@ const TrainerComparisonView: React.FC<TrainerComparisonViewProps> = ({ data, tra
     return Array.from(trainers).sort();
   }, [data]);
 
-  // Process data to find same class-time-day combinations with different trainers
   const classComparisons = useMemo(() => {
     const classMap: Record<string, TrainerClassStats> = {};
     
-    // Filter out "hosted" and "recovery" classes
     const filteredData = data.filter(item => 
       !item.cleanedClass.toLowerCase().includes('hosted') && 
       !item.cleanedClass.toLowerCase().includes('recovery')
     );
     
-    // Group classes by day-time-class
     filteredData.forEach(item => {
       const key = `${item.dayOfWeek}-${item.classTime}-${item.cleanedClass}`;
       const avgAttendance = parseFloat(item.classAverageExcludingEmpty) || 0;
@@ -73,13 +68,11 @@ const TrainerComparisonView: React.FC<TrainerComparisonViewProps> = ({ data, tra
         };
       }
       
-      // Check if this trainer already exists in the list
       const existingTrainerIndex = classMap[key].trainers.findIndex(
         t => t.name === item.teacherName
       );
       
       if (existingTrainerIndex === -1) {
-        // Add new trainer
         classMap[key].trainers.push({
           name: item.teacherName,
           avatarUrl: trainerAvatars[item.teacherName] || '',
@@ -89,9 +82,7 @@ const TrainerComparisonView: React.FC<TrainerComparisonViewProps> = ({ data, tra
           totalRevenue: revenue
         });
       } else {
-        // Update existing trainer if the new entry has data we need to consider
         const existingTrainer = classMap[key].trainers[existingTrainerIndex];
-        // Calculate weighted average attendance
         const totalOccurrences = existingTrainer.totalOccurrences + item.totalOccurrences;
         const weightedAvg = totalOccurrences > 0 
           ? ((existingTrainer.avgAttendance * existingTrainer.totalOccurrences) + 
@@ -108,21 +99,18 @@ const TrainerComparisonView: React.FC<TrainerComparisonViewProps> = ({ data, tra
       }
     });
     
-    // Filter to only include classes with multiple trainers and minimum occurrences
     let multiTrainerClasses = Object.values(classMap)
       .filter(item => 
         item.trainers.length > 1 && 
         item.trainers.every(trainer => trainer.totalOccurrences >= minOccurrences)
       );
     
-    // Apply trainer filter if any are selected
     if (selectedTrainers.length > 0) {
       multiTrainerClasses = multiTrainerClasses.filter(item => 
         item.trainers.some(trainer => selectedTrainers.includes(trainer.name))
       );
     }
 
-    // Apply search filter
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
       multiTrainerClasses = multiTrainerClasses.filter(item => 
@@ -132,7 +120,6 @@ const TrainerComparisonView: React.FC<TrainerComparisonViewProps> = ({ data, tra
       );
     }
     
-    // Sort classes based on selected criteria
     if (sortBy === 'difference') {
       multiTrainerClasses.sort((a, b) => {
         const aDiff = getMaxDifference(a.trainers);
@@ -149,14 +136,13 @@ const TrainerComparisonView: React.FC<TrainerComparisonViewProps> = ({ data, tra
     
     return multiTrainerClasses;
   }, [data, trainerAvatars, minOccurrences, sortBy, searchQuery, selectedTrainers]);
-  
-  // Helper function to get the maximum difference between trainers' average attendance
+
   const getMaxDifference = (trainers: TrainerClassStats['trainers']) => {
     if (trainers.length <= 1) return 0;
     const attendances = trainers.map(t => t.avgAttendance);
     return Math.max(...attendances) - Math.min(...attendances);
   };
-  
+
   const toggleExpanded = (key: string) => {
     if (expanded.includes(key)) {
       setExpanded(expanded.filter(k => k !== key));
@@ -164,8 +150,7 @@ const TrainerComparisonView: React.FC<TrainerComparisonViewProps> = ({ data, tra
       setExpanded([...expanded, key]);
     }
   };
-  
-  // Get initials for avatar fallback
+
   const getInitials = (name: string) => {
     return name.split(' ').map(n => n[0]).join('');
   };
@@ -175,6 +160,16 @@ const TrainerComparisonView: React.FC<TrainerComparisonViewProps> = ({ data, tra
       setSelectedTrainers(selectedTrainers.filter(t => t !== name));
     } else {
       setSelectedTrainers([...selectedTrainers, name]);
+    }
+  };
+
+  const formatIndianCurrency = (value: number): string => {
+    if (value >= 10000000) {
+      return `${(value / 10000000).toFixed(1)} Cr`;
+    } else if (value >= 100000) {
+      return `${(value / 100000).toFixed(1)} L`;
+    } else {
+      return value.toLocaleString('en-IN');
     }
   };
 
@@ -311,7 +306,6 @@ const TrainerComparisonView: React.FC<TrainerComparisonViewProps> = ({ data, tra
                 const key = `${classItem.dayOfWeek}-${classItem.classTime}-${classItem.cleanedClass}`;
                 const isExpanded = expanded.includes(key);
                 
-                // Sort trainers by average attendance (high to low)
                 const sortedTrainers = [...classItem.trainers].sort((a, b) => b.avgAttendance - a.avgAttendance);
                 const highestAvg = sortedTrainers[0]?.avgAttendance || 0;
                 
@@ -322,7 +316,7 @@ const TrainerComparisonView: React.FC<TrainerComparisonViewProps> = ({ data, tra
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.3, delay: idx * 0.05 }}
                   >
-                    <Card className="overflow-hidden border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
+                    <Card className="overflow-hidden border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:shadow-md transition-all duration-300">
                       <div 
                         className="p-4 cursor-pointer border-l-4 border-indigo-500 transition-colors hover:bg-gray-50 dark:hover:bg-gray-750" 
                         onClick={() => toggleExpanded(key)}
@@ -367,7 +361,6 @@ const TrainerComparisonView: React.FC<TrainerComparisonViewProps> = ({ data, tra
                             <CardContent className="p-4 bg-gray-50 dark:bg-gray-800/50 border-t border-gray-100 dark:border-gray-700">
                               <div className="space-y-4">
                                 {sortedTrainers.map((trainer, idx) => {
-                                  // Calculate the percentage width for the bar chart
                                   const percentage = (trainer.avgAttendance / highestAvg) * 100;
                                   const isHighest = trainer.avgAttendance === highestAvg;
                                   
@@ -411,7 +404,7 @@ const TrainerComparisonView: React.FC<TrainerComparisonViewProps> = ({ data, tra
                                                   </div>
                                                   <div className="bg-gray-50 dark:bg-gray-900/30 p-2 rounded">
                                                     <div className="text-gray-500 dark:text-gray-400">Total Revenue</div>
-                                                    <div className="font-medium">${trainer.totalRevenue.toLocaleString(undefined, {maximumFractionDigits: 0})}</div>
+                                                    <div className="font-medium">₹{formatIndianCurrency(trainer.totalRevenue)}</div>
                                                   </div>
                                                 </div>
                                               </div>

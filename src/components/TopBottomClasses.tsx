@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { ProcessedData, ClassStatsItem } from '@/types/data';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { BarChart, ChevronDown, ChevronUp, TrendingDown, TrendingUp, Check, X, InfoIcon } from 'lucide-react';
+import { BarChart, ChevronDown, ChevronUp, TrendingDown, TrendingUp, Check, Info } from 'lucide-react';
 import { 
   DropdownMenu,
   DropdownMenuContent,
@@ -17,14 +17,23 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { motion } from "framer-motion";
 
 interface TopBottomClassesProps {
   data: ProcessedData[];
 }
+
+// Format number to Indian format with lakhs and crores
+const formatIndianCurrency = (value: number): string => {
+  if (value >= 10000000) { // 1 crore
+    return `${(value / 10000000).toFixed(1)} Cr`;
+  } else if (value >= 100000) { // 1 lakh
+    return `${(value / 100000).toFixed(1)} L`;
+  } else {
+    return value.toLocaleString('en-IN');
+  }
+};
 
 const TopBottomClasses: React.FC<TopBottomClassesProps> = ({ data }) => {
   const [topClassesCount, setTopClassesCount] = useState(10);
@@ -148,7 +157,7 @@ const TopBottomClasses: React.FC<TopBottomClassesProps> = ({ data }) => {
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button variant="ghost" size="icon" className="h-8 w-8">
-                  <InfoIcon className="h-4 w-4" />
+                  <Info className="h-4 w-4" />
                 </Button>
               </TooltipTrigger>
               <TooltipContent>
@@ -208,7 +217,7 @@ const TopBottomClasses: React.FC<TopBottomClassesProps> = ({ data }) => {
                   className="rounded-md overflow-hidden"
                 >
                   <div 
-                    className={`bg-white dark:bg-gray-800 border ${expandedClassKey === item.key ? 'border-blue-200 dark:border-blue-800' : 'border-transparent'} shadow-sm`}
+                    className={`bg-white dark:bg-gray-800 border ${expandedClassKey === item.key ? 'border-blue-200 dark:border-blue-800' : 'border-transparent'} shadow-sm hover:shadow-md transition-all duration-300`}
                   >
                     <div 
                       className="px-3 py-2 cursor-pointer relative"
@@ -262,7 +271,7 @@ const TopBottomClasses: React.FC<TopBottomClassesProps> = ({ data }) => {
                                 </div>
                                 <div className="bg-blue-50 dark:bg-blue-900/30 p-2 rounded">
                                   <div className="text-gray-500 dark:text-gray-400">Revenue</div>
-                                  <div className="font-medium">${item.totalRevenue.toLocaleString()}</div>
+                                  <div className="font-medium">₹{formatIndianCurrency(item.totalRevenue)}</div>
                                 </div>
                               </div>
                             </div>
@@ -302,7 +311,7 @@ const TopBottomClasses: React.FC<TopBottomClassesProps> = ({ data }) => {
                               </div>
                               <div className="flex justify-between items-center">
                                 <span className="text-gray-600 dark:text-gray-300">Revenue per Class:</span>
-                                <span className="font-medium">${(item.totalRevenue / item.totalOccurrences).toLocaleString(undefined, {maximumFractionDigits: 0})}</span>
+                                <span className="font-medium">₹{formatIndianCurrency(item.totalRevenue / item.totalOccurrences)}</span>
                               </div>
                             </div>
                           </div>
@@ -326,7 +335,7 @@ const TopBottomClasses: React.FC<TopBottomClassesProps> = ({ data }) => {
                           <div className="col-span-2">
                             <h4 className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Total Revenue</h4>
                             <div className="text-lg font-semibold text-blue-700 dark:text-blue-300">
-                              ${item.totalRevenue.toLocaleString(undefined, {maximumFractionDigits: 0})}
+                              ₹{formatIndianCurrency(item.totalRevenue)}
                             </div>
                           </div>
                         </div>
@@ -358,7 +367,7 @@ const TopBottomClasses: React.FC<TopBottomClassesProps> = ({ data }) => {
                   className="rounded-md overflow-hidden"
                 >
                   <div 
-                    className={`bg-white dark:bg-gray-800 border ${expandedClassKey === item.key ? 'border-amber-200 dark:border-amber-800' : 'border-transparent'} shadow-sm`}
+                    className={`bg-white dark:bg-gray-800 border ${expandedClassKey === item.key ? 'border-amber-200 dark:border-amber-800' : 'border-transparent'} shadow-sm hover:shadow-md transition-all duration-300`}
                   >
                     <div 
                       className="px-3 py-2 cursor-pointer relative"
@@ -412,7 +421,7 @@ const TopBottomClasses: React.FC<TopBottomClassesProps> = ({ data }) => {
                                 </div>
                                 <div className="bg-amber-50 dark:bg-amber-900/30 p-2 rounded">
                                   <div className="text-gray-500 dark:text-gray-400">Revenue</div>
-                                  <div className="font-medium">${item.totalRevenue.toLocaleString()}</div>
+                                  <div className="font-medium">₹{formatIndianCurrency(item.totalRevenue)}</div>
                                 </div>
                               </div>
                             </div>
@@ -452,7 +461,7 @@ const TopBottomClasses: React.FC<TopBottomClassesProps> = ({ data }) => {
                               </div>
                               <div className="flex justify-between items-center">
                                 <span className="text-gray-600 dark:text-gray-300">Revenue per Class:</span>
-                                <span className="font-medium">${(item.totalRevenue / item.totalOccurrences).toLocaleString(undefined, {maximumFractionDigits: 0})}</span>
+                                <span className="font-medium">₹{formatIndianCurrency(item.totalRevenue / item.totalOccurrences)}</span>
                               </div>
                             </div>
                           </div>
@@ -476,7 +485,7 @@ const TopBottomClasses: React.FC<TopBottomClassesProps> = ({ data }) => {
                           <div className="col-span-2">
                             <h4 className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Total Revenue</h4>
                             <div className="text-lg font-semibold text-amber-700 dark:text-amber-300">
-                              ${item.totalRevenue.toLocaleString(undefined, {maximumFractionDigits: 0})}
+                              ₹{formatIndianCurrency(item.totalRevenue)}
                             </div>
                           </div>
                         </div>
