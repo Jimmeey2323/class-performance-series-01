@@ -18,17 +18,6 @@ interface MetricsPanelProps {
   data: ProcessedData[];
 }
 
-// Format number to Indian format with lakhs and crores
-const formatIndianCurrency = (value: number): string => {
-  if (value >= 10000000) { // 1 crore
-    return `${(value / 10000000).toFixed(1)} Cr`;
-  } else if (value >= 100000) { // 1 lakh
-    return `${(value / 100000).toFixed(1)} L`;
-  } else {
-    return value.toLocaleString('en-IN');
-  }
-};
-
 const MetricsPanel: React.FC<MetricsPanelProps> = ({ data }) => {
   const metrics = useMemo<MetricData[]>(() => {
     if (!data.length) return [];
@@ -36,29 +25,15 @@ const MetricsPanel: React.FC<MetricsPanelProps> = ({ data }) => {
     // Calculate totals
     const totalClasses = data.reduce((sum, item) => sum + item.totalOccurrences, 0);
     const totalCheckins = data.reduce((sum, item) => sum + item.totalCheckins, 0);
-    
-    // Convert string revenue to number if needed
-    const totalRevenue = data.reduce((sum, item) => {
-      const revenue = typeof item.totalRevenue === 'string' 
-        ? parseFloat(item.totalRevenue) 
-        : item.totalRevenue;
-      return sum + (isNaN(revenue) ? 0 : revenue);
-    }, 0);
-    
-    // Convert string time to number if needed
-    const totalTime = data.reduce((sum, item) => {
-      const time = typeof item.totalTime === 'string'
-        ? parseFloat(item.totalTime)
-        : item.totalTime;
-      return sum + (isNaN(time) ? 0 : time);
-    }, 0);
-    
+    const totalRevenue = data.reduce((sum, item) => sum + parseFloat(item.totalRevenue), 0);
+    const totalTime = data.reduce((sum, item) => sum + parseFloat(item.totalTime), 0);
+    const nonPaidCustomers = data.reduce((sum, item) => sum + item.totalNonPaid, 0);
     const totalCancelled = data.reduce((sum, item) => sum + item.totalCancelled, 0);
     const totalEmptyClasses = data.reduce((sum, item) => sum + item.totalEmpty, 0);
     
     // Calculate averages
     const avgAttendance = totalClasses > 0 ? (totalCheckins / totalClasses).toFixed(1) : '0';
-    const revenuePerClass = totalClasses > 0 ? (totalRevenue / totalClasses) : 0;
+    const revenuePerClass = totalClasses > 0 ? (totalRevenue / totalClasses).toFixed(2) : '0';
     const avgUtilization = totalClasses > 0 ? ((totalClasses - totalEmptyClasses) / totalClasses * 100).toFixed(1) : '0';
     
     // Get unique values
@@ -80,13 +55,13 @@ const MetricsPanel: React.FC<MetricsPanelProps> = ({ data }) => {
       },
       {
         title: 'Revenue',
-        value: `₹${formatIndianCurrency(totalRevenue)}`,
+        value: `₹${totalRevenue.toLocaleString('en-IN')}`,
         icon: <IndianRupee className="h-6 w-6 text-amber-500" />,
         color: 'bg-amber-50 dark:bg-amber-950'
       },
       {
         title: 'Revenue Per Class',
-        value: `₹${formatIndianCurrency(revenuePerClass)}`,
+        value: `₹${parseFloat(revenuePerClass).toLocaleString('en-IN')}`,
         icon: <Tag className="h-6 w-6 text-purple-500" />,
         color: 'bg-purple-50 dark:bg-purple-950'
       },
@@ -121,7 +96,7 @@ const MetricsPanel: React.FC<MetricsPanelProps> = ({ data }) => {
     <div className="space-y-4 mb-6">
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
         {metrics.slice(0, 4).map((metric, index) => (
-          <Card key={index} className="overflow-hidden border shadow-sm hover:shadow-md transition-all duration-300">
+          <Card key={index} className="overflow-hidden border shadow-sm">
             <CardContent className={`p-6 ${metric.color}`}>
               <div className="flex flex-col space-y-2">
                 <div className="flex justify-between items-start">
@@ -130,7 +105,7 @@ const MetricsPanel: React.FC<MetricsPanelProps> = ({ data }) => {
                 </div>
                 <div className="text-2xl font-bold">
                   {typeof metric.value === 'number' ? (
-                    <CountUp end={metric.value} duration={2.5} separator="," decimals={0} />
+                    <CountUp end={metric.value} duration={2.5} separator="," />
                   ) : (
                     metric.value
                   )}
@@ -148,7 +123,7 @@ const MetricsPanel: React.FC<MetricsPanelProps> = ({ data }) => {
       
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
         {metrics.slice(4).map((metric, index) => (
-          <Card key={index + 4} className="overflow-hidden border shadow-sm hover:shadow-md transition-all duration-300">
+          <Card key={index + 4} className="overflow-hidden border shadow-sm">
             <CardContent className={`p-6 ${metric.color}`}>
               <div className="flex flex-col space-y-2">
                 <div className="flex justify-between items-start">
@@ -157,7 +132,7 @@ const MetricsPanel: React.FC<MetricsPanelProps> = ({ data }) => {
                 </div>
                 <div className="text-2xl font-bold">
                   {typeof metric.value === 'number' ? (
-                    <CountUp end={metric.value} duration={2.5} separator="," decimals={0} />
+                    <CountUp end={metric.value} duration={2.5} separator="," />
                   ) : (
                     metric.value
                   )}

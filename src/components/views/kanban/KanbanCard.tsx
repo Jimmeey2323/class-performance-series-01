@@ -1,148 +1,110 @@
 
 import React from 'react';
-import { useSortable } from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
-import { ProcessedData } from '@/types/data';
-import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { KanbanItem } from '@/types/data';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Users, IndianRupee, CalendarDays } from 'lucide-react';
-import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card';
-import { motion } from 'framer-motion';
+import { 
+  MapPin, 
+  Clock, 
+  Users, 
+  IndianRupee 
+} from 'lucide-react';
+import { useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 interface KanbanCardProps {
-  classItem: ProcessedData;
-  trainerAvatars: Record<string, string>;
+  item: KanbanItem;
 }
 
-// Format number to Indian format with lakhs and crores
-const formatIndianCurrency = (value: number): string => {
-  if (value >= 10000000) { // 1 crore
-    return `${(value / 10000000).toFixed(1)} Cr`;
-  } else if (value >= 100000) { // 1 lakh
-    return `${(value / 100000).toFixed(1)} L`;
-  } else {
-    return value.toLocaleString('en-IN');
-  }
-};
-
-const KanbanCard: React.FC<KanbanCardProps> = ({ classItem, trainerAvatars }) => {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging
-  } = useSortable({ id: classItem.id });
-
+const KanbanCard: React.FC<KanbanCardProps> = ({ item }) => {
+  const { attributes, listeners, setNodeRef, transform, transition } = useSortable({
+    id: item.id,
+  });
+  
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
-    opacity: isDragging ? 0.5 : 1,
-    zIndex: isDragging ? 999 : 1
+  };
+  
+  // Get initials for avatar fallback
+  const getInitials = (name: string) => {
+    return name
+      .split(' ')
+      .map(part => part.charAt(0))
+      .join('')
+      .toUpperCase()
+      .slice(0, 2);
+  };
+  
+  // Generate a consistent color based on the teacher's name
+  const generateAvatarColor = (name: string) => {
+    let hash = 0;
+    for (let i = 0; i < name.length; i++) {
+      hash = name.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    
+    const colors = [
+      'bg-blue-500', 'bg-indigo-500', 'bg-purple-500', 'bg-pink-500', 
+      'bg-red-500', 'bg-orange-500', 'bg-amber-500', 'bg-yellow-500',
+      'bg-lime-500', 'bg-green-500', 'bg-emerald-500', 'bg-teal-500', 
+      'bg-cyan-500', 'bg-sky-500'
+    ];
+    
+    return colors[Math.abs(hash) % colors.length];
   };
 
-  // Determine attendance level and color
-  const attendance = parseFloat(classItem.classAverageExcludingEmpty);
-  let attendanceColor = 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300';
+  const teacherName = item.data.teacherName;
+  const teacherInitials = getInitials(teacherName);
+  const avatarColor = generateAvatarColor(teacherName);
   
-  if (attendance >= 15) {
-    attendanceColor = 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300';
-  } else if (attendance >= 10) {
-    attendanceColor = 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300';
-  } else if (attendance >= 5) {
-    attendanceColor = 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300';
-  }
-  
-  const revenue = typeof classItem.totalRevenue === 'number' 
-    ? classItem.totalRevenue 
-    : parseInt(classItem.totalRevenue) || 0;
-
   return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      {...attributes}
+    <Card 
+      ref={setNodeRef} 
+      style={style} 
+      {...attributes} 
       {...listeners}
-      className="mb-3 cursor-grab"
+      className="bg-white dark:bg-gray-800 border-indigo-100 dark:border-indigo-900 cursor-grab active:cursor-grabbing shadow-sm hover:shadow-md transition-shadow"
     >
-      <motion.div
-        whileHover={{ y: -4 }}
-        transition={{ duration: 0.2 }}
-      >
-        <Card className="shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden">
-          <CardHeader className={`px-3 py-2 ${attendanceColor}`}>
-            <div className="flex justify-between items-center">
-              <Badge variant="outline" className="bg-white/80 dark:bg-gray-800/80 shadow-sm">
-                {classItem.period}
-              </Badge>
-              <Badge className={`${attendanceColor} border-none`}>
-                {classItem.classAverageExcludingEmpty} avg
-              </Badge>
-            </div>
-            <h3 className="font-medium text-sm mt-1 line-clamp-2">{classItem.cleanedClass}</h3>
-          </CardHeader>
-          
-          <CardContent className="p-3">
-            <div className="flex justify-between items-center mb-2 text-xs text-gray-500 dark:text-gray-400">
-              <div>{classItem.dayOfWeek}</div>
-              <div>{classItem.classTime}</div>
-            </div>
-            
-            <div className="grid grid-cols-2 gap-x-2 gap-y-1 mb-2">
-              <HoverCard>
-                <HoverCardTrigger asChild>
-                  <div className="flex items-center text-xs cursor-help">
-                    <Users className="h-3 w-3 mr-1 text-gray-500" />
-                    <span>{classItem.totalCheckins} checkins</span>
-                  </div>
-                </HoverCardTrigger>
-                <HoverCardContent className="w-48 p-2 text-xs">
-                  <div className="grid grid-cols-2 gap-1">
-                    <div>Total Classes:</div>
-                    <div className="font-medium">{classItem.totalOccurrences}</div>
-                    <div>Total Check-ins:</div>
-                    <div className="font-medium">{classItem.totalCheckins}</div>
-                    <div>Avg. Attendance:</div>
-                    <div className="font-medium">{classItem.classAverageExcludingEmpty}</div>
-                  </div>
-                </HoverCardContent>
-              </HoverCard>
-              
-              <div className="flex items-center text-xs">
-                <CalendarDays className="h-3 w-3 mr-1 text-gray-500" />
-                <span>{classItem.totalOccurrences} classes</span>
-              </div>
-              
-              <div className="flex items-center text-xs">
-                <IndianRupee className="h-3 w-3 mr-1 text-gray-500" />
-                <span>₹{formatIndianCurrency(revenue)}</span>
-              </div>
-              
-              <div className="flex items-center text-xs">
-                <span className="text-gray-500">
-                  {classItem.totalEmpty > 0 && `${classItem.totalEmpty} empty`}
-                </span>
-              </div>
-            </div>
-            
-            <div className="flex items-center mt-2 pt-2 border-t">
-              <Avatar className="h-5 w-5 mr-1.5">
-                <AvatarImage 
-                  src={trainerAvatars[classItem.teacherName]} 
-                  alt={classItem.teacherName} 
-                />
-                <AvatarFallback className="text-[9px]">
-                  {classItem.teacherName.split(' ').map(n => n[0]).join('')}
-                </AvatarFallback>
-              </Avatar>
-              <span className="text-xs truncate">{classItem.teacherName}</span>
-            </div>
-          </CardContent>
-        </Card>
-      </motion.div>
-    </div>
+      <CardContent className="p-3">
+        <div className="flex justify-between items-start mb-2">
+          <h3 className="font-medium text-sm">{item.title}</h3>
+          <Badge variant="outline" className="text-xs">{item.data.dayOfWeek}</Badge>
+        </div>
+        
+        <div className="flex items-center gap-2 mb-2">
+          <Avatar className="h-5 w-5">
+            {item.avatarUrl ? (
+              <AvatarImage src={item.avatarUrl} alt={teacherName} />
+            ) : (
+              <AvatarFallback className={`text-xs text-white ${avatarColor}`}>
+                {teacherInitials}
+              </AvatarFallback>
+            )}
+          </Avatar>
+          <span className="text-xs text-muted-foreground truncate">{teacherName}</span>
+        </div>
+        
+        <div className="grid grid-cols-2 gap-1 text-xs">
+          <div className="flex items-center gap-1">
+            <Clock className="h-3 w-3 text-muted-foreground" />
+            <span>{item.data.classTime}</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <MapPin className="h-3 w-3 text-muted-foreground" />
+            <span className="truncate">{item.data.location}</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <Users className="h-3 w-3 text-muted-foreground" />
+            <span>{item.data.classAverageIncludingEmpty} avg</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <IndianRupee className="h-3 w-3 text-muted-foreground" />
+            <span>₹{parseFloat(item.data.totalRevenue).toLocaleString('en-IN')}</span>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
   );
 };
 

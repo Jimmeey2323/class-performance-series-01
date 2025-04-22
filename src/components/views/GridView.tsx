@@ -1,189 +1,133 @@
 
-import React, { useState } from 'react';
+import React from 'react';
 import { ProcessedData } from '@/types/data';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card';
-import { CalendarDays, Users, IndianRupee, Clock } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { 
+  Users, 
+  Calendar, 
+  MapPin, 
+  Clock, 
+  User,
+  IndianRupee,
+  Calendar as CalendarIcon
+} from 'lucide-react';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 interface GridViewProps {
   data: ProcessedData[];
-  trainerAvatars: Record<string, string>;
+  trainerAvatars?: Record<string, string>;
 }
 
-// Format number to Indian format with lakhs and crores
-const formatIndianCurrency = (value: number): string => {
-  if (value >= 10000000) { // 1 crore
-    return `${(value / 10000000).toFixed(1)} Cr`;
-  } else if (value >= 100000) { // 1 lakh
-    return `${(value / 100000).toFixed(1)} L`;
-  } else {
-    return value.toLocaleString('en-IN');
-  }
-};
-
-const GridView: React.FC<GridViewProps> = ({ data, trainerAvatars }) => {
-  const [visibleItems, setVisibleItems] = useState(24);
+const GridView: React.FC<GridViewProps> = ({ data, trainerAvatars = {} }) => {
+  // Get initials from teacher name for avatar
+  const getInitials = (name: string) => {
+    return name
+      .split(' ')
+      .map(part => part.charAt(0))
+      .join('')
+      .toUpperCase()
+      .slice(0, 2);
+  };
   
-  const loadMore = () => {
-    setVisibleItems(prev => prev + 24);
-  };
-
-  // Sort data by date (newest first) then by attendance (highest first)
-  const sortedData = [...data].sort((a, b) => {
-    // First by attendance (high to low)
-    const attendanceA = parseFloat(a.classAverageExcludingEmpty);
-    const attendanceB = parseFloat(b.classAverageExcludingEmpty);
-    return attendanceB - attendanceA;
-  });
-
-  const container = {
-    hidden: { opacity: 0 },
-    show: {
-      opacity: 1,
-      transition: {
-        staggerChildren: 0.05
-      }
+  // Generate a consistent color based on the teacher's name
+  const generateAvatarColor = (name: string) => {
+    let hash = 0;
+    for (let i = 0; i < name.length; i++) {
+      hash = name.charCodeAt(i) + ((hash << 5) - hash);
     }
-  };
-
-  const item = {
-    hidden: { opacity: 0, y: 20 },
-    show: { opacity: 1, y: 0 }
+    
+    const colors = [
+      'bg-blue-500', 'bg-indigo-500', 'bg-purple-500', 'bg-pink-500', 
+      'bg-red-500', 'bg-orange-500', 'bg-amber-500', 'bg-yellow-500',
+      'bg-lime-500', 'bg-green-500', 'bg-emerald-500', 'bg-teal-500', 
+      'bg-cyan-500', 'bg-sky-500'
+    ];
+    
+    return colors[Math.abs(hash) % colors.length];
   };
 
   return (
-    <div className="p-4">
-      <motion.div 
-        variants={container}
-        initial="hidden"
-        animate="show"
-        className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4"
-      >
-        {sortedData.slice(0, visibleItems).map((classItem, index) => {
-          // Calculate color based on attendance
-          const attendance = parseFloat(classItem.classAverageExcludingEmpty);
-          
-          let accentColor = 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300';
-          if (attendance >= 15) {
-            accentColor = 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300';
-          } else if (attendance >= 10) {
-            accentColor = 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300';
-          } else if (attendance >= 5) {
-            accentColor = 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300';
-          } else {
-            accentColor = 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300';
-          }
-          
-          const revenue = typeof classItem.totalRevenue === 'number' 
-            ? classItem.totalRevenue 
-            : parseInt(classItem.totalRevenue) || 0;
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 p-4 bg-gradient-to-br from-purple-50 to-indigo-50 dark:from-gray-900 dark:to-gray-800">
+      {data.length > 0 ? (
+        data.map((item, index) => {
+          const teacherInitials = getInitials(item.teacherName);
+          const avatarColor = generateAvatarColor(item.teacherName);
+          const avatarUrl = trainerAvatars[item.teacherName];
           
           return (
-            <motion.div
-              key={`${classItem.id}-${index}`}
-              variants={item}
-              className="h-full"
-            >
-              <Card className="h-full hover:shadow-md transition-all duration-300 flex flex-col">
-                <CardHeader className={`${accentColor} rounded-t-lg text-center p-3 relative`}>
-                  <div className="absolute -top-3 right-2">
-                    <Badge variant="outline" className="bg-white dark:bg-gray-800 shadow-sm font-medium text-gray-600 dark:text-gray-300">
-                      {classItem.period}
-                    </Badge>
-                  </div>
-                  
-                  <div className="flex justify-between items-start">
-                    <Badge variant="secondary">{classItem.dayOfWeek}</Badge>
-                    <Badge variant="secondary">{classItem.classTime}</Badge>
-                  </div>
-                  
-                  <CardTitle className="text-base font-semibold mt-1 line-clamp-1 hover:line-clamp-none transition-all duration-300">
-                    {classItem.cleanedClass}
-                  </CardTitle>
-                </CardHeader>
-                
-                <CardContent className="p-3 flex-grow">
-                  <div className="grid grid-cols-2 gap-2 mb-2">
-                    <div className="flex items-center text-sm">
-                      <Users className="h-3.5 w-3.5 mr-1.5 text-gray-500" />
-                      <HoverCard>
-                        <HoverCardTrigger asChild>
-                          <span className="font-medium">
-                            {classItem.classAverageExcludingEmpty} avg
-                          </span>
-                        </HoverCardTrigger>
-                        <HoverCardContent className="w-64">
-                          <div className="space-y-1">
-                            <h4 className="text-sm font-medium">Attendance Details</h4>
-                            <div className="text-xs text-muted-foreground">
-                              <div className="flex justify-between py-1">
-                                <span>Total Check-ins:</span>
-                                <span className="font-medium">{classItem.totalCheckins}</span>
-                              </div>
-                              <div className="flex justify-between py-1">
-                                <span>Total Classes:</span>
-                                <span className="font-medium">{classItem.totalOccurrences}</span>
-                              </div>
-                              <div className="flex justify-between py-1">
-                                <span>Empty Classes:</span>
-                                <span className="font-medium">{classItem.totalEmpty}</span>
-                              </div>
-                            </div>
-                          </div>
-                        </HoverCardContent>
-                      </HoverCard>
-                    </div>
-                    
-                    <div className="flex items-center text-sm">
-                      <IndianRupee className="h-3.5 w-3.5 mr-1.5 text-gray-500" />
-                      <span className="font-medium">₹{formatIndianCurrency(revenue)}</span>
-                    </div>
-                    
-                    <div className="flex items-center text-sm">
-                      <CalendarDays className="h-3.5 w-3.5 mr-1.5 text-gray-500" />
-                      <span className="font-medium">{classItem.totalOccurrences}</span>
-                    </div>
-                    
-                    <div className="flex items-center text-sm">
-                      <Clock className="h-3.5 w-3.5 mr-1.5 text-gray-500" />
-                      <span className="font-medium">{classItem.totalTime.toFixed(1)}h</span>
-                    </div>
-                  </div>
-                </CardContent>
-                
-                <CardFooter className="px-3 py-2 border-t flex justify-between">
-                  <div className="flex items-center">
-                    <Avatar className="h-7 w-7 mr-2">
-                      <AvatarImage src={trainerAvatars[classItem.teacherName]} alt={classItem.teacherName} />
-                      <AvatarFallback className="text-xs">
-                        {classItem.teacherName.split(' ').map(n => n[0]).join('')}
-                      </AvatarFallback>
-                    </Avatar>
-                    <span className="text-xs line-clamp-1 max-w-[120px]">{classItem.teacherName}</span>
-                  </div>
-                  <Badge variant="outline">
-                    {`${Math.round((classItem.totalCheckins / classItem.totalOccurrences) * 100) / 100}/class`}
+            <Card key={index} className="overflow-hidden transition-all hover:shadow-lg border-indigo-100 dark:border-indigo-900 bg-white dark:bg-gray-900">
+              <CardHeader className="pb-2 bg-gradient-to-r from-indigo-500 to-purple-600 dark:from-indigo-800 dark:to-purple-900 text-white">
+                <div className="flex justify-between items-start">
+                  <Badge variant="outline" className="mb-2 bg-white/20 text-white border-white/30">
+                    {item.period}
                   </Badge>
-                </CardFooter>
-              </Card>
-            </motion.div>
+                  <Badge 
+                    variant={parseInt(item.classAverageIncludingEmpty) > 10 ? "default" : "secondary"}
+                    className="flex items-center gap-1 bg-white/20 text-white hover:bg-white/30 border-white/30"
+                  >
+                    <Users className="h-3 w-3" />
+                    {item.classAverageIncludingEmpty}
+                  </Badge>
+                </div>
+                <CardTitle className="text-lg font-bold line-clamp-1">{item.cleanedClass}</CardTitle>
+              </CardHeader>
+              
+              <CardContent className="pb-2 pt-4">
+                <div className="grid grid-cols-2 gap-y-3">
+                  <div className="flex items-center text-sm gap-1">
+                    <Calendar className="h-4 w-4 text-indigo-500" />
+                    <span className="text-gray-700 dark:text-gray-300">{item.dayOfWeek}</span>
+                  </div>
+                  <div className="flex items-center text-sm gap-1">
+                    <Clock className="h-4 w-4 text-indigo-500" />
+                    <span className="text-gray-700 dark:text-gray-300">{item.classTime}</span>
+                  </div>
+                  <div className="flex items-center text-sm gap-1">
+                    <MapPin className="h-4 w-4 text-indigo-500" />
+                    <span className="truncate text-gray-700 dark:text-gray-300">{item.location}</span>
+                  </div>
+                  
+                  <div className="flex items-center text-sm gap-1 col-span-2 mt-1">
+                    <Avatar className="h-6 w-6">
+                      {avatarUrl ? (
+                        <AvatarImage src={avatarUrl} alt={item.teacherName} />
+                      ) : (
+                        <AvatarFallback className={`text-xs text-white ${avatarColor}`}>
+                          {teacherInitials}
+                        </AvatarFallback>
+                      )}
+                    </Avatar>
+                    <span className="truncate text-gray-800 dark:text-gray-200 font-medium">{item.teacherName}</span>
+                  </div>
+                  
+                  <div className="flex items-center text-sm gap-1">
+                    <CalendarIcon className="h-4 w-4 text-indigo-500" />
+                    <span className="text-gray-700 dark:text-gray-300">{item.totalOccurrences} classes</span>
+                  </div>
+                  <div className="flex items-center text-sm gap-1">
+                    <IndianRupee className="h-4 w-4 text-indigo-500" />
+                    <span className="text-gray-700 dark:text-gray-300">₹{parseFloat(item.totalRevenue).toLocaleString('en-IN')}</span>
+                  </div>
+                </div>
+              </CardContent>
+              
+              <CardFooter className="pt-3 border-t border-indigo-100 dark:border-indigo-800 flex justify-between items-center text-sm bg-indigo-50/50 dark:bg-indigo-900/30">
+                <div>
+                  <span className="text-indigo-600 dark:text-indigo-400">Check-ins: </span>
+                  <span className="font-medium text-gray-800 dark:text-gray-200">{item.totalCheckins}</span>
+                </div>
+                <div>
+                  <span className="text-indigo-600 dark:text-indigo-400">Avg (Non-Empty): </span>
+                  <span className="font-medium text-gray-800 dark:text-gray-200">{item.classAverageExcludingEmpty}</span>
+                </div>
+              </CardFooter>
+            </Card>
           );
-        })}
-      </motion.div>
-
-      {visibleItems < sortedData.length && (
-        <div className="flex justify-center mt-6">
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={loadMore}
-            className="px-6 py-2 bg-primary text-primary-foreground rounded-full shadow-md hover:shadow-lg transition-all duration-300"
-          >
-            Load More
-          </motion.button>
+        })
+      ) : (
+        <div className="col-span-full flex items-center justify-center h-48 text-muted-foreground">
+          No data available
         </div>
       )}
     </div>

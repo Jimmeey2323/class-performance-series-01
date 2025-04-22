@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from "@/hooks/use-toast";
 import Dashboard from '@/components/Dashboard';
 import FileUploader from '@/components/FileUploader';
-import { ProcessedData, ViewMode } from '@/types/data';
+import { ClassData, ProcessedData, ViewMode } from '@/types/data';
 import { processZipFile } from '@/utils/fileProcessing';
 import { Sparkles } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
@@ -90,9 +90,6 @@ const Index = () => {
       setLoading(true);
       setProgress(0);
       setShowUploader(false);
-      
-      // Clear existing data
-      setData([]);
       
       const processedData = await processZipFile(file, (percentage) => {
         setProgress(percentage);
