@@ -9,6 +9,7 @@ interface TopBottomClassesProps {
   data: ProcessedData[];
   includeTrainers: boolean;
   trainerAvatars: Record<string, string>;
+  filters?: any[];
 }
 
 interface GroupedClass {
@@ -61,6 +62,7 @@ const TopBottomClasses: React.FC<TopBottomClassesProps> = ({
   data,
   includeTrainers,
   trainerAvatars,
+  filters = []
 }) => {
   const grouped = useMemo(
     () => groupClasses(data, includeTrainers),

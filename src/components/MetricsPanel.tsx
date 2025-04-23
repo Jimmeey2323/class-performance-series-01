@@ -18,9 +18,10 @@ import { formatIndianCurrency } from '@/lib/utils';
 
 interface MetricsPanelProps {
   data: ProcessedData[];
+  filters?: any[];
 }
 
-const MetricsPanel: React.FC<MetricsPanelProps> = ({ data }) => {
+const MetricsPanel: React.FC<MetricsPanelProps> = ({ data, filters = [] }) => {
   const metrics = useMemo<MetricData[]>(() => {
     if (!data.length) return [];
 
@@ -31,14 +32,16 @@ const MetricsPanel: React.FC<MetricsPanelProps> = ({ data }) => {
     const totalTime = data.reduce((sum, item) => sum + (Number(item.totalTime) || 0), 0);
     const totalEmptyClasses = data.reduce((sum, item) => sum + (Number(item.totalEmpty) || 0), 0);
     const totalCancelled = data.reduce((sum, item) => sum + (Number(item.totalCancelled) || 0), 0);
+    const nonEmptySessions = data.reduce((sum, item) => sum + (Number(item.totalNonEmpty) || 0), 0);
 
     // Average Attendance - including empty
     const avgAttendanceIncEmpty = totalClasses > 0 ? (totalCheckins / totalClasses).toFixed(1) : '0';
 
     // Average Attendance - *excluding* empty sessions
-    const nonEmptySessions = data.reduce((sum, item) => sum + (Number(item.totalNonEmpty) || 0), 0);
-    const totalCheckinsNonEmpty = data.reduce((sum, item) => sum + (Number(item.totalCheckinsNonEmpty) || Number(item.totalCheckins) || 0), 0);
-    const avgAttendanceExcEmpty = nonEmptySessions > 0 ? (totalCheckins / nonEmptySessions).toFixed(1) : '0';
+    // We'll use the total check-ins divided by non-empty sessions
+    // If totalNonEmpty is not available, we'll calculate it
+    const totalCheckinsNonEmpty = totalCheckins; // Using total check-ins as fallback
+    const avgAttendanceExcEmpty = nonEmptySessions > 0 ? (totalCheckinsNonEmpty / nonEmptySessions).toFixed(1) : '0';
 
     // Revenue per class
     const revenuePerClass = totalClasses > 0 ? totalRevenue / totalClasses : 0;
@@ -101,7 +104,7 @@ const MetricsPanel: React.FC<MetricsPanelProps> = ({ data }) => {
         color: 'bg-red-50 dark:bg-red-950'
       },
     ];
-  }, [data]);
+  }, [data, filters]);
 
   return (
     <div className="space-y-4 mb-6">

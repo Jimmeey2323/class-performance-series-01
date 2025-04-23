@@ -1,18 +1,14 @@
-
-import React, { useState } from 'react';
-import { ProcessedData } from '@/types/data';
-import { Card, CardContent } from "@/components/ui/card";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
-import { CheckSquare, Clock, IndianRupee, User, Users, Calendar, CalendarClock, ChevronDown, ChevronUp } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import React from 'react';
 import { 
-  HoverCard,
-  HoverCardContent,
-  HoverCardTrigger
-} from "@/components/ui/hover-card";
-import { motion, AnimatePresence } from "framer-motion";
-import { formatIndianCurrency } from '@/components/MetricsPanel';
+  motion, 
+  Reorder,
+  useDragControls,
+} from 'framer-motion';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Card, CardContent } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Calendar, Users, Grip, IndianRupee } from 'lucide-react';
+import { formatIndianCurrency } from '@/lib/utils';
 
 interface KanbanCardProps {
   item: ProcessedData;
@@ -31,7 +27,6 @@ export const getInitials = (name: string): string => {
 const KanbanCard: React.FC<KanbanCardProps> = ({ item, trainerAvatars = {} }) => {
   const [expanded, setExpanded] = useState(false);
   
-  // Convert numbers to badges with descriptive colors
   const getAttendanceBadgeColor = (value: number) => {
     if (value >= 10) return "bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300";
     if (value >= 7) return "bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300";
@@ -39,7 +34,6 @@ const KanbanCard: React.FC<KanbanCardProps> = ({ item, trainerAvatars = {} }) =>
     return "bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300";
   };
 
-  // Format attendance value
   const getAttendanceValue = () => {
     try {
       const attendance = parseFloat(String(item.classAverageExcludingEmpty || 0));
@@ -49,7 +43,6 @@ const KanbanCard: React.FC<KanbanCardProps> = ({ item, trainerAvatars = {} }) =>
     }
   };
 
-  // Handle both string and number revenue
   const getRevenue = () => {
     try {
       const revenue = typeof item.totalRevenue === 'number' 
