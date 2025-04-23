@@ -5,6 +5,7 @@ import { processRawData } from "./dataProcessing";
 export async function processZipFile(file: File): Promise<ProcessedData[]> {
   return new Promise(async (resolve, reject) => {
     try {
+      console.log('Starting zip file processing...');
       // Load JSZip dynamically to reduce initial bundle size
       const JSZip = (await import('jszip')).default;
       const Papa = (await import('papaparse')).default;
@@ -20,8 +21,11 @@ export async function processZipFile(file: File): Promise<ProcessedData[]> {
       // Search for the target CSV file in the zip
       const targetFileName = "momence-teachers-payroll-report-aggregate-combined";
       
+      console.log('Looking for files matching pattern:', targetFileName);
+      
       // Look through all files in the zip
       const filePromises = Object.keys(zipContent.files).map(async (filename) => {
+        console.log('Found file in zip:', filename);
         if (filename.includes(targetFileName) && filename.endsWith('.csv')) {
           fileName = filename;
           const fileData = await zipContent.files[filename].async("string");
@@ -34,8 +38,11 @@ export async function processZipFile(file: File): Promise<ProcessedData[]> {
       foundFile = results.find(result => result !== null);
       
       if (!foundFile) {
+        console.error('No matching file found in zip');
         throw new Error(`Could not find the target file "${targetFileName}" in the uploaded ZIP.`);
       }
+      
+      console.log(`Found matching file: ${fileName}, parsing CSV data...`);
       
       // Parse CSV content
       Papa.parse(foundFile, {
@@ -43,16 +50,20 @@ export async function processZipFile(file: File): Promise<ProcessedData[]> {
         dynamicTyping: true,
         skipEmptyLines: true,
         complete: function(results) {
-          console.log('Parsed CSV data:', results);
+          console.log('CSV parsing complete. Row count:', results.data?.length);
+          
           // Check if we have valid data
           if (results.data && Array.isArray(results.data) && results.data.length > 0) {
+            console.log('Sample row:', results.data[0]);
             const processedData = processRawData(results.data as RawDataRow[]);
+            console.log(`Processed ${processedData.length} data records`);
             resolve(processedData);
           } else {
             reject(new Error('CSV file is empty or invalid.'));
           }
         },
         error: function(error) {
+          console.error('Error parsing CSV:', error);
           reject(error);
         }
       });
