@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { ProcessedData } from '@/types/data';
 import {
   Table,
@@ -61,6 +61,7 @@ import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { trainerAvatars } from './Dashboard';
 import { formatIndianCurrency } from './MetricsPanel';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface DataTableProps {
   data: ProcessedData[];
@@ -89,6 +90,8 @@ const DataTable: React.FC<DataTableProps> = ({ data, trainerAvatars = {} }) => {
   const [bookmarks, setBookmarks] = useState<string[]>([]);
   const [showOnlyBookmarks, setShowOnlyBookmarks] = useState(false);
   const [childRows, setChildRows] = useState<Record<string, ProcessedData[]>>({});
+  const [selectedRowDetails, setSelectedRowDetails] = useState<ProcessedData | null>(null);
+  const [detailsOpen, setDetailsOpen] = useState(false);
 
   // Load bookmarks from localStorage on component mount
   useEffect(() => {
@@ -203,6 +206,11 @@ const DataTable: React.FC<DataTableProps> = ({ data, trainerAvatars = {} }) => {
         [rowId]: children
       }));
     }
+  };
+
+  const showRowDetails = (row: ProcessedData) => {
+    setSelectedRowDetails(row);
+    setDetailsOpen(true);
   };
 
   const toggleBookmark = (rowId: string) => {
@@ -525,6 +533,7 @@ const DataTable: React.FC<DataTableProps> = ({ data, trainerAvatars = {} }) => {
                     </TableHead>
                   ) : null;
                 })}
+                <TableHead className="w-10 p-2"></TableHead> {/* Actions column */}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -575,6 +584,16 @@ const DataTable: React.FC<DataTableProps> = ({ data, trainerAvatars = {} }) => {
                           {renderCellValue(row, key)}
                         </TableCell>
                       ))}
+                      <TableCell className="w-10 p-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 w-8 p-0 opacity-0 group-hover:opacity-100 hover:opacity-100"
+                          onClick={() => showRowDetails(row)}
+                        >
+                          <Search className="h-4 w-4 text-muted-foreground" />
+                        </Button>
+                      </TableCell>
                     </TableRow>
                     
                     {/* Child rows section */}
@@ -582,10 +601,14 @@ const DataTable: React.FC<DataTableProps> = ({ data, trainerAvatars = {} }) => {
                       <>
                         {(childRows[row.uniqueID]?.length > 0) ? (
                           childRows[row.uniqueID].map((childRow, childIndex) => (
-                            <TableRow 
+                            <motion.tr 
                               key={`child-${childRow.uniqueID || childIndex}`}
                               className="bg-slate-50/80 dark:bg-slate-900/20 border-l-4 border-indigo-200 dark:border-indigo-800"
                               style={getRowStyle()}
+                              initial={{ opacity: 0, height: 0 }}
+                              animate={{ opacity: 1, height: 'auto' }}
+                              exit={{ opacity: 0, height: 0 }}
+                              transition={{ duration: 0.2 }}
                             >
                               <TableCell className="w-14 p-2"></TableCell>
                               <TableCell className="w-10 p-2"></TableCell>
@@ -597,14 +620,24 @@ const DataTable: React.FC<DataTableProps> = ({ data, trainerAvatars = {} }) => {
                                   {renderCellValue(childRow, key)}
                                 </TableCell>
                               ))}
-                            </TableRow>
+                              <TableCell className="w-10 p-2">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-8 w-8 p-0 opacity-0 hover:opacity-100"
+                                  onClick={() => showRowDetails(childRow)}
+                                >
+                                  <Search className="h-4 w-4 text-muted-foreground" />
+                                </Button>
+                              </TableCell>
+                            </motion.tr>
                           ))
                         ) : (
-                          <TableRow className="bg-slate-50/80 dark:bg-slate-900/20">
-                            <TableCell colSpan={visibleColumns.length + 2} className="py-4 text-center text-sm text-gray-500">
+                          <tr className="bg-slate-50/80 dark:bg-slate-900/20">
+                            <TableCell colSpan={visibleColumns.length + 3} className="py-4 text-center text-sm text-gray-500">
                               No detailed records found for this class.
                             </TableCell>
-                          </TableRow>
+                          </tr>
                         )}
                       </>
                     )}
@@ -612,7 +645,7 @@ const DataTable: React.FC<DataTableProps> = ({ data, trainerAvatars = {} }) => {
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={visibleColumns.length + 2} className="h-48 text-center">
+                  <TableCell colSpan={visibleColumns.length + 3} className="h-48 text-center">
                     No data available
                   </TableCell>
                 </TableRow>
@@ -682,6 +715,158 @@ const DataTable: React.FC<DataTableProps> = ({ data, trainerAvatars = {} }) => {
           </div>
         )}
       </div>
+      
+      {/* Row Details Dialog */}
+      <Dialog open={detailsOpen} onOpenChange={setDetailsOpen}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle className="text-xl">
+              Class Details: {selectedRowDetails?.cleanedClass}
+            </DialogTitle>
+          </DialogHeader>
+          
+          {selectedRowDetails && (
+            <div className="space-y-6 py-4">
+              <div className="flex flex-col md:flex-row gap-4 bg-slate-50 dark:bg-slate-900/30 rounded-lg p-4">
+                <div className="flex-1 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Avatar className="h-10 w-10">
+                      {trainerAvatars[selectedRowDetails.teacherName] ? (
+                        <AvatarImage 
+                          src={trainerAvatars[selectedRowDetails.teacherName]} 
+                          alt={selectedRowDetails.teacherName} 
+                        />
+                      ) : (
+                        <AvatarFallback className="bg-indigo-500 text-white">
+                          {selectedRowDetails.teacherName.slice(0, 2).toUpperCase()}
+                        </AvatarFallback>
+                      )}
+                    </Avatar>
+                    <div>
+                      <h3 className="text-lg font-semibold">{selectedRowDetails.cleanedClass}</h3>
+                      <p className="text-sm text-muted-foreground">Instructor: {selectedRowDetails.teacherName}</p>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="flex-1 grid grid-cols-2 gap-2 text-sm">
+                  <div className="flex gap-2 items-center">
+                    <Badge variant="outline" className="bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/40 dark:text-blue-300 dark:border-blue-800">
+                      {selectedRowDetails.dayOfWeek}
+                    </Badge>
+                    <span>{selectedRowDetails.classTime}</span>
+                  </div>
+                  
+                  <div className="flex items-center gap-1">
+                    <MapPin className="h-4 w-4 text-muted-foreground" />
+                    <span>{selectedRowDetails.location}</span>
+                  </div>
+                  
+                  <div className="flex items-center gap-1">
+                    <Calendar className="h-4 w-4 text-muted-foreground" />
+                    <span>{selectedRowDetails.period}</span>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="bg-gradient-to-br from-blue-500 to-indigo-600 text-white p-4 rounded-lg">
+                  <h5 className="text-xs text-white/70 mb-1">Total Check-ins</h5>
+                  <p className="text-2xl font-bold">{selectedRowDetails.totalCheckins}</p>
+                </div>
+                
+                <div className="bg-gradient-to-br from-emerald-500 to-teal-600 text-white p-4 rounded-lg">
+                  <h5 className="text-xs text-white/70 mb-1">Average Attendance</h5>
+                  <p className="text-2xl font-bold">{selectedRowDetails.classAverageIncludingEmpty}</p>
+                </div>
+                
+                <div className="bg-gradient-to-br from-amber-500 to-orange-600 text-white p-4 rounded-lg">
+                  <h5 className="text-xs text-white/70 mb-1">Revenue</h5>
+                  <p className="text-2xl font-bold">{formatIndianCurrency(Number(selectedRowDetails.totalRevenue))}</p>
+                </div>
+                
+                <div className="bg-gradient-to-br from-purple-500 to-pink-600 text-white p-4 rounded-lg">
+                  <h5 className="text-xs text-white/70 mb-1">Occurrences</h5>
+                  <p className="text-2xl font-bold">{selectedRowDetails.totalOccurrences}</p>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="border rounded-lg p-4 shadow-sm">
+                  <h5 className="font-medium mb-3 text-lg">
+                    Class Metrics
+                  </h5>
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                      <span className="text-muted-foreground">Total Occurrences:</span>
+                      <span className="font-medium">{selectedRowDetails.totalOccurrences}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-muted-foreground">Total Canceled:</span>
+                      <span className="font-medium">{selectedRowDetails.totalCancelled}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-muted-foreground">Empty Classes:</span>
+                      <span className="font-medium">{selectedRowDetails.totalEmpty}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-muted-foreground">Non-Empty Classes:</span>
+                      <span className="font-medium">{selectedRowDetails.totalNonEmpty}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-muted-foreground">Total Hours:</span>
+                      <span className="font-medium">{selectedRowDetails.totalTime}</span>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="border rounded-lg p-4 shadow-sm">
+                  <h5 className="font-medium mb-3 text-lg">
+                    Attendance Metrics
+                  </h5>
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                      <span className="text-muted-foreground">Total Check-ins:</span>
+                      <span className="font-medium">{selectedRowDetails.totalCheckins}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-muted-foreground">Average (All Classes):</span>
+                      <span className="font-medium">{selectedRowDetails.classAverageIncludingEmpty}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-muted-foreground">Average (Non-Empty):</span>
+                      <span className="font-medium">{selectedRowDetails.classAverageExcludingEmpty}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-muted-foreground">Non-Paid Customers:</span>
+                      <span className="font-medium">{selectedRowDetails.totalNonPaid}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-muted-foreground">Total Revenue:</span>
+                      <span className="font-medium">{formatIndianCurrency(Number(selectedRowDetails.totalRevenue))}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <DialogFooter>
+                <Button
+                  variant={bookmarks.includes(selectedRowDetails.uniqueID) ? "default" : "outline"}
+                  className="gap-2"
+                  onClick={() => toggleBookmark(selectedRowDetails.uniqueID)}
+                >
+                  <Bookmark className={cn(
+                    "h-4 w-4",
+                    bookmarks.includes(selectedRowDetails.uniqueID) && "fill-current"
+                  )} />
+                  {bookmarks.includes(selectedRowDetails.uniqueID) ? "Bookmarked" : "Add Bookmark"}
+                </Button>
+                <Button onClick={() => setDetailsOpen(false)}>Close</Button>
+              </DialogFooter>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
