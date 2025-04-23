@@ -238,9 +238,14 @@ const DataFilters: React.FC<DataFiltersProps> = ({
     }
   };
 
+  // Fixed function to ensure we always return non-empty values
   const getUniqueValues = (field: keyof ProcessedData): string[] => {
-    const values = data.map(item => String(item[field] || '')).filter(value => value.trim() !== '');
-    return [...new Set(values)].sort();
+    const values = data
+      .map(item => String(item[field] || ''))
+      .filter(value => value.trim() !== '');
+    
+    // Ensure we're returning a non-empty array of non-empty strings
+    return [...new Set(values)].sort().filter(Boolean);
   };
 
   const handlePeriodChange = (period: string, checked: boolean) => {
@@ -535,13 +540,14 @@ const DataFilters: React.FC<DataFiltersProps> = ({
                                 onChange={(e) => setNewFilterValue(e.target.value)}
                                 className="mb-2"
                               />
-                              {getUniqueValues(newFilterField).slice(0, 10).map((value) => (
-                                <SelectItem key={value} value={value}>
-                                  {value}
-                                </SelectItem>
-                              ))}
-                              {getUniqueValues(newFilterField).length === 0 && (
-                                <SelectItem value="no-data-placeholder" disabled>
+                              {getUniqueValues(newFilterField).length > 0 ? (
+                                getUniqueValues(newFilterField).slice(0, 10).map((value) => (
+                                  <SelectItem key={value} value={value}>
+                                    {value}
+                                  </SelectItem>
+                                ))
+                              ) : (
+                                <SelectItem value="no-data-available" disabled>
                                   No values available
                                 </SelectItem>
                               )}
@@ -555,25 +561,26 @@ const DataFilters: React.FC<DataFiltersProps> = ({
                       <div className="sm:col-span-3">
                         <Label className="text-sm mb-3 block">Select Periods (Multiple)</Label>
                         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 max-h-48 overflow-y-auto p-2 border rounded-md">
-                          {getUniqueValues('period').map((period) => (
-                            <div key={period} className="flex items-center space-x-2">
-                              <Checkbox 
-                                id={`period-${period}`} 
-                                checked={selectedPeriods.includes(period)}
-                                onCheckedChange={(checked) => 
-                                  handlePeriodChange(period, checked as boolean)
-                                }
-                              />
-                              <label
-                                htmlFor={`period-${period}`}
-                                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                              >
-                                {period}
-                              </label>
-                            </div>
-                          ))}
-                          {getUniqueValues('period').length === 0 && (
-                            <div className="text-sm text-muted-foreground">No periods available</div>
+                          {getUniqueValues('period').length > 0 ? (
+                            getUniqueValues('period').map((period) => (
+                              <div key={period} className="flex items-center space-x-2">
+                                <Checkbox 
+                                  id={`period-${period}`} 
+                                  checked={selectedPeriods.includes(period)}
+                                  onCheckedChange={(checked) => 
+                                    handlePeriodChange(period, checked as boolean)
+                                  }
+                                />
+                                <label
+                                  htmlFor={`period-${period}`}
+                                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                                >
+                                  {period}
+                                </label>
+                              </div>
+                            ))
+                          ) : (
+                            <div className="text-sm text-muted-foreground p-2">No periods available</div>
                           )}
                         </div>
                       </div>
