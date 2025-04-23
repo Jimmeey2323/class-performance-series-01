@@ -16,6 +16,9 @@ const KanbanView: React.FC<KanbanViewProps> = ({ data, trainerAvatars = {} }) =>
   const [groupByField, setGroupByField] = useState<keyof ProcessedData>('dayOfWeek');
   
   useEffect(() => {
+    // Make sure we're working with the latest filtered data
+    console.log(`KanbanView: Grouping ${data.length} items by ${groupByField}`);
+    
     // Group data by the selected field
     const groupedData = groupBy(data, groupByField);
     

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from "@/hooks/use-toast";
@@ -97,6 +96,8 @@ const Index = () => {
       setProgress(0);
       setShowUploader(false);
       
+      console.log("Starting to process new file, cleared existing data");
+      
       const processedData = await processZipFile(file, (percentage) => {
         setProgress(percentage);
       });
@@ -117,7 +118,9 @@ const Index = () => {
         return true;
       });
       
+      console.log(`Processed ${filteredData.length} items from file`);
       setData(filteredData);
+      
       // Save data to localStorage for future sessions
       localStorage.setItem('classAnalyticsData', JSON.stringify(filteredData));
       
@@ -144,6 +147,12 @@ const Index = () => {
     setData([]);
     localStorage.removeItem('classAnalyticsData');
     setDataLoaded(false);
+    
+    toast({
+      title: "Data cleared",
+      description: "All data has been reset.",
+      variant: "default",
+    });
   };
 
   const handleLogout = async () => {

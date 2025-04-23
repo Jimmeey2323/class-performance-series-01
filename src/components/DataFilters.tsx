@@ -52,8 +52,7 @@ interface DataFiltersProps {
 const DataFilters: React.FC<DataFiltersProps> = ({ 
   onFilterChange, 
   onSortChange, 
-  data, 
-  // Removed unused activeFilters
+  data
 }) => {
   const [filters, setFilters] = useState<FilterOption[]>([]);
   const [sortOptions, setSortOptions] = useState<SortOption[]>([]);
@@ -86,6 +85,18 @@ const DataFilters: React.FC<DataFiltersProps> = ({
       }
     }
   }, []);
+
+  // Properly apply filters when they change
+  useEffect(() => {
+    console.log('Filters changed:', filters);
+    onFilterChange(filters);
+  }, [filters, onFilterChange]);
+
+  // Apply sort when it changes
+  useEffect(() => {
+    console.log('Sort options changed:', sortOptions);
+    onSortChange(sortOptions);
+  }, [sortOptions, onSortChange]);
 
   const fields: Array<{ key: keyof ProcessedData; label: string }> = [
     { key: 'cleanedClass', label: 'Class Type' },
@@ -243,7 +254,7 @@ const DataFilters: React.FC<DataFiltersProps> = ({
   // Function to get unique values for a field
   const getUniqueValues = (field: keyof ProcessedData): string[] => {
     const values = data.map(item => String(item[field]));
-    return [...new Set(values)].sort();
+    return [...new Set(values)].filter(Boolean).sort();
   };
 
   // Handle period checkbox change

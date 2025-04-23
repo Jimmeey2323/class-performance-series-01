@@ -1,4 +1,3 @@
-
 import React, { useMemo } from 'react';
 import { ProcessedData, MetricData } from '@/types/data';
 import { Card, CardContent } from '@/components/ui/card';
@@ -35,6 +34,8 @@ export const formatIndianCurrency = (value: number): string => {
 const MetricsPanel: React.FC<MetricsPanelProps> = ({ data }) => {
   const metrics = useMemo<MetricData[]>(() => {
     if (!data.length) return [];
+    
+    console.log(`MetricsPanel: Calculating metrics for ${data.length} items`);
     
     // Calculate totals
     const totalClasses = data.reduce((sum, item) => sum + item.totalOccurrences, 0);
