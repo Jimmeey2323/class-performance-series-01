@@ -1,42 +1,55 @@
 
-export interface ClassData {
+export interface RawDataRow {
+  'Teacher First Name': string;
+  'Teacher Last Name': string;
+  'Teacher Email': string;
+  'Total time (h)': string;
   'Class name': string;
   'Class date': string;
   'Location': string;
-  'Teacher First Name': string;
-  'Teacher Last Name': string;
-  'Checked in': string;
-  'Late cancellations': string;
-  'Total Revenue': string;
+  'Payrate': string;
   'Time (h)': string;
-  'Non Paid Customers': string;
+  'Employee Code': string;
+  'Payrate Code': string;
+  'Customer Name': string;
+  'Customer Email': string;
+  'Sale Date': string;
+  'Checked in': string;
+  'Comp': string;
+  'Late Cancelled': string;
+  'Payment Method': string;
+  'Payment Method Name': string;
+  'Paid': string;
+  'Teacher Payout': string;
 }
 
 export interface ProcessedData {
-  uniqueID: string;
-  cleanedClass: string;
-  dayOfWeek: string;
-  classTime: string;
-  date: string;
-  location: string;
   teacherName: string;
-  period: string;
-  totalOccurrences: number;
-  totalCancelled: number;
+  teacherEmail: string;
+  totalTime: number;
+  classTime: string;
+  location: string;
+  cleanedClass: string;
+  date: string;
+  dayOfWeek: string;
+  period: string; // e.g., "Mar-22"
   totalCheckins: number;
+  totalOccurrences: number;
+  totalRevenue: number | string;
+  totalCancelled: number;
   totalEmpty: number;
   totalNonEmpty: number;
-  classAverageIncludingEmpty: string;
-  classAverageExcludingEmpty: string;
-  totalRevenue: number; // Changed to number for easier formatting
-  totalTime: string;
   totalNonPaid: number;
-  attendance: number;
+  classAverageIncludingEmpty: number | string;
+  classAverageExcludingEmpty: number | string;
+  uniqueID: string; // For tracking purposes
 }
+
+export type ViewMode = 'table' | 'grid' | 'kanban' | 'timeline' | 'pivot';
 
 export interface FilterOption {
   field: keyof ProcessedData;
-  operator: string;
+  operator: string; // 'contains' | 'equals' | 'starts' | 'ends' | 'greater' | 'less'
   value: string;
 }
 
@@ -45,70 +58,15 @@ export interface SortOption {
   direction: 'asc' | 'desc';
 }
 
+export interface ChartConfig {
+  type: 'bar' | 'line' | 'pie' | 'scatter' | 'donut';
+  primaryMetric: keyof ProcessedData;
+  groupBy: keyof ProcessedData;
+}
+
 export interface MetricData {
   title: string;
-  value: string | number;
-  change?: number;
+  value: number | string;
   icon?: React.ReactNode;
   color?: string;
 }
-
-export type ViewMode = 'table' | 'grid' | 'kanban' | 'timeline' | 'pivot';
-
-export interface ChartConfig {
-  type: 'bar' | 'line' | 'pie' | 'donut' | 'scatter';
-  dataKey: keyof ProcessedData;
-  labelKey?: keyof ProcessedData;
-  title: string;
-  showLegend?: boolean;
-}
-
-export interface TopBottomClassData {
-  cleanedClass: string;
-  averageAttendance: number;
-  totalOccurrences: number;
-  isTopPerformer: boolean;
-}
-
-export interface KanbanItem {
-  id: string;
-  title: string;
-  data: ProcessedData;
-  avatarUrl?: string;
-}
-
-export interface KanbanColumn {
-  id: string;
-  title: string;
-  items: KanbanItem[];
-}
-
-export interface TimelineEvent {
-  id: string;
-  title: string;
-  date: string;
-  content: string;
-  data: ProcessedData;
-}
-
-export interface PivotData {
-  rowField: keyof ProcessedData;
-  columnField: keyof ProcessedData;
-  valueField: keyof ProcessedData;
-  aggregation: 'sum' | 'average' | 'count' | 'min' | 'max' | 'count-unique';
-}
-
-export interface ClassStatsItem {
-  key: string;
-  dayOfWeek: string;
-  classTime: string;
-  cleanedClass: string;
-  teacherName: string;
-  avgAttendance: number;
-  totalOccurrences: number;
-  totalCheckins: number;
-  totalRevenue: number;
-}
-
-// For theme toggling
-export type Theme = 'light' | 'dark' | 'system';

@@ -1,3 +1,4 @@
+
 import React, { useMemo } from 'react';
 import { ProcessedData, MetricData } from '@/types/data';
 import { Card, CardContent } from '@/components/ui/card';
@@ -117,83 +118,76 @@ const MetricsPanel: React.FC<MetricsPanelProps> = ({ data }) => {
         value: Math.round(totalTime),
         icon: <Clock className="h-6 w-6 text-red-500" />,
         color: 'bg-red-50 dark:bg-red-950'
+      },
+      {
+        title: 'Class Types',
+        value: uniqueClassTypes,
+        icon: <Tag className="h-6 w-6 text-sky-500" />,
+        color: 'bg-sky-50 dark:bg-sky-950'
+      },
+      {
+        title: 'Instructors',
+        value: uniqueInstructors,
+        icon: <Users className="h-6 w-6 text-emerald-500" />,
+        color: 'bg-emerald-50 dark:bg-emerald-950'
+      },
+      {
+        title: 'Empty Classes',
+        value: totalEmptyClasses,
+        icon: <Calendar className="h-6 w-6 text-slate-500" />,
+        color: 'bg-slate-50 dark:bg-slate-950'
+      },
+      {
+        title: 'Non-Paid',
+        value: nonPaidCustomers,
+        icon: <Users className="h-6 w-6 text-rose-500" />,
+        color: 'bg-rose-50 dark:bg-rose-950'
       }
     ];
   }, [data]);
 
   return (
-    <div className="space-y-4 mb-6">
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-        {metrics.slice(0, 4).map((metric, index) => (
-          <motion.div 
-            key={index}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3, delay: index * 0.05 }}
-            whileHover={{ y: -5, boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.1)" }}
-            className="transition-all duration-300"
-          >
-            <Card className="overflow-hidden border shadow-sm h-full">
-              <CardContent className={`p-6 ${metric.color}`}>
-                <div className="flex flex-col space-y-2">
-                  <div className="flex justify-between items-start">
-                    <span className="text-sm font-medium text-muted-foreground">{metric.title}</span>
-                    {metric.icon}
-                  </div>
-                  <div className="text-2xl font-bold">
+    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4 mb-6">
+      {metrics.map((metric, index) => (
+        <motion.div
+          key={index}
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ 
+            duration: 0.3, 
+            delay: index * 0.05,
+            ease: "easeOut"
+          }}
+          whileHover={{ y: -5, transition: { duration: 0.2 } }}
+          className="col-span-1"
+        >
+          <Card className={`h-full overflow-hidden border-none shadow-md ${metric.color}`}>
+            <CardContent className="p-4">
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                    {metric.title}
+                  </p>
+                  <h3 className="text-2xl font-bold mt-1">
                     {typeof metric.value === 'number' ? (
-                      <CountUp end={metric.value} duration={2.5} separator="," />
+                      <CountUp 
+                        end={metric.value} 
+                        duration={1.5} 
+                        separator="," 
+                      />
                     ) : (
                       metric.value
                     )}
-                  </div>
-                  {metric.change !== undefined && (
-                    <div className={metric.change >= 0 ? 'text-green-600' : 'text-red-600'}>
-                      {metric.change >= 0 ? '+' : ''}{metric.change}%
-                    </div>
-                  )}
+                  </h3>
                 </div>
-              </CardContent>
-            </Card>
-          </motion.div>
-        ))}
-      </div>
-      
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-        {metrics.slice(4).map((metric, index) => (
-          <motion.div 
-            key={index + 4} 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3, delay: (index + 4) * 0.05 }}
-            whileHover={{ y: -5, boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.1)" }}
-            className="transition-all duration-300"
-          >
-            <Card className="overflow-hidden border shadow-sm h-full">
-              <CardContent className={`p-6 ${metric.color}`}>
-                <div className="flex flex-col space-y-2">
-                  <div className="flex justify-between items-start">
-                    <span className="text-sm font-medium text-muted-foreground">{metric.title}</span>
-                    {metric.icon}
-                  </div>
-                  <div className="text-2xl font-bold">
-                    {typeof metric.value === 'number' ? (
-                      <CountUp end={metric.value} duration={2.5} separator="," />
-                    ) : (
-                      metric.value
-                    )}
-                  </div>
-                  {metric.change !== undefined && (
-                    <div className={metric.change >= 0 ? 'text-green-600' : 'text-red-600'}>
-                      {metric.change >= 0 ? '+' : ''}{metric.change}%
-                    </div>
-                  )}
+                <div className="p-2 rounded-full bg-white/30 dark:bg-gray-800/30">
+                  {metric.icon}
                 </div>
-              </CardContent>
-            </Card>
-          </motion.div>
-        ))}
-      </div>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+      ))}
     </div>
   );
 };
