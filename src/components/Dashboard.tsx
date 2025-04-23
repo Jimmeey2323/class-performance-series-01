@@ -1,6 +1,6 @@
 
 import React, { useState, useCallback, useEffect } from 'react';
-import { ProcessedData, FilterOption, SortOption } from '@/types/data';
+import { ProcessedData } from '@/types/data';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import DataFilters from '@/components/DataFilters';
 import DataTable from '@/components/DataTable';
@@ -8,10 +8,10 @@ import MetricsPanel from '@/components/MetricsPanel';
 import TopBottomClasses from '@/components/TopBottomClasses';
 import TrainerComparisonView from '@/components/TrainerComparisonView';
 import { Button } from '@/components/ui/button';
-import { Info, Settings, Filter } from "lucide-react";
+import { Info, Settings } from "lucide-react";
 import GridView from './views/GridView';
 import TimelineView from './views/TimelineView';
-import KanbanView from './views/kanban/KanbanView';
+import KanbanView from './views/KanbanView';
 import { FilterProvider, useFilter } from '@/contexts/FilterContext';
 import { useToast } from './ui/use-toast';
 
@@ -44,11 +44,11 @@ const DashboardContent: React.FC<DashboardProps> = ({ data }) => {
     console.log('Filtered data:', filteredData.length);
   }, [data, filteredData]);
   
-  const handleFilterChange = useCallback((newFilters: FilterOption[]) => {
+  const handleFilterChange = useCallback((newFilters) => {
     setFilters(newFilters);
   }, [setFilters]);
   
-  const handleSortChange = useCallback((newSortOptions: SortOption[]) => {
+  const handleSortChange = useCallback((newSortOptions) => {
     setSortOptions(newSortOptions);
   }, [setSortOptions]);
 
@@ -59,6 +59,7 @@ const DashboardContent: React.FC<DashboardProps> = ({ data }) => {
       description: includeTrainers 
         ? "Classes are now grouped only by type, day and time." 
         : "Classes are now grouped by type, day, time AND trainer.",
+      variant: "default"
     });
   };
   

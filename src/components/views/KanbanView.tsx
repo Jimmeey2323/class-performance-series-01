@@ -5,6 +5,7 @@ import { groupBy } from 'lodash';
 import { DndContext, closestCenter, DragEndEvent } from '@dnd-kit/core';
 import { SortableContext, arrayMove } from '@dnd-kit/sortable';
 import KanbanBoard from './kanban/KanbanBoard';
+import { Kanban } from 'lucide-react';
 
 interface KanbanViewProps {
   data: ProcessedData[];
@@ -84,7 +85,7 @@ const KanbanView: React.FC<KanbanViewProps> = ({ data, trainerAvatars = {} }) =>
       <div className="mb-4 flex justify-end">
         <select 
           className="border rounded p-2 text-sm"
-          value={groupByField}
+          value={groupByField as string}
           onChange={(e) => setGroupByField(e.target.value as keyof ProcessedData)}
         >
           <option value="dayOfWeek">Group by Day</option>
