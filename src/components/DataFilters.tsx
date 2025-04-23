@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { ProcessedData, FilterOption, SortOption } from '@/types/data';
 import { Button } from '@/components/ui/button';
@@ -46,6 +47,7 @@ interface DataFiltersProps {
   onFilterChange: (filters: FilterOption[]) => void;
   onSortChange: (sortOptions: SortOption[]) => void;
   data: ProcessedData[];
+  activeFilters?: number; // Added this prop to the interface
 }
 
 const DataFilters: React.FC<DataFiltersProps> = ({ 
