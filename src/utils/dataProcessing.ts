@@ -101,7 +101,7 @@ export function processRawData(rawData: RawDataRow[]): ProcessedData[] {
 
   rawData.forEach((row, index) => {
     try {
-      // Extract the necessary data from the row
+      // Extract the necessary data from the row - adapting to the actual field names
       const teacherFirstName = row['Teacher First Name'] || '';
       const teacherLastName = row['Teacher Last Name'] || '';
       const teacherName = `${teacherFirstName} ${teacherLastName}`.trim();
@@ -111,6 +111,8 @@ export function processRawData(rawData: RawDataRow[]): ProcessedData[] {
       const location = row['Location'] || '';
       const totalTime = parseFloat(row['Total time (h)'] || '0');
       const time = parseFloat(row['Time (h)'] || '0');
+      
+      // Adjust field parsing based on the actual data format
       const checkedIn = row['Checked in'] === 'Yes' ? 1 : 0;
       const lateCancelled = row['Late Cancelled'] === 'Yes' ? 1 : 0;
       const paid = parseFloat(row['Paid'] || '0');
@@ -186,7 +188,7 @@ export function processRawData(rawData: RawDataRow[]): ProcessedData[] {
         uniqueIds.add(uniqueID);
       }
     } catch (error) {
-      console.error(`Error processing row ${index}:`, error);
+      console.error(`Error processing row ${index}:`, error, 'Row data:', JSON.stringify(row));
     }
   });
 

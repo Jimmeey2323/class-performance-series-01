@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { ProcessedData, ViewMode, FilterOption, SortOption } from '@/types/data';
 import ViewSwitcherWrapper from './ViewSwitcherWrapper';
@@ -229,7 +228,6 @@ const Dashboard: React.FC<DashboardProps> = ({
             <span className="text-primary mx-1">
               <CountUp 
                 end={data.length} 
-                separator="," 
               />
             </span> 
             records so far

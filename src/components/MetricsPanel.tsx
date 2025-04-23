@@ -1,4 +1,3 @@
-
 import React, { useMemo } from 'react';
 import { ProcessedData, MetricData } from '@/types/data';
 import { Card, CardContent } from '@/components/ui/card';
@@ -177,7 +176,6 @@ const MetricsPanel: React.FC<MetricsPanelProps> = ({ data }) => {
                     {typeof metric.value === 'number' ? (
                       <CountUp 
                         end={metric.value} 
-                        separator="," 
                       />
                     ) : (
                       metric.value

@@ -26,7 +26,7 @@ export async function processZipFile(file: File): Promise<ProcessedData[]> {
       // Look through all files in the zip
       const filePromises = Object.keys(zipContent.files).map(async (filename) => {
         console.log('Found file in zip:', filename);
-        if (filename.includes(targetFileName) && filename.endsWith('.csv')) {
+        if (filename.toLowerCase().includes(targetFileName.toLowerCase()) && filename.endsWith('.csv')) {
           fileName = filename;
           const fileData = await zipContent.files[filename].async("string");
           return fileData;
@@ -38,7 +38,7 @@ export async function processZipFile(file: File): Promise<ProcessedData[]> {
       foundFile = results.find(result => result !== null);
       
       if (!foundFile) {
-        console.error('No matching file found in zip');
+        console.error('No matching file found in zip. Available files:', Object.keys(zipContent.files));
         throw new Error(`Could not find the target file "${targetFileName}" in the uploaded ZIP.`);
       }
       
@@ -51,13 +51,25 @@ export async function processZipFile(file: File): Promise<ProcessedData[]> {
         skipEmptyLines: true,
         complete: function(results) {
           console.log('CSV parsing complete. Row count:', results.data?.length);
+          console.log('CSV headers:', results.meta?.fields);
           
           // Check if we have valid data
           if (results.data && Array.isArray(results.data) && results.data.length > 0) {
             console.log('Sample row:', results.data[0]);
-            const processedData = processRawData(results.data as RawDataRow[]);
-            console.log(`Processed ${processedData.length} data records`);
-            resolve(processedData);
+            
+            // Log field names to help debugging
+            if (results.data[0]) {
+              console.log('Available fields in first row:', Object.keys(results.data[0]));
+            }
+            
+            try {
+              const processedData = processRawData(results.data as RawDataRow[]);
+              console.log(`Processed ${processedData.length} data records`);
+              resolve(processedData);
+            } catch (error) {
+              console.error('Error in processRawData:', error);
+              reject(error);
+            }
           } else {
             reject(new Error('CSV file is empty or invalid.'));
           }
