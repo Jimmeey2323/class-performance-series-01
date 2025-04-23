@@ -22,7 +22,9 @@ const Index = () => {
   const [dataLoaded, setDataLoaded] = useState(false);
   const navigate = useNavigate();
 
+  // Check authentication status
   useEffect(() => {
+    // Subscribe to auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
         setSession(session);
@@ -30,12 +32,14 @@ const Index = () => {
       }
     );
 
+    // Initial session check
     const checkSession = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       setSession(session);
       setUser(session?.user ?? null);
       setAuthChecked(true);
 
+      // Check for admin bypass from localStorage (set during login)
       const adminBypass = localStorage.getItem('adminBypass') === 'true';
       setAdminBypass(adminBypass);
     };
@@ -47,12 +51,14 @@ const Index = () => {
     };
   }, []);
 
+  // Redirect to login if not authenticated
   useEffect(() => {
     if (authChecked && !user && !adminBypass) {
       navigate('/auth');
     }
   }, [authChecked, user, adminBypass, navigate]);
 
+  // Load saved data from localStorage
   useEffect(() => {
     if (authChecked && (user || adminBypass) && !dataLoaded) {
       const savedData = localStorage.getItem('classAnalyticsData');
@@ -71,6 +77,7 @@ const Index = () => {
           }
         } catch (error) {
           console.error("Error loading saved data:", error);
+          // If there's an error loading the data, we'll just continue with an empty state
         }
       }
     }
@@ -80,6 +87,7 @@ const Index = () => {
     if (!file) return;
     
     try {
+      // Clear existing data before processing new file
       setData([]);
       localStorage.removeItem('classAnalyticsData');
       setDataLoaded(false);
@@ -94,16 +102,18 @@ const Index = () => {
         setProgress(percentage);
       });
       
+      // Filter out future dates before setting data
       const today = new Date();
       const filteredData = processedData.filter(item => {
+        // Check if the class date is in the past or today
         if (item.period) {
           const [month, year] = item.period.split('-');
           const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
           const monthIndex = months.indexOf(month);
-          const fullYear = 2000 + parseInt(year);
+          const fullYear = 2000 + parseInt(year); // Assuming years are in format '22' for 2022
           
           const periodDate = new Date(fullYear, monthIndex);
-          return periodDate <= today;
+          return periodDate <= today; // Include items without period data
         }
         return true;
       });
@@ -111,6 +121,7 @@ const Index = () => {
       console.log(`Processed ${filteredData.length} items from file`);
       setData(filteredData);
       
+      // Save data to localStorage for future sessions
       localStorage.setItem('classAnalyticsData', JSON.stringify(filteredData));
       
       toast({
@@ -153,6 +164,7 @@ const Index = () => {
     navigate('/auth');
   };
 
+  // Show loading state while checking authentication
   if (!authChecked) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -221,7 +233,13 @@ const Index = () => {
         </div>
       ) : (
         <Dashboard 
-          data={data}
+          data={data} 
+          loading={loading} 
+          progress={progress} 
+          onReset={resetUpload}
+          viewMode={viewMode}
+          setViewMode={setViewMode}
+          onLogout={handleLogout}
         />
       )}
     </div>

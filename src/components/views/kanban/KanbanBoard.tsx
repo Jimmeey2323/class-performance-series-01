@@ -31,7 +31,7 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({ id, title, items, count }) =>
           {items.length > 0 ? (
             <div className="space-y-2">
               {items.map(item => (
-                <KanbanCard key={item.id} item={item.data} />
+                <KanbanCard key={item.id} item={item.data} trainerAvatars={{}} />
               ))}
             </div>
           ) : (

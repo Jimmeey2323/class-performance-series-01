@@ -11,7 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { formatIndianCurrency } from '@/lib/utils';
+import { formatIndianCurrency } from '@/components/MetricsPanel';
 
 interface TrainerComparisonViewProps {
   data: ProcessedData[];

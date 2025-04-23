@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { ProcessedData } from '@/types/data';
 import {
@@ -34,7 +35,7 @@ import {
   Filter
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { cn, formatIndianCurrency } from '@/lib/utils';
+import { cn } from '@/lib/utils';
 import { 
   Dialog,
   DialogContent,
@@ -79,8 +80,8 @@ const DataTable: React.FC<DataTableProps> = ({ data, trainerAvatars = {} }) => {
     'cleanedClass', 'dayOfWeek', 'classTime', 'location', 'teacherName', 'period',
     'totalOccurrences', 'totalCheckins', 'classAverageIncludingEmpty', 'totalRevenue'
   ]);
-  const [rowHeight, setRowHeight] = useState(50);
-  const [fontSize, setFontSize] = useState(14);
+  const [rowHeight, setRowHeight] = useState(50); // Default row height
+  const [fontSize, setFontSize] = useState(14); // Default font size
   const [tableView, setTableView] = useState<TableView>('comfortable');
   const [showIcons, setShowIcons] = useState(true);
   const [tableTheme, setTableTheme] = useState<TableTheme>('elegant');
@@ -88,6 +89,7 @@ const DataTable: React.FC<DataTableProps> = ({ data, trainerAvatars = {} }) => {
   const [showOnlyBookmarks, setShowOnlyBookmarks] = useState(false);
   const [childRows, setChildRows] = useState<Record<string, ProcessedData[]>>({});
 
+  // Load bookmarks from localStorage on component mount
   useEffect(() => {
     const savedBookmarks = localStorage.getItem('classAnalyticsBookmarks');
     if (savedBookmarks) {
@@ -95,10 +97,12 @@ const DataTable: React.FC<DataTableProps> = ({ data, trainerAvatars = {} }) => {
     }
   }, []);
 
+  // Save bookmarks to localStorage whenever they change
   useEffect(() => {
     localStorage.setItem('classAnalyticsBookmarks', JSON.stringify(bookmarks));
   }, [bookmarks]);
 
+  // All possible columns
   const allColumns: Array<{ key: keyof ProcessedData; label: string }> = [
     { key: 'cleanedClass', label: 'Class' },
     { key: 'dayOfWeek', label: 'Day' },
@@ -118,17 +122,21 @@ const DataTable: React.FC<DataTableProps> = ({ data, trainerAvatars = {} }) => {
     { key: 'totalNonPaid', label: 'Non-Paid' },
   ];
 
+  // Filter data based on search query
   const filteredData = data.filter(item => {
+    // First apply bookmark filter if enabled
     if (showOnlyBookmarks && !bookmarks.includes(item.uniqueID)) {
       return false;
     }
     
+    // Then apply search filter
     const query = searchQuery.toLowerCase();
     return Object.values(item).some(
       value => value && String(value).toLowerCase().includes(query)
     );
   });
 
+  // Sort data based on sort field and direction
   const sortedData = React.useMemo(() => {
     if (!sortField) return filteredData;
     
@@ -136,6 +144,7 @@ const DataTable: React.FC<DataTableProps> = ({ data, trainerAvatars = {} }) => {
       const valueA = a[sortField];
       const valueB = b[sortField];
       
+      // Determine if the values are numeric
       const isNumeric = !isNaN(Number(valueA)) && !isNaN(Number(valueB));
       
       let comparison = 0;
@@ -149,10 +158,12 @@ const DataTable: React.FC<DataTableProps> = ({ data, trainerAvatars = {} }) => {
     });
   }, [filteredData, sortField, sortDirection, showOnlyBookmarks, bookmarks]);
 
+  // Calculate pagination
   const pageCount = Math.ceil(sortedData.length / pageSize);
   const startIndex = pageIndex * pageSize;
   const paginatedData = sortedData.slice(startIndex, startIndex + pageSize);
 
+  // Toggle column visibility
   const toggleColumnVisibility = (key: keyof ProcessedData) => {
     if (visibleColumns.includes(key)) {
       setVisibleColumns(visibleColumns.filter(col => col !== key));
@@ -162,18 +173,22 @@ const DataTable: React.FC<DataTableProps> = ({ data, trainerAvatars = {} }) => {
   };
 
   const toggleRowExpand = async (rowId: string, row: ProcessedData) => {
+    // Toggle the expanded state
     setExpandedRows(prev => ({
       ...prev,
       [rowId]: !prev[rowId]
     }));
     
+    // If we're expanding and don't have child rows yet, try to find them
     if (!expandedRows[rowId] && !childRows[rowId]) {
+      // Here you would fetch or filter the data to find rows that are "children" of this row
+      // For this example, we'll simulate by finding rows with matching class attributes
       const children = data.filter(item => 
         item.dayOfWeek === row.dayOfWeek && 
         item.teacherName === row.teacherName &&
         item.cleanedClass === row.cleanedClass &&
         item.location === row.location &&
-        item.uniqueID !== row.uniqueID
+        item.uniqueID !== row.uniqueID // Exclude the parent row
       );
       
       setChildRows(prev => ({
@@ -210,17 +225,20 @@ const DataTable: React.FC<DataTableProps> = ({ data, trainerAvatars = {} }) => {
     }
   };
 
-  const formatCurrency = (value: string | number) => {
-    return formatIndianCurrency(Number(value) || 0);
+  const formatCurrency = (value: string) => {
+    return `₹${parseFloat(value).toLocaleString('en-IN')}`;
   };
 
   const renderCellValue = (row: ProcessedData, key: keyof ProcessedData) => {
     if (key === 'totalRevenue') {
-      return formatCurrency(row[key]);
+      return formatCurrency(String(row[key]));
     }
     
     if (key === 'teacherName' && showIcons) {
+      // Get avatar URL from the mapping
       const avatarUrl = trainerAvatars[row.teacherName];
+      
+      // Get initials for the avatar fallback
       const initials = row.teacherName
         .split(' ')
         .map(part => part.charAt(0))
@@ -228,6 +246,7 @@ const DataTable: React.FC<DataTableProps> = ({ data, trainerAvatars = {} }) => {
         .toUpperCase()
         .slice(0, 2);
       
+      // Generate a color for the avatar
       const hash = row.teacherName.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
       const colors = [
         'bg-blue-500', 'bg-indigo-500', 'bg-purple-500', 'bg-pink-500', 
@@ -255,7 +274,8 @@ const DataTable: React.FC<DataTableProps> = ({ data, trainerAvatars = {} }) => {
     
     return String(row[key]);
   };
-
+  
+  // Get the table CSS classes based on theme
   const getTableClasses = () => {
     let baseClasses = "w-full";
     
@@ -269,7 +289,8 @@ const DataTable: React.FC<DataTableProps> = ({ data, trainerAvatars = {} }) => {
     
     return baseClasses;
   };
-
+  
+  // Row height style based on the view mode and custom setting
   const getRowStyle = () => {
     const height = tableView === 'compact' ? Math.max(30, rowHeight - 10) : rowHeight;
     return {
@@ -468,8 +489,8 @@ const DataTable: React.FC<DataTableProps> = ({ data, trainerAvatars = {} }) => {
               tableTheme === 'elegant' && "bg-indigo-50 dark:bg-indigo-900/30"
             )}>
               <TableRow>
-                <TableHead className="w-14 p-2"></TableHead>
-                <TableHead className="w-10 p-2"></TableHead>
+                <TableHead className="w-14 p-2"></TableHead> {/* Expand button column */}
+                <TableHead className="w-10 p-2"></TableHead> {/* Bookmark column */}
                 {visibleColumns.map((key) => {
                   const column = allColumns.find(col => col.key === key);
                   return column ? (
@@ -546,6 +567,7 @@ const DataTable: React.FC<DataTableProps> = ({ data, trainerAvatars = {} }) => {
                       ))}
                     </TableRow>
                     
+                    {/* Child rows section */}
                     {expandedRows[row.uniqueID] && (
                       childRows[row.uniqueID]?.length > 0 ? (
                         childRows[row.uniqueID].map((childRow, childIndex) => (
