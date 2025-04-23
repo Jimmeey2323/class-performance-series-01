@@ -46,7 +46,6 @@ interface DataFiltersProps {
   onFilterChange: (filters: FilterOption[]) => void;
   onSortChange: (sortOptions: SortOption[]) => void;
   data: ProcessedData[];
-  activeFilters: number; // Added activeFilters property
 }
 
 const DataFilters: React.FC<DataFiltersProps> = ({ 
@@ -63,7 +62,7 @@ const DataFilters: React.FC<DataFiltersProps> = ({
   const [newSortDirection, setNewSortDirection] = useState<'asc' | 'desc'>('asc');
   const [savedFilters, setSavedFilters] = useState<{name: string, filters: FilterOption[]}[]>([]);
   const [newFilterSetName, setNewFilterSetName] = useState('');
-  const [expanded, setExpanded] = useState<string[]>(['dateFilter']); // Keep date filter expanded by default
+  const [expanded, setExpanded] = useState<string[]>(['dateFilter']);
   const [selectedPeriods, setSelectedPeriods] = useState<string[]>([]);
   const [dateRange, setDateRange] = useState<{
     from: Date | undefined;
@@ -73,7 +72,6 @@ const DataFilters: React.FC<DataFiltersProps> = ({
     to: undefined
   });
 
-  // Load saved filters from localStorage on component mount
   useEffect(() => {
     const savedFiltersFromStorage = localStorage.getItem('savedFilters');
     if (savedFiltersFromStorage) {
@@ -86,13 +84,11 @@ const DataFilters: React.FC<DataFiltersProps> = ({
     }
   }, []);
 
-  // Properly apply filters when they change
   useEffect(() => {
     console.log('Filters changed:', filters);
     onFilterChange(filters);
   }, [filters, onFilterChange]);
 
-  // Apply sort when it changes
   useEffect(() => {
     console.log('Sort options changed:', sortOptions);
     onSortChange(sortOptions);
@@ -125,23 +121,17 @@ const DataFilters: React.FC<DataFiltersProps> = ({
   const addFilter = () => {
     if (!newFilterField || !newFilterOperator) return;
     
-    // For period field with multiple selections, using OR logic now
     if (newFilterField === 'period' && selectedPeriods.length > 0) {
-      // First remove any existing period filters
       const nonPeriodFilters = filters.filter(f => f.field !== 'period');
-      
-      // Then add a special "period_or" filter with all selected periods
       const periodFilter: FilterOption = {
         field: 'period',
         operator: 'in',
-        value: selectedPeriods.join(',') // Store selected periods as comma-separated string
+        value: selectedPeriods.join(',')
       };
-      
       const updatedFilters = [...nonPeriodFilters, periodFilter];
       setFilters(updatedFilters);
       onFilterChange(updatedFilters);
     } 
-    // For all other fields
     else if (newFilterValue) {
       const newFilter: FilterOption = {
         field: newFilterField,
@@ -155,7 +145,6 @@ const DataFilters: React.FC<DataFiltersProps> = ({
       setNewFilterValue('');
     }
     
-    // Make sure the filters section is expanded
     if (!expanded.includes('filters')) {
       setExpanded([...expanded, 'filters']);
     }
@@ -173,7 +162,6 @@ const DataFilters: React.FC<DataFiltersProps> = ({
       })
     };
     
-    // Remove any existing date filters
     const nonDateFilters = filters.filter(f => f.field !== 'date' as keyof ProcessedData);
     const updatedFilters = [...nonDateFilters, dateFilter];
     setFilters(updatedFilters);
@@ -196,7 +184,6 @@ const DataFilters: React.FC<DataFiltersProps> = ({
     setSortOptions(updatedSortOptions);
     onSortChange(updatedSortOptions);
     
-    // Make sure the sort section is expanded
     if (!expanded.includes('sort')) {
       setExpanded([...expanded, 'sort']);
     }
@@ -228,7 +215,6 @@ const DataFilters: React.FC<DataFiltersProps> = ({
     setSavedFilters(newSavedFilters);
     setNewFilterSetName('');
     
-    // Save to localStorage
     localStorage.setItem('savedFilters', JSON.stringify(newSavedFilters));
   };
 
@@ -236,7 +222,6 @@ const DataFilters: React.FC<DataFiltersProps> = ({
     setFilters(savedFilter.filters);
     onFilterChange(savedFilter.filters);
     
-    // Extract date filter if present
     const dateFilter = savedFilter.filters.find(f => f.field === 'date' as keyof ProcessedData);
     if (dateFilter && dateFilter.operator === 'between') {
       try {
@@ -251,13 +236,11 @@ const DataFilters: React.FC<DataFiltersProps> = ({
     }
   };
 
-  // Function to get unique values for a field
   const getUniqueValues = (field: keyof ProcessedData): string[] => {
-    const values = data.map(item => String(item[field]));
-    return [...new Set(values)].filter(Boolean).sort();
+    const values = data.map(item => String(item[field] || '')).filter(value => value.trim() !== '');
+    return [...new Set(values)].sort();
   };
 
-  // Handle period checkbox change
   const handlePeriodChange = (period: string, checked: boolean) => {
     if (checked) {
       setSelectedPeriods(prev => [...prev, period]);
@@ -266,7 +249,6 @@ const DataFilters: React.FC<DataFiltersProps> = ({
     }
   };
 
-  // Format date filter value for display
   const formatDateFilterValue = (value: string): string => {
     try {
       const dateRange = JSON.parse(value);
@@ -288,7 +270,6 @@ const DataFilters: React.FC<DataFiltersProps> = ({
 
   return (
     <div className="space-y-4">
-      {/* Quick Access Date Filter - Always visible */}
       <Card className="bg-white dark:bg-gray-950 shadow-sm">
         <CardContent className="py-4">
           <div className="flex flex-col md:flex-row md:items-end gap-4">
@@ -384,7 +365,6 @@ const DataFilters: React.FC<DataFiltersProps> = ({
             </div>
           </div>
           
-          {/* Active Date Filter Badge */}
           {filters.some(f => f.field === 'date' as keyof ProcessedData) && (
             <div className="mt-3 flex items-center">
               <span className="text-sm text-muted-foreground mr-2">Active filter:</span>
@@ -398,7 +378,6 @@ const DataFilters: React.FC<DataFiltersProps> = ({
         </CardContent>
       </Card>
       
-      {/* Advanced Filters Section */}
       <Card className="bg-white dark:bg-gray-950 shadow-sm">
         <CardContent className="pt-6">
           <Accordion 
@@ -421,7 +400,6 @@ const DataFilters: React.FC<DataFiltersProps> = ({
               </AccordionTrigger>
               <AccordionContent className="pt-4">
                 <div className="space-y-4">
-                  {/* Current filters */}
                   {filters.filter(f => f.field !== 'date' as keyof ProcessedData).length > 0 && (
                     <div className="flex flex-wrap gap-2 mb-4 p-3 bg-slate-50 dark:bg-slate-900 rounded-lg">
                       {filters.filter(f => f.field !== 'date' as keyof ProcessedData).map((filter, index) => {
@@ -475,7 +453,6 @@ const DataFilters: React.FC<DataFiltersProps> = ({
                     </div>
                   )}
                   
-                  {/* Saved filters */}
                   {savedFilters.length > 0 && (
                     <div className="mb-4">
                       <h4 className="text-sm font-medium mb-2 flex items-center">
@@ -497,7 +474,6 @@ const DataFilters: React.FC<DataFiltersProps> = ({
                     </div>
                   )}
                   
-                  {/* Add new filter */}
                   <div className="grid grid-cols-1 sm:grid-cols-5 gap-3 items-end">
                     <div>
                       <Label htmlFor="filter-field" className="text-sm mb-1">Field</Label>
@@ -562,6 +538,11 @@ const DataFilters: React.FC<DataFiltersProps> = ({
                                   {value}
                                 </SelectItem>
                               ))}
+                              {getUniqueValues(newFilterField).length === 0 && (
+                                <SelectItem value="no-data-placeholder" disabled>
+                                  No values available
+                                </SelectItem>
+                              )}
                             </SelectContent>
                           </Select>
                         </div>
@@ -589,11 +570,21 @@ const DataFilters: React.FC<DataFiltersProps> = ({
                               </label>
                             </div>
                           ))}
+                          {getUniqueValues('period').length === 0 && (
+                            <div className="text-sm text-muted-foreground">No periods available</div>
+                          )}
                         </div>
                       </div>
                     )}
                     
-                    <Button onClick={addFilter} className="flex items-center h-9">
+                    <Button 
+                      onClick={addFilter} 
+                      className="flex items-center h-9"
+                      disabled={
+                        (newFilterField === 'period' && selectedPeriods.length === 0) || 
+                        (newFilterField !== 'period' && !newFilterValue)
+                      }
+                    >
                       <Plus className="mr-2 h-4 w-4" />
                       Add Filter
                     </Button>
@@ -620,7 +611,6 @@ const DataFilters: React.FC<DataFiltersProps> = ({
               </AccordionTrigger>
               <AccordionContent className="pt-4">
                 <div className="space-y-4">
-                  {/* Current sort options */}
                   {sortOptions.length > 0 && (
                     <div className="flex flex-wrap gap-2 mb-4 p-3 bg-slate-50 dark:bg-slate-900 rounded-lg">
                       {sortOptions.map((sort, index) => {
@@ -651,7 +641,6 @@ const DataFilters: React.FC<DataFiltersProps> = ({
                     </div>
                   )}
                   
-                  {/* Add new sort option */}
                   <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 items-end">
                     <div className="sm:col-span-2">
                       <Label htmlFor="sort-field" className="text-sm mb-1">Field</Label>
