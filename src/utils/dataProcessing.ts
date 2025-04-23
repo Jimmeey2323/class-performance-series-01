@@ -113,9 +113,9 @@ export function processRawData(rawData: RawDataRow[]): ProcessedData[] {
       const time = parseFloat(row['Time (h)'] || '0');
       
       // Adjust field parsing based on the actual data format
-      const checkedIn = row['Checked in'] === 'Yes' ? 1 : 0;
-      const lateCancelled = row['Late Cancelled'] === 'Yes' ? 1 : 0;
-      const paid = parseFloat(row['Paid'] || '0');
+      const checkedIn = parseFloat(row['Checked in'] || '0');
+      const lateCancelled = parseFloat(row['Late Cancellations'] || '0');
+      const paid = parseFloat(row['Total Revenue'] || '0');
       const comp = row['Comp'] === 'Yes' ? 1 : 0;
       
       // Process class data
@@ -126,7 +126,7 @@ export function processRawData(rawData: RawDataRow[]): ProcessedData[] {
       
       // Create a unique ID for this class
       const dateOnly = classDate.split(',')[0].trim();
-      const uniqueID = `${teacherName}-${cleanedClass}-${dateOnly}-${classTime}-${location}`.replace(/\s+/g, '_');
+      const uniqueID = `${cleanedClass}-${dayOfWeek}-${classTime}-${location}`.replace(/\s+/g, '_');
       
       // Check if we already have an aggregated record for this class
       // Include teacher name in the key to group by instructor as well
