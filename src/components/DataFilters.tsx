@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { ProcessedData, FilterOption, SortOption } from '@/types/data';
 import { Button } from '@/components/ui/button';
@@ -119,8 +118,8 @@ const DataFilters: React.FC<DataFiltersProps> = ({
     return isNumeric
       ? [
           { value: 'equals', label: '=' },
-          { value: 'greater', label: '>' },
-          { value: 'less', label: '<' },
+          { value: 'greater', label: '&gt;' },
+          { value: 'less', label: '&lt;' },
           { value: 'between', label: 'Between' },
         ]
       : [
@@ -499,7 +498,7 @@ const DataFilters: React.FC<DataFiltersProps> = ({
                   }
                 }}
               >
-                High Revenue (>10K)
+                High Revenue (&gt;10K)
               </Button>
               
               <Button 
@@ -524,7 +523,7 @@ const DataFilters: React.FC<DataFiltersProps> = ({
                   }
                 }}
               >
-                High Attendance (>5)
+                High Attendance (&gt;5)
               </Button>
             </div>
           </div>
