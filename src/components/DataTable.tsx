@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { ProcessedData } from '@/types/data';
 import {
@@ -225,13 +224,13 @@ const DataTable: React.FC<DataTableProps> = ({ data, trainerAvatars = {} }) => {
     }
   };
 
-  const formatCurrency = (value: string) => {
-    return `₹${parseFloat(value).toLocaleString('en-IN')}`;
+  const formatCurrency = (value: string | number) => {
+    return formatIndianCurrency(Number(value) || 0);
   };
 
   const renderCellValue = (row: ProcessedData, key: keyof ProcessedData) => {
     if (key === 'totalRevenue') {
-      return formatCurrency(String(row[key]));
+      return formatCurrency(row[key]);
     }
     
     if (key === 'teacherName' && showIcons) {

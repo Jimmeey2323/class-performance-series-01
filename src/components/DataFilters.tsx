@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { ProcessedData, FilterOption, SortOption } from '@/types/data';
 import { Button } from '@/components/ui/button';
@@ -42,12 +41,10 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 
-
 interface DataFiltersProps {
   onFilterChange: (filters: FilterOption[]) => void;
   onSortChange: (sortOptions: SortOption[]) => void;
   data: ProcessedData[];
-  activeFilters?: number; // Added this prop to the interface
 }
 
 const DataFilters: React.FC<DataFiltersProps> = ({ 
@@ -238,13 +235,11 @@ const DataFilters: React.FC<DataFiltersProps> = ({
     }
   };
 
-  // Fixed function to ensure we always return non-empty values
   const getUniqueValues = (field: keyof ProcessedData): string[] => {
     const values = data
       .map(item => String(item[field] || ''))
       .filter(value => value.trim() !== '');
     
-    // Ensure we're returning a non-empty array of non-empty strings
     return [...new Set(values)].sort().filter(Boolean);
   };
 
