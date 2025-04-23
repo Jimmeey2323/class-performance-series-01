@@ -26,7 +26,7 @@ export const formatIndianCurrency = (value: number): string => {
   } else if (value >= 100000) { // 1 lakh
     return `₹${(value / 100000).toFixed(1)} L`;
   } else if (value >= 1000) {
-    return `₹${Math.floor(value / 1000)},${(value % 1000).toString().padStart(3, '0')}`;
+    return `₹${Math.floor(value / 1000)}K`;
   } else {
     return `₹${Math.floor(value)}`;
   }
@@ -66,6 +66,11 @@ const MetricsPanel: React.FC<MetricsPanelProps> = ({ data }) => {
     const revenuePerClass = totalClasses > 0 ? (totalRevenue / totalClasses) : 0;
     const avgUtilization = totalClasses > 0 ? ((totalClasses - totalEmptyClasses) / totalClasses * 100).toFixed(1) : '0';
     
+    // Calculate average excluding empty classes
+    const avgAttendanceExcludingEmpty = totalEmptyClasses < totalClasses 
+      ? (totalCheckins / (totalClasses - totalEmptyClasses)).toFixed(1) 
+      : '0';
+    
     // Get unique values
     const uniqueClassTypes = new Set(data.map(item => item.cleanedClass)).size;
     const uniqueInstructors = new Set(data.map(item => item.teacherName)).size;
@@ -96,10 +101,16 @@ const MetricsPanel: React.FC<MetricsPanelProps> = ({ data }) => {
         color: 'bg-purple-50 dark:bg-purple-950'
       },
       {
-        title: 'Average Attendance',
+        title: 'Avg. Attendance (All)',
         value: avgAttendance,
         icon: <Users className="h-6 w-6 text-indigo-500" />,
         color: 'bg-indigo-50 dark:bg-indigo-950'
+      },
+      {
+        title: 'Avg. Attendance (Non-Empty)',
+        value: avgAttendanceExcludingEmpty,
+        icon: <Users className="h-6 w-6 text-sky-500" />,
+        color: 'bg-sky-50 dark:bg-sky-950'
       },
       {
         title: 'Utilization Rate',
@@ -136,12 +147,6 @@ const MetricsPanel: React.FC<MetricsPanelProps> = ({ data }) => {
         value: totalEmptyClasses,
         icon: <Calendar className="h-6 w-6 text-slate-500" />,
         color: 'bg-slate-50 dark:bg-slate-950'
-      },
-      {
-        title: 'Non-Paid',
-        value: nonPaidCustomers,
-        icon: <Users className="h-6 w-6 text-rose-500" />,
-        color: 'bg-rose-50 dark:bg-rose-950'
       }
     ];
   }, [data]);
@@ -171,8 +176,9 @@ const MetricsPanel: React.FC<MetricsPanelProps> = ({ data }) => {
                   <h3 className="text-2xl font-bold mt-1">
                     {typeof metric.value === 'number' ? (
                       <CountUp 
+                        start={0}
                         end={metric.value} 
-                        duration={1.5} 
+                        duration={2} 
                         separator="," 
                       />
                     ) : (

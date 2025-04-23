@@ -123,14 +123,21 @@ export function processRawData(rawData: RawDataRow[]): ProcessedData[] {
     const uniqueID = `${teacherName}-${cleanedClass}-${dateOnly}-${classTime}-${location}`.replace(/\s+/g, '_');
     
     // Check if we already have an aggregated record for this class
-    const key = `${cleanedClass}-${dayOfWeek}-${classTime}-${location}`;
+    // Include teacher name in the key to group by instructor as well
+    const key = `${cleanedClass}-${dayOfWeek}-${classTime}-${location}-${teacherName}`;
     
     if (processedDataMap.has(key)) {
       // Update existing record
       const existingRecord = processedDataMap.get(key)!;
       existingRecord.totalCheckins += checkedIn;
       existingRecord.totalCancelled += lateCancelled;
-      existingRecord.totalRevenue += paid;
+      
+      // Convert to number before adding
+      const existingRevenue = typeof existingRecord.totalRevenue === 'number' ? 
+        existingRecord.totalRevenue : 
+        parseFloat(String(existingRecord.totalRevenue || 0));
+      
+      existingRecord.totalRevenue = existingRevenue + paid;
       existingRecord.totalNonPaid += comp;
       
       // For each unique class occurrence, increment totalOccurrences
@@ -139,7 +146,7 @@ export function processRawData(rawData: RawDataRow[]): ProcessedData[] {
         uniqueIds.add(uniqueID);
         
         // Update empty/non-empty class counts
-        if (existingRecord.totalCheckins > 0) {
+        if (checkedIn > 0) {
           existingRecord.totalNonEmpty += 1;
         } else {
           existingRecord.totalEmpty += 1;

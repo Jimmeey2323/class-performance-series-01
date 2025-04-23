@@ -27,7 +27,8 @@ const TopBottomClasses: React.FC<TopBottomClassesProps> = ({ data }) => {
   const metrics = [
     { key: 'totalCheckins', label: 'Check-ins' },
     { key: 'totalRevenue', label: 'Revenue' },
-    { key: 'classAverageIncludingEmpty', label: 'Average Attendance' },
+    { key: 'classAverageIncludingEmpty', label: 'Average Attendance (All)' },
+    { key: 'classAverageExcludingEmpty', label: 'Average Attendance (Non-Empty)' },
     { key: 'totalOccurrences', label: 'Occurrences' }
   ];
   
@@ -93,7 +94,7 @@ const TopBottomClasses: React.FC<TopBottomClassesProps> = ({ data }) => {
           
           <div className="flex gap-2">
             <Select value={metric as string} onValueChange={(value) => setMetric(value as keyof ProcessedData)}>
-              <SelectTrigger className="w-[140px]">
+              <SelectTrigger className="w-[180px]">
                 <SelectValue placeholder="Select metric" />
               </SelectTrigger>
               <SelectContent>
@@ -132,7 +133,8 @@ const TopBottomClasses: React.FC<TopBottomClassesProps> = ({ data }) => {
               <TableHead className="text-right">Classes</TableHead>
               <TableHead className="text-right">Check-ins</TableHead>
               <TableHead className="text-right">Revenue</TableHead>
-              <TableHead className="text-right">Avg. Attendance</TableHead>
+              <TableHead className="text-right">Avg (All)</TableHead>
+              <TableHead className="text-right">Avg (Non-Empty)</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -163,11 +165,16 @@ const TopBottomClasses: React.FC<TopBottomClassesProps> = ({ data }) => {
                       ? item.classAverageIncludingEmpty.toFixed(1) 
                       : item.classAverageIncludingEmpty}
                   </TableCell>
+                  <TableCell className="text-right">
+                    {typeof item.classAverageExcludingEmpty === 'number' 
+                      ? item.classAverageExcludingEmpty.toFixed(1) 
+                      : item.classAverageExcludingEmpty}
+                  </TableCell>
                 </TableRow>
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={9} className="text-center py-6 text-muted-foreground">
+                <TableCell colSpan={10} className="text-center py-6 text-muted-foreground">
                   No data available for the selected metric
                 </TableCell>
               </TableRow>

@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { ProcessedData, ViewMode, FilterOption, SortOption } from '@/types/data';
-import { ViewSwitcherWrapper } from './ViewSwitcherWrapper';
+import ViewSwitcherWrapper from './ViewSwitcherWrapper';
 import DataTable from '@/components/DataTable';
 import DataFilters from '@/components/DataFilters';
 import MetricsPanel from '@/components/MetricsPanel';
@@ -34,6 +34,7 @@ import {
 import ProgressBar from '@/components/ProgressBar';
 import { Card, CardContent } from '@/components/ui/card';
 import CountUp from 'react-countup';
+import { motion } from 'framer-motion';
 import { 
   DropdownMenu,
   DropdownMenuContent,
@@ -227,7 +228,7 @@ const Dashboard: React.FC<DashboardProps> = ({
         <div className="text-center">
           <p className="text-lg font-medium mb-2">Analyzed 
             <span className="text-primary mx-1">
-              <CountUp end={data.length} duration={2} separator="," />
+              <CountUp start={0} end={data.length} duration={2} separator="," />
             </span> 
             records so far
           </p>

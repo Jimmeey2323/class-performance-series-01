@@ -141,6 +141,31 @@ const TrainerComparisonView: React.FC<TrainerComparisonViewProps> = ({ data, tra
     }
   };
 
+  // Custom tooltip for the bar chart
+  const CustomTooltip = ({ active, payload, label }: any) => {
+    if (active && payload && payload.length) {
+      const value = payload[0].value;
+      let formattedValue = value;
+      
+      if (comparisonMetric === 'totalRevenue') {
+        formattedValue = formatIndianCurrency(value);
+      } else if (comparisonMetric === 'classAverageIncludingEmpty') {
+        formattedValue = parseFloat(value).toFixed(1);
+      }
+      
+      return (
+        <div className="bg-white dark:bg-gray-800 p-3 border rounded shadow-md">
+          <p className="font-bold">{label}</p>
+          <p className="text-sm">
+            <span className="font-medium">{metrics.find(m => m.key === comparisonMetric)?.label}: </span>
+            {formattedValue}
+          </p>
+        </div>
+      );
+    }
+    return null;
+  };
+
   return (
     <Card className="overflow-hidden">
       <CardHeader className="bg-slate-50 dark:bg-slate-900 border-b">
@@ -206,22 +231,16 @@ const TrainerComparisonView: React.FC<TrainerComparisonViewProps> = ({ data, tra
                   tick={{ fontSize: 12 }}
                 />
                 <YAxis 
-                  tickFormatter={(value) => comparisonMetric === 'totalRevenue' 
-                    ? formatIndianCurrency(value) 
-                    : value
-                  }
-                />
-                <Tooltip 
-                  formatter={(value) => {
+                  tickFormatter={(value) => {
                     if (comparisonMetric === 'totalRevenue') {
-                      return formatIndianCurrency(Number(value));
+                      return formatIndianCurrency(value);
                     } else if (comparisonMetric === 'classAverageIncludingEmpty') {
-                      return Number(value).toFixed(1);
+                      return value.toFixed(1);
                     }
                     return value;
                   }}
-                  labelFormatter={(label) => `Trainer: ${label}`}
                 />
+                <Tooltip content={<CustomTooltip />} />
                 <Legend />
                 <Bar 
                   dataKey={comparisonMetric} 

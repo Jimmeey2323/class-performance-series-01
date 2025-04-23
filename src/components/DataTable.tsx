@@ -60,6 +60,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { trainerAvatars } from './Dashboard';
+import { formatIndianCurrency } from './MetricsPanel';
 
 interface DataTableProps {
   data: ProcessedData[];
@@ -78,7 +79,7 @@ const DataTable: React.FC<DataTableProps> = ({ data, trainerAvatars = {} }) => {
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [visibleColumns, setVisibleColumns] = useState<Array<keyof ProcessedData>>([
     'cleanedClass', 'dayOfWeek', 'classTime', 'location', 'teacherName', 'period',
-    'totalOccurrences', 'totalCheckins', 'classAverageIncludingEmpty', 'totalRevenue'
+    'totalOccurrences', 'totalCheckins', 'classAverageIncludingEmpty', 'classAverageExcludingEmpty', 'totalRevenue'
   ]);
   const [rowHeight, setRowHeight] = useState(50); // Default row height
   const [fontSize, setFontSize] = useState(14); // Default font size
@@ -172,25 +173,31 @@ const DataTable: React.FC<DataTableProps> = ({ data, trainerAvatars = {} }) => {
     }
   };
 
-  const toggleRowExpand = async (rowId: string, row: ProcessedData) => {
+  // Find child records in data for expanded rows
+  const getChildRows = (parentRow: ProcessedData) => {
+    // Look for rows with matching attributes to the parent row
+    // We're considering classes with the same day, time, location, and class type
+    return data.filter(item => 
+      item.cleanedClass === parentRow.cleanedClass &&
+      item.dayOfWeek === parentRow.dayOfWeek &&
+      item.classTime === parentRow.classTime &&
+      item.location === parentRow.location &&
+      item.teacherName === parentRow.teacherName &&
+      item.uniqueID !== parentRow.uniqueID // Exclude the parent row
+    );
+  };
+
+  const toggleRowExpand = (rowId: string, row: ProcessedData) => {
     // Toggle the expanded state
+    const newExpandedState = !expandedRows[rowId];
     setExpandedRows(prev => ({
       ...prev,
-      [rowId]: !prev[rowId]
+      [rowId]: newExpandedState
     }));
     
-    // If we're expanding and don't have child rows yet, try to find them
-    if (!expandedRows[rowId] && !childRows[rowId]) {
-      // Here you would fetch or filter the data to find rows that are "children" of this row
-      // For this example, we'll simulate by finding rows with matching class attributes
-      const children = data.filter(item => 
-        item.dayOfWeek === row.dayOfWeek && 
-        item.teacherName === row.teacherName &&
-        item.cleanedClass === row.cleanedClass &&
-        item.location === row.location &&
-        item.uniqueID !== row.uniqueID // Exclude the parent row
-      );
-      
+    // If we're expanding and don't have child rows yet, find them
+    if (newExpandedState && !childRows[rowId]) {
+      const children = getChildRows(row);
       setChildRows(prev => ({
         ...prev,
         [rowId]: children
@@ -225,13 +232,16 @@ const DataTable: React.FC<DataTableProps> = ({ data, trainerAvatars = {} }) => {
     }
   };
 
-  const formatCurrency = (value: string) => {
-    return `₹${parseFloat(value).toLocaleString('en-IN')}`;
-  };
-
   const renderCellValue = (row: ProcessedData, key: keyof ProcessedData) => {
     if (key === 'totalRevenue') {
-      return formatCurrency(String(row[key]));
+      return formatIndianCurrency(Number(row[key]));
+    }
+
+    if (key === 'classAverageIncludingEmpty' || key === 'classAverageExcludingEmpty') {
+      if (typeof row[key] === 'number') {
+        return row[key].toFixed(1);
+      }
+      return row[key];
     }
     
     if (key === 'teacherName' && showIcons) {
@@ -520,7 +530,7 @@ const DataTable: React.FC<DataTableProps> = ({ data, trainerAvatars = {} }) => {
             <TableBody>
               {paginatedData.length > 0 ? (
                 paginatedData.map((row, rowIndex) => (
-                  <React.Fragment key={rowIndex}>
+                  <React.Fragment key={row.uniqueID || rowIndex}>
                     <TableRow 
                       className={cn(
                         "hover:bg-gray-50 dark:hover:bg-gray-900/50 transition-colors",
@@ -559,7 +569,7 @@ const DataTable: React.FC<DataTableProps> = ({ data, trainerAvatars = {} }) => {
                       </TableCell>
                       {visibleColumns.map((key) => (
                         <TableCell 
-                          key={`${rowIndex}-${key}`} 
+                          key={`${row.uniqueID || rowIndex}-${key}`} 
                           className="py-3 px-6 whitespace-nowrap"
                         >
                           {renderCellValue(row, key)}
@@ -569,32 +579,34 @@ const DataTable: React.FC<DataTableProps> = ({ data, trainerAvatars = {} }) => {
                     
                     {/* Child rows section */}
                     {expandedRows[row.uniqueID] && (
-                      childRows[row.uniqueID]?.length > 0 ? (
-                        childRows[row.uniqueID].map((childRow, childIndex) => (
-                          <TableRow 
-                            key={`child-${childIndex}`}
-                            className="bg-slate-50/80 dark:bg-slate-900/20 border-l-4 border-indigo-200 dark:border-indigo-800"
-                            style={getRowStyle()}
-                          >
-                            <TableCell className="w-14 p-2"></TableCell>
-                            <TableCell className="w-10 p-2"></TableCell>
-                            {visibleColumns.map((key) => (
-                              <TableCell 
-                                key={`child-${childIndex}-${key}`} 
-                                className="py-3 px-6 whitespace-nowrap text-sm text-gray-600 dark:text-gray-400"
-                              >
-                                {renderCellValue(childRow, key)}
-                              </TableCell>
-                            ))}
+                      <>
+                        {(childRows[row.uniqueID]?.length > 0) ? (
+                          childRows[row.uniqueID].map((childRow, childIndex) => (
+                            <TableRow 
+                              key={`child-${childRow.uniqueID || childIndex}`}
+                              className="bg-slate-50/80 dark:bg-slate-900/20 border-l-4 border-indigo-200 dark:border-indigo-800"
+                              style={getRowStyle()}
+                            >
+                              <TableCell className="w-14 p-2"></TableCell>
+                              <TableCell className="w-10 p-2"></TableCell>
+                              {visibleColumns.map((key) => (
+                                <TableCell 
+                                  key={`child-${childRow.uniqueID || childIndex}-${key}`} 
+                                  className="py-3 px-6 whitespace-nowrap text-sm text-gray-600 dark:text-gray-400"
+                                >
+                                  {renderCellValue(childRow, key)}
+                                </TableCell>
+                              ))}
+                            </TableRow>
+                          ))
+                        ) : (
+                          <TableRow className="bg-slate-50/80 dark:bg-slate-900/20">
+                            <TableCell colSpan={visibleColumns.length + 2} className="py-4 text-center text-sm text-gray-500">
+                              No detailed records found for this class.
+                            </TableCell>
                           </TableRow>
-                        ))
-                      ) : (
-                        <TableRow className="bg-slate-50/80 dark:bg-slate-900/20">
-                          <TableCell colSpan={visibleColumns.length + 2} className="py-4 text-center text-sm text-gray-500">
-                            No detailed records found for this class.
-                          </TableCell>
-                        </TableRow>
-                      )
+                        )}
+                      </>
                     )}
                   </React.Fragment>
                 ))

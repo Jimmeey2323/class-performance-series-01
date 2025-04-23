@@ -70,3 +70,11 @@ export interface MetricData {
   icon?: React.ReactNode;
   color?: string;
 }
+
+// Add these for KanbanBoard
+export interface KanbanItem {
+  id: string;
+  content: ProcessedData;
+}
+
+export type Theme = 'light' | 'dark' | 'system';
