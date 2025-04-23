@@ -14,11 +14,23 @@ import {
 } from 'lucide-react';
 import CountUp from 'react-countup';
 import { motion } from 'framer-motion';
-import { formatIndianCurrency } from '@/components/views/kanban/KanbanCard';
 
 interface MetricsPanelProps {
   data: ProcessedData[];
 }
+
+// Format Indian currency with lakhs and crores
+export const formatIndianCurrency = (value: number): string => {
+  if (value >= 10000000) { // 1 crore
+    return `₹${(value / 10000000).toFixed(1)} Cr`;
+  } else if (value >= 100000) { // 1 lakh
+    return `₹${(value / 100000).toFixed(1)} L`;
+  } else if (value >= 1000) {
+    return `₹${Math.floor(value / 1000)},${(value % 1000).toString().padStart(3, '0')}`;
+  } else {
+    return `₹${Math.floor(value)}`;
+  }
+};
 
 const MetricsPanel: React.FC<MetricsPanelProps> = ({ data }) => {
   const metrics = useMemo<MetricData[]>(() => {
@@ -28,12 +40,21 @@ const MetricsPanel: React.FC<MetricsPanelProps> = ({ data }) => {
     const totalClasses = data.reduce((sum, item) => sum + item.totalOccurrences, 0);
     const totalCheckins = data.reduce((sum, item) => sum + item.totalCheckins, 0);
     const totalRevenue = data.reduce((sum, item) => {
+      // Handle totalRevenue which might be a string or number
       const revenue = typeof item.totalRevenue === 'number' ? 
         item.totalRevenue : 
-        parseFloat(item.totalRevenue.toString());
+        parseFloat(String(item.totalRevenue || 0));
       return sum + revenue;
     }, 0);
-    const totalTime = data.reduce((sum, item) => sum + parseFloat(item.totalTime.toString()), 0);
+    
+    const totalTime = data.reduce((sum, item) => {
+      // Handle totalTime which might be a string or number
+      const time = typeof item.totalTime === 'number' ?
+        item.totalTime :
+        parseFloat(String(item.totalTime || 0));
+      return sum + time;
+    }, 0);
+    
     const nonPaidCustomers = data.reduce((sum, item) => sum + item.totalNonPaid, 0);
     const totalCancelled = data.reduce((sum, item) => sum + item.totalCancelled, 0);
     const totalEmptyClasses = data.reduce((sum, item) => sum + item.totalEmpty, 0);

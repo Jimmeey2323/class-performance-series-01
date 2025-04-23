@@ -1,136 +1,215 @@
 
-import React from 'react';
-import { KanbanItem } from '@/types/data';
-import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import React, { useState } from 'react';
+import { ProcessedData } from '@/types/data';
+import { Card, CardContent } from "@/components/ui/card";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import { CheckSquare, Clock, IndianRupee, User, Users, Calendar, CalendarClock, ChevronDown, ChevronUp } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { 
-  MapPin, 
-  Clock, 
-  Users, 
-  IndianRupee 
-} from 'lucide-react';
-import { useSortable } from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
-import { motion } from 'framer-motion';
+  HoverCard,
+  HoverCardContent,
+  HoverCardTrigger
+} from "@/components/ui/hover-card";
+import { motion, AnimatePresence } from "framer-motion";
+import { formatIndianCurrency } from '@/components/MetricsPanel';
 
 interface KanbanCardProps {
-  item: KanbanItem;
+  item: ProcessedData;
+  trainerAvatars?: Record<string, string>;
 }
 
-// Function to format currency in Indian format (lakhs and crores)
-export const formatIndianCurrency = (value: number): string => {
-  if (value >= 10000000) { // 1 crore = 10^7
-    return `${(value / 10000000).toFixed(1)} Cr`;
-  } else if (value >= 100000) { // 1 lakh = 10^5
-    return `${(value / 100000).toFixed(1)} L`;
-  } else {
-    return `₹${Math.round(value).toLocaleString('en-IN')}`;
-  }
+export const getInitials = (name: string): string => {
+  if (!name) return '';
+  return name
+    .split(' ')
+    .map(word => word[0])
+    .join('')
+    .toUpperCase();
 };
 
-const KanbanCard: React.FC<KanbanCardProps> = ({ item }) => {
-  const { attributes, listeners, setNodeRef, transform, transition } = useSortable({
-    id: item.id,
-  });
+const KanbanCard: React.FC<KanbanCardProps> = ({ item, trainerAvatars = {} }) => {
+  const [expanded, setExpanded] = useState(false);
   
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-  };
-  
-  // Get initials for avatar fallback
-  const getInitials = (name: string) => {
-    return name
-      .split(' ')
-      .map(part => part.charAt(0))
-      .join('')
-      .toUpperCase()
-      .slice(0, 2);
-  };
-  
-  // Generate a consistent color based on the teacher's name
-  const generateAvatarColor = (name: string) => {
-    let hash = 0;
-    for (let i = 0; i < name.length; i++) {
-      hash = name.charCodeAt(i) + ((hash << 5) - hash);
-    }
-    
-    const colors = [
-      'bg-blue-500', 'bg-indigo-500', 'bg-purple-500', 'bg-pink-500', 
-      'bg-red-500', 'bg-orange-500', 'bg-amber-500', 'bg-yellow-500',
-      'bg-lime-500', 'bg-green-500', 'bg-emerald-500', 'bg-teal-500', 
-      'bg-cyan-500', 'bg-sky-500'
-    ];
-    
-    return colors[Math.abs(hash) % colors.length];
+  // Convert numbers to badges with descriptive colors
+  const getAttendanceBadgeColor = (value: number) => {
+    if (value >= 10) return "bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300";
+    if (value >= 7) return "bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300";
+    if (value >= 4) return "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300";
+    return "bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300";
   };
 
-  const teacherName = item.data.teacherName;
-  const teacherInitials = getInitials(teacherName);
-  const avatarColor = generateAvatarColor(teacherName);
-  
-  // Convert revenue to number and format it
-  const totalRevenue = typeof item.data.totalRevenue === 'number' 
-    ? item.data.totalRevenue 
-    : parseFloat(item.data.totalRevenue.toString());
-  
-  // Format revenue as Indian currency
-  const formattedRevenue = formatIndianCurrency(totalRevenue);
-  
+  // Format attendance value
+  const getAttendanceValue = () => {
+    try {
+      const attendance = parseFloat(String(item.classAverageExcludingEmpty || 0));
+      return isNaN(attendance) ? "0.0" : attendance.toFixed(1);
+    } catch (e) {
+      return "0.0";
+    }
+  };
+
+  // Handle both string and number revenue
+  const getRevenue = () => {
+    try {
+      const revenue = typeof item.totalRevenue === 'number' 
+        ? item.totalRevenue 
+        : parseFloat(String(item.totalRevenue || 0));
+      return isNaN(revenue) ? 0 : revenue;
+    } catch {
+      return 0;
+    }
+  };
+
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
+    <motion.div 
+      layout
+      initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3 }}
-      whileHover={{ y: -5, boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.1)" }}
+      exit={{ opacity: 0, scale: 0.95 }}
+      className="mb-3"
     >
-      <Card 
-        ref={setNodeRef} 
-        style={style} 
-        {...attributes} 
-        {...listeners}
-        className="bg-white dark:bg-gray-800 border-indigo-100 dark:border-indigo-900 cursor-grab active:cursor-grabbing shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden"
-      >
-        <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-indigo-500 to-purple-500"></div>
-        <CardContent className="p-3">
-          <div className="flex justify-between items-start mb-2">
-            <h3 className="font-medium text-sm">{item.title}</h3>
-            <Badge variant="outline" className="text-xs bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800">
-              {item.data.dayOfWeek}
-            </Badge>
-          </div>
-          
-          <div className="flex items-center gap-2 mb-2">
-            <Avatar className="h-5 w-5 ring-2 ring-offset-2 ring-offset-white dark:ring-offset-gray-800 ring-indigo-500/20">
-              {item.avatarUrl ? (
-                <AvatarImage src={item.avatarUrl} alt={teacherName} />
-              ) : (
-                <AvatarFallback className={`text-xs text-white ${avatarColor}`}>
-                  {teacherInitials}
+      <Card className={`border shadow-sm overflow-hidden ${expanded ? 'border-primary/30' : ''}`}>
+        <CardContent className="p-0">
+          <div className={`p-3 border-l-4 ${
+            item.dayOfWeek === 'Monday' ? 'border-blue-500' :
+            item.dayOfWeek === 'Tuesday' ? 'border-purple-500' :
+            item.dayOfWeek === 'Wednesday' ? 'border-green-500' :
+            item.dayOfWeek === 'Thursday' ? 'border-amber-500' :
+            item.dayOfWeek === 'Friday' ? 'border-red-500' :
+            item.dayOfWeek === 'Saturday' ? 'border-pink-500' :
+            'border-indigo-500'
+          }`}>
+            <div className="flex justify-between items-start mb-2">
+              <div className="flex-1">
+                <h3 className="font-medium text-sm">{item.cleanedClass}</h3>
+                <div className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                  <Calendar className="h-3 w-3" />
+                  {item.dayOfWeek}, <Clock className="h-3 w-3 ml-1" /> {item.classTime}
+                </div>
+              </div>
+              <Avatar className="h-7 w-7 border-2 border-white dark:border-gray-800">
+                <AvatarImage src={trainerAvatars[item.teacherName]} alt={item.teacherName} />
+                <AvatarFallback className="text-xs">
+                  {getInitials(item.teacherName)}
                 </AvatarFallback>
+              </Avatar>
+            </div>
+            
+            <div className="grid grid-cols-3 gap-1 mt-3">
+              <HoverCard>
+                <HoverCardTrigger asChild>
+                  <div className="flex flex-col items-center p-0.5 cursor-help">
+                    <Badge variant="secondary" className={`text-xs w-full flex justify-center ${getAttendanceBadgeColor(parseFloat(getAttendanceValue()))}`}>
+                      {getAttendanceValue()}
+                    </Badge>
+                    <span className="text-[10px] text-muted-foreground mt-1">Avg. Attendance</span>
+                  </div>
+                </HoverCardTrigger>
+                <HoverCardContent side="top" className="w-48">
+                  <div className="text-xs">
+                    <p className="font-medium">Average Attendance</p>
+                    <p className="text-muted-foreground mt-1">
+                      Average of {getAttendanceValue()} students per class, calculated from {item.totalOccurrences} occurrences.
+                    </p>
+                  </div>
+                </HoverCardContent>
+              </HoverCard>
+              
+              <HoverCard>
+                <HoverCardTrigger asChild>
+                  <div className="flex flex-col items-center p-0.5 cursor-help">
+                    <Badge variant="outline" className="text-xs w-full flex justify-center">
+                      {item.totalOccurrences}
+                    </Badge>
+                    <span className="text-[10px] text-muted-foreground mt-1">Classes</span>
+                  </div>
+                </HoverCardTrigger>
+                <HoverCardContent side="top" className="w-48">
+                  <div className="text-xs">
+                    <p className="font-medium">Total Classes</p>
+                    <p className="text-muted-foreground mt-1">
+                      This class occurred {item.totalOccurrences} times in the selected period.
+                    </p>
+                  </div>
+                </HoverCardContent>
+              </HoverCard>
+              
+              <HoverCard>
+                <HoverCardTrigger asChild>
+                  <div className="flex flex-col items-center p-0.5 cursor-help">
+                    <Badge variant="outline" className="text-xs w-full flex justify-center">
+                      {item.totalCheckins}
+                    </Badge>
+                    <span className="text-[10px] text-muted-foreground mt-1">Check-ins</span>
+                  </div>
+                </HoverCardTrigger>
+                <HoverCardContent side="top" className="w-48">
+                  <div className="text-xs">
+                    <p className="font-medium">Total Check-ins</p>
+                    <p className="text-muted-foreground mt-1">
+                      {item.totalCheckins} students attended this class across all sessions.
+                    </p>
+                  </div>
+                </HoverCardContent>
+              </HoverCard>
+            </div>
+            
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="w-full mt-2 h-6 text-xs"
+              onClick={() => setExpanded(!expanded)}
+            >
+              {expanded ? <ChevronUp className="h-3 w-3 mr-1" /> : <ChevronDown className="h-3 w-3 mr-1" />}
+              {expanded ? "Less details" : "More details"}
+            </Button>
+            
+            <AnimatePresence>
+              {expanded && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="mt-2 pt-2 border-t text-xs space-y-2"
+                >
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="bg-secondary/20 p-2 rounded flex flex-col">
+                      <span className="text-muted-foreground">Revenue</span>
+                      <span className="font-medium">{formatIndianCurrency(getRevenue())}</span>
+                    </div>
+                    <div className="bg-secondary/20 p-2 rounded flex flex-col">
+                      <span className="text-muted-foreground">Rev. per Class</span>
+                      <span className="font-medium">{formatIndianCurrency(getRevenue() / item.totalOccurrences)}</span>
+                    </div>
+                    <div className="bg-secondary/20 p-2 rounded flex flex-col">
+                      <span className="text-muted-foreground">Trainer</span>
+                      <span className="font-medium truncate">{item.teacherName}</span>
+                    </div>
+                    <div className="bg-secondary/20 p-2 rounded flex flex-col">
+                      <span className="text-muted-foreground">Period</span>
+                      <span className="font-medium">{item.period || 'Unknown'}</span>
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="bg-secondary/20 p-2 rounded flex flex-col items-center">
+                      <span className="text-muted-foreground">Empty</span>
+                      <span className="font-medium">{item.totalEmpty}</span>
+                    </div>
+                    <div className="bg-secondary/20 p-2 rounded flex flex-col items-center">
+                      <span className="text-muted-foreground">Non-paid</span>
+                      <span className="font-medium">{item.totalNonPaid}</span>
+                    </div>
+                    <div className="bg-secondary/20 p-2 rounded flex flex-col items-center">
+                      <span className="text-muted-foreground">Cancelled</span>
+                      <span className="font-medium">{item.totalCancelled}</span>
+                    </div>
+                  </div>
+                </motion.div>
               )}
-            </Avatar>
-            <span className="text-xs text-muted-foreground truncate">{teacherName}</span>
-          </div>
-          
-          <div className="grid grid-cols-2 gap-1 text-xs">
-            <div className="flex items-center gap-1 p-1 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-              <Clock className="h-3 w-3 text-indigo-500" />
-              <span>{item.data.classTime}</span>
-            </div>
-            <div className="flex items-center gap-1 p-1 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-              <MapPin className="h-3 w-3 text-pink-500" />
-              <span className="truncate">{item.data.location}</span>
-            </div>
-            <div className="flex items-center gap-1 p-1 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-              <Users className="h-3 w-3 text-amber-500" />
-              <span>{item.data.classAverageIncludingEmpty} avg</span>
-            </div>
-            <div className="flex items-center gap-1 p-1 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-              <IndianRupee className="h-3 w-3 text-green-500" />
-              <span>{formattedRevenue}</span>
-            </div>
+            </AnimatePresence>
           </div>
         </CardContent>
       </Card>

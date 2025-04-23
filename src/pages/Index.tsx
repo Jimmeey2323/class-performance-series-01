@@ -91,6 +91,7 @@ const Index = () => {
       // Clear existing data before processing new file
       setData([]);
       localStorage.removeItem('classAnalyticsData');
+      setDataLoaded(false);
       
       setLoading(true);
       setProgress(0);
@@ -142,11 +143,15 @@ const Index = () => {
     setShowUploader(true);
     setData([]);
     localStorage.removeItem('classAnalyticsData');
+    setDataLoaded(false);
   };
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
     localStorage.removeItem('adminBypass');
+    localStorage.removeItem('classAnalyticsData');
+    setData([]);
+    setDataLoaded(false);
     navigate('/auth');
   };
 

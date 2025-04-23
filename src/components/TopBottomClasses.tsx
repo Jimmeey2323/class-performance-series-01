@@ -1,8 +1,8 @@
 
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { ProcessedData, ClassStatsItem } from '@/types/data';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { BarChart, ChevronDown, ChevronUp, TrendingDown, TrendingUp, Check, X, InfoIcon } from 'lucide-react';
+import { BarChart, ChevronDown, ChevronUp, TrendingDown, TrendingUp, Check, X as XIcon, InfoIcon } from 'lucide-react';
 import { 
   DropdownMenu,
   DropdownMenuContent,
@@ -21,7 +21,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { motion } from "framer-motion";
-import { formatIndianCurrency } from '@/components/views/kanban/KanbanCard';
+import { formatIndianCurrency } from '@/components/MetricsPanel';
 
 interface TopBottomClassesProps {
   data: ProcessedData[];
@@ -51,10 +51,12 @@ const TopBottomClasses: React.FC<TopBottomClassesProps> = ({ data }) => {
         ? `${item.dayOfWeek}-${item.classTime}-${item.cleanedClass}-${item.teacherName}`
         : `${item.dayOfWeek}-${item.classTime}-${item.cleanedClass}`;
       
-      const attendance = parseFloat(item.classAverageExcludingEmpty) || 0;
+      const attendance = parseFloat(String(item.classAverageExcludingEmpty || 0)) || 0;
       const occurrences = item.totalOccurrences || 0;
       const checkins = item.totalCheckins || 0;
-      const revenue = typeof item.totalRevenue === 'number' ? item.totalRevenue : parseFloat(item.totalRevenue) || 0;
+      const revenue = typeof item.totalRevenue === 'number' ? 
+        item.totalRevenue : 
+        parseFloat(String(item.totalRevenue || 0)) || 0;
       
       if (!classStats[uniqueKey]) {
         classStats[uniqueKey] = { 
@@ -120,7 +122,8 @@ const TopBottomClasses: React.FC<TopBottomClassesProps> = ({ data }) => {
   // Find the highest attendance for visual comparisons
   const maxAttendance = Math.max(
     ...topClasses.map(c => c.avgAttendance),
-    ...bottomClasses.map(c => c.avgAttendance)
+    ...bottomClasses.map(c => c.avgAttendance),
+    1  // Fallback to prevent NaN
   );
 
   const getPercentageOfMax = (value: number) => {
