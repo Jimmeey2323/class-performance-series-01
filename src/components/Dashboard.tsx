@@ -28,12 +28,8 @@ export const trainerAvatars: Record<string, string> = {
   "Lisa Davis": "https://images.unsplash.com/photo-1607746882042-944635dfe10e?w=400&auto=format&fit=crop&q=60&ixlib=rb-4.0.3"
 };
 
-interface DashboardProps {
-  data: ProcessedData[];
-}
-
 // Inner dashboard component that has access to the filter context
-const DashboardContent: React.FC<DashboardProps> = ({ data }) => {
+const DashboardContent: React.FC<{data: ProcessedData[]}> = ({ data }) => {
   const { toast } = useToast();
   const { filters, setFilters, sortOptions, setSortOptions, filteredData } = useFilter();
   const [includeTrainers, setIncludeTrainers] = useState(false);
@@ -144,7 +140,7 @@ const DashboardContent: React.FC<DashboardProps> = ({ data }) => {
 };
 
 // Wrapper component that provides the filter context
-const Dashboard: React.FC<DashboardProps> = ({ data }) => {
+const Dashboard: React.FC<{data: ProcessedData[]}> = ({ data }) => {
   return (
     <FilterProvider initialData={data}>
       <DashboardContent data={data} />

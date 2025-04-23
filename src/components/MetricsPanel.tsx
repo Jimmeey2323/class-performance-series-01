@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 import CountUp from 'react-countup';
 import { motion } from 'framer-motion';
-import { formatIndianCurrency } from '@/lib/utils';
+import { formatIndianCurrency, formatAttendance } from '@/utils/formatters';
 
 interface MetricsPanelProps {
   data: ProcessedData[];
@@ -65,13 +65,15 @@ const MetricsPanel: React.FC<MetricsPanelProps> = ({ data, filters = [] }) => {
         title: 'Revenue',
         value: formatIndianCurrency(totalRevenue),
         icon: <IndianRupee className="h-6 w-6 text-amber-500" />,
-        color: 'bg-amber-50 dark:bg-amber-950'
+        color: 'bg-amber-50 dark:bg-amber-950',
+        rawValue: totalRevenue
       },
       {
         title: 'Revenue Per Class',
         value: formatIndianCurrency(revenuePerClass),
         icon: <Tag className="h-6 w-6 text-purple-500" />,
-        color: 'bg-purple-50 dark:bg-purple-950'
+        color: 'bg-purple-50 dark:bg-purple-950',
+        rawValue: revenuePerClass
       },
       {
         title: 'Avg. Attendance (incl. empty)',
@@ -127,7 +129,15 @@ const MetricsPanel: React.FC<MetricsPanelProps> = ({ data, filters = [] }) => {
                   </div>
                   <div className="text-2xl font-bold">
                     {typeof metric.value === 'number' ? (
-                      <CountUp end={metric.value} duration={2.5} separator="," />
+                      <CountUp 
+                        end={metric.value} 
+                        decimals={0}
+                        useEasing={true}
+                        useGrouping={true}
+                        separator="," 
+                      />
+                    ) : metric.rawValue !== undefined ? (
+                      metric.value
                     ) : (
                       metric.value
                     )}
@@ -162,7 +172,15 @@ const MetricsPanel: React.FC<MetricsPanelProps> = ({ data, filters = [] }) => {
                   </div>
                   <div className="text-2xl font-bold">
                     {typeof metric.value === 'number' ? (
-                      <CountUp end={metric.value} duration={2.5} separator="," />
+                      <CountUp 
+                        end={metric.value} 
+                        decimals={0}
+                        useEasing={true}
+                        useGrouping={true}
+                        separator="," 
+                      />
+                    ) : metric.rawValue !== undefined ? (
+                      metric.value
                     ) : (
                       metric.value
                     )}

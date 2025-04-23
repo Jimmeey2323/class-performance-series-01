@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
-import { Avatar } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { ProcessedData } from '@/types/data';
 import { useSortable } from '@dnd-kit/sortable';
@@ -13,9 +13,10 @@ import { formatIndianCurrency } from '@/utils/formatters';
 
 interface KanbanCardProps {
   item: ProcessedData;
+  trainerAvatars?: Record<string, string>;
 }
 
-const KanbanCard: React.FC<KanbanCardProps> = ({ item }) => {
+const KanbanCard: React.FC<KanbanCardProps> = ({ item, trainerAvatars = {} }) => {
   const [expanded, setExpanded] = useState(false);
   
   const {
@@ -92,12 +93,12 @@ const KanbanCard: React.FC<KanbanCardProps> = ({ item }) => {
             <HoverCard>
               <HoverCardTrigger asChild>
                 <Badge variant="outline" className="text-xs bg-purple-50 dark:bg-purple-900/20 hover:bg-purple-100 ml-1">
-                  {formatIndianCurrency(item.totalRevenue)}
+                  {formatIndianCurrency(Number(item.totalRevenue) || 0)}
                 </Badge>
               </HoverCardTrigger>
               <HoverCardContent className="w-64 p-3 text-sm">
-                <p>Total Revenue: {formatIndianCurrency(item.totalRevenue)}</p>
-                <p>Revenue Per Class: {formatIndianCurrency(item.totalRevenue / (item.totalOccurrences || 1))}</p>
+                <p>Total Revenue: {formatIndianCurrency(Number(item.totalRevenue) || 0)}</p>
+                <p>Revenue Per Class: {formatIndianCurrency((Number(item.totalRevenue) || 0) / (Number(item.totalOccurrences) || 1))}</p>
               </HoverCardContent>
             </HoverCard>
           </div>
@@ -144,7 +145,7 @@ const KanbanCard: React.FC<KanbanCardProps> = ({ item }) => {
             
             <div className="flex justify-between">
               <span className="text-muted-foreground">Total Revenue:</span>
-              <span>{formatIndianCurrency(item.totalRevenue)}</span>
+              <span>{formatIndianCurrency(Number(item.totalRevenue) || 0)}</span>
             </div>
           </div>
         )}
