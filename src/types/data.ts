@@ -2,30 +2,30 @@
 export interface RawDataRow {
   'Teacher First Name': string;
   'Teacher Last Name': string;
-  'Teacher Email': string;
-  'Total time (h)': string;
+  'Teacher Email'?: string;
+  'Time (h)': string;
   'Class name': string;
   'Class date': string;
   'Location': string;
   'Payrate': string;
-  'Time (h)': string;
-  'Employee Code': string;
-  'Payrate Code': string;
-  'Customer Name': string;
-  'Customer Email': string;
-  'Sale Date': string;
+  'Employee Code'?: string;
+  'Payrate Code'?: string;
+  'Total Revenue': string;
+  'Base Payout'?: string;
+  'Additional Payout'?: string;
+  'Total Payout'?: string;
+  'Tip'?: string;
+  'Participants'?: string;
   'Checked in': string;
-  'Comp': string;
-  'Late Cancelled': string;
-  'Payment Method': string;
-  'Payment Method Name': string;
-  'Paid': string;
-  'Teacher Payout': string;
+  'Comps'?: string;
+  'Checked In Comps'?: string;
+  'Late cancellations'?: string;
+  'Non Paid Customers'?: string;
 }
 
 export interface ProcessedData {
   teacherName: string;
-  teacherEmail: string;
+  teacherEmail?: string;
   totalTime: number;
   classTime: string;
   location: string;

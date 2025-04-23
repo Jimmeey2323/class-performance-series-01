@@ -109,14 +109,14 @@ export function processRawData(rawData: RawDataRow[]): ProcessedData[] {
       const className = row['Class name'] || '';
       const classDate = row['Class date'] || '';
       const location = row['Location'] || '';
-      const totalTime = parseFloat(row['Total time (h)'] || '0');
-      const time = parseFloat(row['Time (h)'] || '0');
+      const totalTime = parseFloat(row['Time (h)'] || '0');
       
       // Adjust field parsing based on the actual data format
       const checkedIn = parseFloat(row['Checked in'] || '0');
-      const lateCancelled = parseFloat(row['Late Cancellations'] || '0');
+      const lateCancelled = parseFloat(row['Late cancellations'] || '0');
       const paid = parseFloat(row['Total Revenue'] || '0');
-      const comp = row['Comp'] === 'Yes' ? 1 : 0;
+      const comp = parseFloat(row['Checked In Comps'] || row['Comps'] || '0');
+      const nonPaidCustomers = parseFloat(row['Non Paid Customers'] || '0');
       
       // Process class data
       const cleanedClass = getCleanedClass(className) || "Unknown Class";
@@ -126,7 +126,7 @@ export function processRawData(rawData: RawDataRow[]): ProcessedData[] {
       
       // Create a unique ID for this class
       const dateOnly = classDate.split(',')[0].trim();
-      const uniqueID = `${cleanedClass}-${dayOfWeek}-${classTime}-${location}`.replace(/\s+/g, '_');
+      const uniqueID = `${cleanedClass}-${dayOfWeek}-${classTime}-${location}-${dateOnly}`.replace(/\s+/g, '_');
       
       // Check if we already have an aggregated record for this class
       // Include teacher name in the key to group by instructor as well
@@ -146,7 +146,7 @@ export function processRawData(rawData: RawDataRow[]): ProcessedData[] {
           parseFloat(String(existingRecord.totalRevenue || 0));
         
         existingRecord.totalRevenue = existingRevenue + paid;
-        existingRecord.totalNonPaid += comp;
+        existingRecord.totalNonPaid += (comp + nonPaidCustomers);
         
         // For each unique class occurrence, increment totalOccurrences
         if (!uniqueIds.has(uniqueID)) {
@@ -178,7 +178,7 @@ export function processRawData(rawData: RawDataRow[]): ProcessedData[] {
           totalCancelled: lateCancelled,
           totalEmpty: checkedIn > 0 ? 0 : 1,
           totalNonEmpty: checkedIn > 0 ? 1 : 0,
-          totalNonPaid: comp,
+          totalNonPaid: comp + nonPaidCustomers,
           classAverageIncludingEmpty: 0, // Will calculate later
           classAverageExcludingEmpty: 0, // Will calculate later
           uniqueID
