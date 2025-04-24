@@ -1,5 +1,6 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
 import { ProcessedData } from '@/types/data';
 import {
   LineChart,
@@ -57,7 +58,6 @@ const MetricsPanel: React.FC<MetricsPanelProps> = ({ data }) => {
   const [showCountUp, setShowCountUp] = useState(false);
 
   useEffect(() => {
-    // Trigger CountUp after component mounts
     setShowCountUp(true);
   }, []);
 
@@ -207,54 +207,91 @@ const MetricsPanel: React.FC<MetricsPanelProps> = ({ data }) => {
   }, [data]);
 
   return (
-    <div className="mb-6">
-      <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
+    <div className="mb-8 relative">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
         {metrics.map((metric, index) => (
           <motion.div
             key={index}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.05, duration: 0.3 }}
+            transition={{ 
+              duration: 0.3,
+              delay: index * 0.1,
+              ease: [0.4, 0, 0.2, 1]
+            }}
           >
-            <Card className={`h-32 border border-[#E0E6F0] shadow-sm overflow-hidden rounded-xl bg-gradient-to-br ${metric.gradient}`}>
-              <CardContent className="p-4 h-full flex flex-col">
+            <Card className={cn(
+              "relative h-[140px] group hover:scale-[1.02] transition-all duration-200",
+              "before:absolute before:inset-0 before:rounded-xl",
+              "before:bg-gradient-to-br before:from-white/40 dark:before:from-white/5",
+              "before:to-transparent before:backdrop-blur-xl before:-z-10",
+              "border border-white/20 dark:border-white/10",
+              "bg-white/10 dark:bg-gray-950/30 backdrop-blur-xl",
+              "shadow-[0_4px_20px_-4px_rgba(0,0,0,0.1)] hover:shadow-[0_8px_30px_-4px_rgba(0,0,0,0.2)]",
+              "overflow-hidden"
+            )}>
+              <div className="p-4 h-full flex flex-col relative z-10">
                 <div className="flex items-center justify-between mb-1">
-                  <p className="text-xs font-medium text-[#6B7A99] dark:text-gray-300">{metric.title}</p>
-                  <div className={cn("p-1 rounded-full", metric.bgColor)}>
-                    <metric.icon className={cn("h-3.5 w-3.5", metric.textColor)} />
+                  <p className="text-xs font-medium text-gray-600 dark:text-gray-300 tracking-wide">
+                    {metric.title}
+                  </p>
+                  <div className={cn(
+                    "p-1.5 rounded-lg transition-colors",
+                    metric.bgColor,
+                    "group-hover:bg-opacity-70"
+                  )}>
+                    <metric.icon className={cn(
+                      "h-3.5 w-3.5 transition-transform group-hover:scale-110",
+                      metric.textColor
+                    )} />
                   </div>
                 </div>
-                <div className="mt-1 text-xl font-semibold text-[#323B4C] dark:text-white">
-                  {typeof metric.value === 'number' ? (
-                    showCountUp ? (
-                      <CountUp 
-                        end={metric.value} 
-                        decimals={metric.title.includes('Avg') || metric.title.includes('Rate') ? 1 : 0}
-                      />
-                    ) : 0
-                  ) : (
-                    metric.value
-                  )}
+                
+                <div className="mt-1">
+                  <div className={cn(
+                    "text-2xl font-semibold tracking-tight",
+                    "bg-gradient-to-r from-gray-900 to-gray-600 dark:from-gray-100 dark:to-gray-400",
+                    "bg-clip-text text-transparent"
+                  )}>
+                    {typeof metric.value === 'number' ? (
+                      showCountUp ? (
+                        <CountUp
+                          end={metric.value}
+                          decimals={metric.title.includes('Avg') || metric.title.includes('Rate') ? 1 : 0}
+                          delay={0.5}
+                          duration={2}
+                        />
+                      ) : '0'
+                    ) : (
+                      metric.value
+                    )}
+                  </div>
                 </div>
-                <div className="mt-auto h-12">
+
+                <div className="mt-auto">
                   {metric.sparkData && metric.sparkData.length > 1 && (
-                    <Sparklines data={metric.sparkData} height={30} margin={0}>
-                      <SparklinesLine 
-                        color={metric.textColor.replace('text-', '')} 
-                        style={{ strokeWidth: 2, fill: "none" }} 
-                      />
-                      <SparklinesSpots 
-                        size={2} 
-                        style={{ 
-                          stroke: metric.textColor.replace('text-', ''),
-                          fill: "white",
-                          strokeWidth: 2 
-                        }} 
-                      />
-                    </Sparklines>
+                    <div className="h-[40px] -mx-1">
+                      <Sparklines data={metric.sparkData} margin={0} height={40}>
+                        <SparklinesLine 
+                          style={{ 
+                            stroke: `var(--${metric.textColor.replace('text-', '')})`,
+                            strokeWidth: 1.5,
+                            fill: 'none'
+                          }} 
+                        />
+                        <SparklinesSpots 
+                          size={2}
+                          style={{ 
+                            stroke: `var(--${metric.textColor.replace('text-', '')})`,
+                            strokeWidth: 1.5,
+                            fill: 'white'
+                          }}
+                        />
+                      </Sparklines>
+                    </div>
                   )}
                 </div>
-              </CardContent>
+              </div>
             </Card>
           </motion.div>
         ))}
