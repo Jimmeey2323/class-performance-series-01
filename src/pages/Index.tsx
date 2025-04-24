@@ -116,7 +116,7 @@ const Index = () => {
         duration: 0.5
       }} className="w-full max-w-3xl bg-white dark:bg-gray-800 text-white rounded-xl shadow-lg p-8 border border-[#E0E6F0]">
             <h1 className="text-2xl font-bold mb-2 text-center text-[#1E2F4D] dark:text-white">Class Analytics Dashboard</h1>
-            <p className="text-[#6B7A99] dark:text-gray-300 text-center mb-6">Upload your class data to get started</p>
+            
             
             <FileUploader onFileUpload={handleFileUpload} />
           </motion.div>
