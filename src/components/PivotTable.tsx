@@ -37,7 +37,6 @@ interface PivotConfig {
   colorIntensity: boolean;
 }
 
-// Helper functions for time periods
 const getMonthFromDate = (dateStr: string): string => {
   try {
     const date = new Date(dateStr.split(',')[0]);
@@ -67,7 +66,6 @@ const getYearFromDate = (dateStr: string): string => {
 };
 
 const PivotView: React.FC<PivotViewProps> = ({ data, trainerAvatars }) => {
-  // Default pivot configuration
   const defaultPivotConfig: PivotConfig = {
     id: 'default',
     name: 'Default View',
@@ -81,7 +79,6 @@ const PivotView: React.FC<PivotViewProps> = ({ data, trainerAvatars }) => {
     colorIntensity: true,
   };
 
-  // Load saved configurations from localStorage
   const [savedConfigs, setSavedConfigs] = useLocalStorage<PivotConfig[]>('class-analytics-pivot-configs', [defaultPivotConfig]);
   
   const [activeConfig, setActiveConfig] = useState<PivotConfig>(defaultPivotConfig);
@@ -96,14 +93,12 @@ const PivotView: React.FC<PivotViewProps> = ({ data, trainerAvatars }) => {
   const [selectedFilters, setSelectedFilters] = useState<Record<string, boolean>>({});
   const [filterField, setFilterField] = useState<PivotDimension>('cleanedClass');
 
-  // Set active config on load
   useEffect(() => {
     if (savedConfigs.length > 0) {
       setActiveConfig(savedConfigs[0]);
     }
   }, [savedConfigs]);
 
-  // Enhanced dimension options including time periods
   const dimensionOptions = [
     { value: 'cleanedClass', label: 'Class Type' },
     { value: 'teacherName', label: 'Instructor' },
@@ -125,7 +120,6 @@ const PivotView: React.FC<PivotViewProps> = ({ data, trainerAvatars }) => {
     { value: 'totalEmpty', label: 'Empty Classes' },
   ];
 
-  // Get dimension value based on current date grouping setting
   const getDimensionValue = (item: ProcessedData, dimension: PivotDimension): string => {
     if (dimension === 'month') {
       return getMonthFromDate(item.date || '');
@@ -140,7 +134,6 @@ const PivotView: React.FC<PivotViewProps> = ({ data, trainerAvatars }) => {
     }
   };
 
-  // Format cell values based on the metric
   const formatCellValue = (value: number, metric: PivotMetric): string => {
     if (activeConfig.valueDisplay === 'raw') {
       return value.toString();
@@ -155,7 +148,6 @@ const PivotView: React.FC<PivotViewProps> = ({ data, trainerAvatars }) => {
     }
   };
 
-  // Process data for pivot table
   const pivotData = React.useMemo(() => {
     const rows = new Map<string, Map<string, number>>();
     const rowTotals = new Map<string, number>();
@@ -163,10 +155,8 @@ const PivotView: React.FC<PivotViewProps> = ({ data, trainerAvatars }) => {
     const colValues = new Set<string>();
     let grandTotal = 0;
     
-    // Apply date grouping if needed
     let processedData = [...data];
     
-    // Apply filters
     if (filterMode !== 'off' && Object.keys(selectedFilters).length > 0) {
       processedData = processedData.filter(item => {
         const value = getDimensionValue(item, filterField);
@@ -179,15 +169,12 @@ const PivotView: React.FC<PivotViewProps> = ({ data, trainerAvatars }) => {
       });
     }
 
-    // Aggregate data
     processedData.forEach(item => {
       const rowValue = getDimensionValue(item, activeConfig.rowDimension);
       const colValue = getDimensionValue(item, activeConfig.colDimension);
       
-      // Add column value to set of all column values
       colValues.add(colValue);
       
-      // Get the metric value
       let value: number;
       if (typeof item[activeConfig.metric] === 'string') {
         value = parseFloat(String(item[activeConfig.metric]));
@@ -196,37 +183,30 @@ const PivotView: React.FC<PivotViewProps> = ({ data, trainerAvatars }) => {
         value = Number(item[activeConfig.metric] || 0);
       }
 
-      // Initialize row if needed
       if (!rows.has(rowValue)) {
         rows.set(rowValue, new Map<string, number>());
       }
       
-      // Initialize cell if needed
       const row = rows.get(rowValue)!;
       if (!row.has(colValue)) {
         row.set(colValue, 0);
       }
       
-      // Update cell value
       row.set(colValue, row.get(colValue)! + value);
       
-      // Update row total
       if (!rowTotals.has(rowValue)) {
         rowTotals.set(rowValue, 0);
       }
       rowTotals.set(rowValue, rowTotals.get(rowValue)! + value);
       
-      // Update column total
       if (!colTotals.has(colValue)) {
         colTotals.set(colValue, 0);
       }
       colTotals.set(colValue, colTotals.get(colValue)! + value);
       
-      // Update grand total
       grandTotal += value;
     });
     
-    // Sort columns alphabetically (except for days of week)
     let sortedCols = Array.from(colValues);
     if (activeConfig.colDimension === 'dayOfWeek') {
       const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
@@ -239,10 +219,8 @@ const PivotView: React.FC<PivotViewProps> = ({ data, trainerAvatars }) => {
       sortedCols.sort();
     }
     
-    // Convert to sorted array of rows for rendering
     let rowEntries = Array.from(rows.entries());
     
-    // Apply sort if specified
     if (sortColumn) {
       if (sortColumn === 'row') {
         rowEntries.sort(([rowA], [rowB]) => {
@@ -265,14 +243,12 @@ const PivotView: React.FC<PivotViewProps> = ({ data, trainerAvatars }) => {
       }
     }
 
-    // Filter by minimum value if specified
     if (minimumValue !== null) {
       rowEntries = rowEntries.filter(([rowKey, cells]) => {
         return rowTotals.get(rowKey)! >= minimumValue;
       });
     }
 
-    // Find max values for color intensity
     const maxValue = Math.max(...Array.from(rowTotals.values()));
     const maxColValue = Math.max(...Array.from(colTotals.values()));
     
@@ -287,7 +263,6 @@ const PivotView: React.FC<PivotViewProps> = ({ data, trainerAvatars }) => {
     };
   }, [data, activeConfig, sortColumn, sortDirection, minimumValue, filterMode, selectedFilters, filterField]);
 
-  // Save current configuration
   const saveCurrentConfig = () => {
     if (!newConfigName.trim()) {
       toast({
@@ -315,12 +290,10 @@ const PivotView: React.FC<PivotViewProps> = ({ data, trainerAvatars }) => {
     });
   };
 
-  // Delete a saved configuration
   const deleteConfig = (id: string) => {
     const newConfigs = savedConfigs.filter(config => config.id !== id);
     setSavedConfigs(newConfigs);
     
-    // If current config was deleted, switch to default
     if (activeConfig.id === id) {
       setActiveConfig(newConfigs.length > 0 ? newConfigs[0] : defaultPivotConfig);
     }
@@ -331,7 +304,6 @@ const PivotView: React.FC<PivotViewProps> = ({ data, trainerAvatars }) => {
     });
   };
 
-  // Export pivot data as CSV
   const exportPivotData = () => {
     const headers = ['Row', ...pivotData.columns, 'Total'];
     const rows = pivotData.rows.map(([rowKey, cells]) => {
@@ -342,21 +314,18 @@ const PivotView: React.FC<PivotViewProps> = ({ data, trainerAvatars }) => {
       ];
     });
     
-    // Add totals row
     const totalsRow = [
       'Total',
       ...pivotData.columns.map(col => pivotData.colTotals.get(col) || 0),
       pivotData.grandTotal
     ];
     
-    // Convert to CSV
     const csvContent = [
       headers.join(','),
       ...rows.map(row => row.join(',')),
       totalsRow.join(',')
     ].join('\n');
     
-    // Create download link
     const encodedUri = encodeURI('data:text/csv;charset=utf-8,' + csvContent);
     const link = document.createElement('a');
     link.setAttribute('href', encodedUri);
@@ -371,7 +340,6 @@ const PivotView: React.FC<PivotViewProps> = ({ data, trainerAvatars }) => {
     });
   };
 
-  // Get unique values for filtering
   const getFilterValues = React.useMemo(() => {
     const values = new Set<string>();
     
@@ -383,7 +351,6 @@ const PivotView: React.FC<PivotViewProps> = ({ data, trainerAvatars }) => {
     return Array.from(values).sort();
   }, [data, filterField]);
   
-  // Initialize filter selections
   useEffect(() => {
     const initialSelections: Record<string, boolean> = {};
     getFilterValues.forEach(value => {
@@ -392,7 +359,6 @@ const PivotView: React.FC<PivotViewProps> = ({ data, trainerAvatars }) => {
     setSelectedFilters(initialSelections);
   }, [filterField, getFilterValues]);
 
-  // Toggle all filters
   const toggleAllFilters = (checked: boolean) => {
     const newSelections = { ...selectedFilters };
     Object.keys(newSelections).forEach(key => {
@@ -401,7 +367,6 @@ const PivotView: React.FC<PivotViewProps> = ({ data, trainerAvatars }) => {
     setSelectedFilters(newSelections);
   };
 
-  // Count selected filters
   const selectedFilterCount = Object.values(selectedFilters).filter(Boolean).length;
 
   return (
@@ -413,7 +378,6 @@ const PivotView: React.FC<PivotViewProps> = ({ data, trainerAvatars }) => {
         </div>
         
         <div className="flex flex-wrap items-center gap-2">
-          {/* Saved configurations dropdown */}
           <Select value={activeConfig.id} onValueChange={(value) => {
             const selected = savedConfigs.find(c => c.id === value);
             if (selected) setActiveConfig(selected);
@@ -432,7 +396,6 @@ const PivotView: React.FC<PivotViewProps> = ({ data, trainerAvatars }) => {
             </SelectContent>
           </Select>
           
-          {/* Save configuration button */}
           <Dialog open={showSaveDialog} onOpenChange={setShowSaveDialog}>
             <DialogTrigger asChild>
               <Button variant="outline" size="sm">
@@ -473,7 +436,6 @@ const PivotView: React.FC<PivotViewProps> = ({ data, trainerAvatars }) => {
             </DialogContent>
           </Dialog>
           
-          {/* Edit mode toggle */}
           <Button
             variant={editMode ? "default" : "outline"}
             size="sm"
@@ -483,13 +445,11 @@ const PivotView: React.FC<PivotViewProps> = ({ data, trainerAvatars }) => {
             {editMode ? "Exit Settings" : "Edit Settings"}
           </Button>
 
-          {/* Export button */}
           <Button variant="outline" size="sm" onClick={exportPivotData}>
             <Download className="h-4 w-4 mr-2" />
             Export
           </Button>
 
-          {/* Filter button */}
           <Dialog>
             <DialogTrigger asChild>
               <Button variant={filterMode !== 'off' ? "default" : "outline"} size="sm">
@@ -622,7 +582,6 @@ const PivotView: React.FC<PivotViewProps> = ({ data, trainerAvatars }) => {
         </div>
       </div>
       
-      {/* Edit configuration panel */}
       {editMode && (
         <Card className="mb-4 animate-fade-in bg-muted/30">
           <CardContent className="pt-6">
@@ -830,7 +789,6 @@ const PivotView: React.FC<PivotViewProps> = ({ data, trainerAvatars }) => {
         </Card>
       )}
 
-      {/* Pivot table */}
       <div className="bg-white dark:bg-gray-950 rounded-lg border overflow-x-auto">
         <table className="w-full">
           <thead>
@@ -887,3 +845,120 @@ const PivotView: React.FC<PivotViewProps> = ({ data, trainerAvatars }) => {
                   </div>
                 </th>
               ))}
+              {activeConfig.showTotals && (
+                <th className="p-2 px-4 text-center border-b font-medium bg-muted/20">
+                  <div className="flex items-center justify-center gap-1">
+                    <span>Total</span>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className={`h-6 w-6 p-0 ${sortColumn === 'total' ? 'text-primary' : 'text-muted-foreground'}`}
+                      onClick={() => {
+                        if (sortColumn === 'total') {
+                          setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+                        } else {
+                          setSortColumn('total');
+                          setSortDirection('desc');
+                        }
+                      }}
+                    >
+                      {sortColumn === 'total' ? (
+                        sortDirection === 'asc' ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />
+                      ) : (
+                        <ChevronDown className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </div>
+                </th>
+              )}
+            </tr>
+          </thead>
+          <tbody>
+            {pivotData.rows.map(([rowKey, cells], index) => {
+              const rowTotal = pivotData.rowTotals.get(rowKey) || 0;
+              const colorIntensity = activeConfig.colorIntensity 
+                ? Math.min(0.7, 0.1 + ((rowTotal / pivotData.maxValue) * 0.6))
+                : 0;
+              
+              return (
+                <tr 
+                  key={rowKey} 
+                  className={`${index % 2 === 0 ? 'bg-muted/10' : 'bg-white dark:bg-gray-950'} hover:bg-muted/20`}
+                >
+                  <td className="p-2 px-4 border-r font-medium">
+                    {rowKey}
+                  </td>
+                  
+                  {pivotData.columns.map(col => {
+                    const cellValue = cells.get(col) || 0;
+                    const cellColorIntensity = activeConfig.colorIntensity
+                      ? Math.min(0.7, 0.1 + ((cellValue / (cells.get(col) || 1)) * 0.6))
+                      : 0;
+                      
+                    return (
+                      <td 
+                        key={`${rowKey}-${col}`} 
+                        className="p-2 px-4 text-center border-r"
+                        style={activeConfig.colorIntensity ? {
+                          backgroundColor: `rgba(var(--primary-rgb), ${cellColorIntensity / 7})`,
+                        } : {}}
+                      >
+                        {formatCellValue(cellValue, activeConfig.metric)}
+                      </td>
+                    );
+                  })}
+                  
+                  {activeConfig.showTotals && (
+                    <td 
+                      className="p-2 px-4 text-center font-medium bg-muted/10" 
+                      style={activeConfig.colorIntensity ? {
+                        backgroundColor: `rgba(var(--primary-rgb), ${colorIntensity / 4})`,
+                      } : {}}
+                    >
+                      {formatCellValue(rowTotal, activeConfig.metric)}
+                    </td>
+                  )}
+                </tr>
+              );
+            })}
+            
+            {activeConfig.showTotals && (
+              <tr className="font-medium bg-muted/20">
+                <td className="p-2 px-4 border-t border-r">Total</td>
+                
+                {pivotData.columns.map(col => {
+                  const colTotal = pivotData.colTotals.get(col) || 0;
+                  const colColorIntensity = activeConfig.colorIntensity
+                    ? Math.min(0.7, 0.1 + ((colTotal / pivotData.maxColValue) * 0.6))
+                    : 0;
+                    
+                  return (
+                    <td 
+                      key={`total-${col}`} 
+                      className="p-2 px-4 text-center border-t border-r"
+                      style={activeConfig.colorIntensity ? {
+                        backgroundColor: `rgba(var(--primary-rgb), ${colColorIntensity / 5})`,
+                      } : {}}
+                    >
+                      {formatCellValue(colTotal, activeConfig.metric)}
+                    </td>
+                  );
+                })}
+                
+                {activeConfig.showTotals && (
+                  <td 
+                    className="p-2 px-4 text-center border-t bg-muted/30 font-bold"
+                  >
+                    {formatCellValue(pivotData.grandTotal, activeConfig.metric)}
+                  </td>
+                )}
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+};
+
+export default PivotView;
