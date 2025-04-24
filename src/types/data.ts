@@ -43,6 +43,12 @@ export interface ProcessedData {
   classAverageIncludingEmpty: number | string;
   classAverageExcludingEmpty: number | string;
   uniqueID: string; // For tracking purposes
+  totalPayout?: number | string;
+  totalBasePayout?: number | string;
+  totalAdditionalPayout?: number | string;
+  totalTips?: number | string;
+  totalParticipants?: number | string;
+  totalComps?: number | string;
 }
 
 export type ViewMode = 'table' | 'grid' | 'kanban' | 'timeline' | 'pivot';
@@ -80,7 +86,7 @@ export interface KanbanItem {
 
 export interface KanbanCardProps {
   data: ProcessedData;
-  key: string;
+  key?: string;
   isActive: boolean;
 }
 
