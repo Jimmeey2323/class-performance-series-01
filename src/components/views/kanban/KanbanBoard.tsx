@@ -135,21 +135,24 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({ data, trainerAvatars }) => {
                           const { innerRef, draggableProps, dragHandleProps } = provided;
                           
                           return (
-                            <motion.div
+                            <div
                               ref={innerRef}
                               {...draggableProps}
                               {...dragHandleProps}
-                              initial={{ opacity: 0, y: 20 }}
-                              animate={{ opacity: 1, y: 0 }}
-                              transition={{ duration: 0.2, delay: index * 0.05 }}
                               className="mb-3"
                             >
-                              <KanbanCard
-                                key={item.id} 
-                                data={item.data}
-                                isActive={selectedCard === item.id}
-                              />
-                            </motion.div>
+                              <motion.div
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ duration: 0.2, delay: index * 0.05 }}
+                              >
+                                <KanbanCard
+                                  key={item.id} 
+                                  data={item.data}
+                                  isActive={selectedCard === item.id}
+                                />
+                              </motion.div>
+                            </div>
                           );
                         }}
                       </Draggable>

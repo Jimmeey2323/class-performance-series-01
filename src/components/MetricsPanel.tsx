@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { ProcessedData } from '@/types/data';
@@ -231,8 +230,6 @@ const MetricsPanel: React.FC<MetricsPanelProps> = ({ data }) => {
                       <CountUp 
                         end={metric.value} 
                         decimals={metric.title.includes('Avg') || metric.title.includes('Rate') ? 1 : 0}
-                        separator="," 
-                        decimal="."
                       />
                     ) : 0
                   ) : (

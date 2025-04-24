@@ -13,7 +13,6 @@ import {
   MapPin, 
   Users, 
   IndianRupee,
-
   Filter,
   Search,
   BookOpen,
@@ -319,205 +318,208 @@ const KanbanView: React.FC<KanbanViewProps> = ({ data, trainerAvatars }) => {
                                   const { innerRef, draggableProps, dragHandleProps } = provided;
                                   
                                   return (
-                                    <motion.div
+                                    <div
                                       ref={innerRef}
                                       {...draggableProps}
                                       {...dragHandleProps}
-                                      initial={{ opacity: 0, y: 10 }}
-                                      animate={{ opacity: 1, y: 0 }}
-                                      transition={{ duration: 0.2, delay: index * 0.03 }}
                                       className="mb-3"
                                     >
-                                      <Card 
-                                        className={cn(
-                                          "overflow-hidden hover:shadow-md transition-shadow cursor-pointer",
-                                          isBookmarked && "border-amber-300 dark:border-amber-700"
-                                        )}
-                                        onClick={() => toggleCardExpansion(item.uniqueID)}
+                                      <motion.div
+                                        initial={{ opacity: 0, y: 10 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        transition={{ duration: 0.2, delay: index * 0.03 }}
                                       >
-                                        <CardHeader className="p-3 pb-0 flex flex-row items-center justify-between">
-                                          <div className="flex items-center gap-2">
-                                            {columnKey !== 'cleanedClass' && (
-                                              <div className="flex items-center gap-1.5">
-                                                <BookOpen className="h-3.5 w-3.5 text-slate-500" />
-                                                <span className="text-sm font-medium truncate max-w-[140px]">
-                                                  {item.cleanedClass}
-                                                </span>
-                                              </div>
-                                            )}
-                                            
-                                            {columnKey !== 'dayOfWeek' && (
-                                              <div className="flex items-center gap-1.5">
-                                                <Calendar className="h-3.5 w-3.5 text-slate-500" />
-                                                <span className="text-sm">{item.dayOfWeek}</span>
-                                              </div>
-                                            )}
-                                          </div>
-                                          
-                                          <button
-                                            onClick={(e) => toggleCardBookmark(item.uniqueID, e)}
-                                            className="text-amber-500 hover:text-amber-600 dark:text-amber-400 dark:hover:text-amber-300"
-                                          >
-                                            <Bookmark 
-                                              className={cn(
-                                                "h-4 w-4",
-                                                isBookmarked ? "fill-current" : "fill-none"
+                                        <Card 
+                                          className={cn(
+                                            "overflow-hidden hover:shadow-md transition-shadow cursor-pointer",
+                                            isBookmarked && "border-amber-300 dark:border-amber-700"
+                                          )}
+                                          onClick={() => toggleCardExpansion(item.uniqueID)}
+                                        >
+                                          <CardHeader className="p-3 pb-0 flex flex-row items-center justify-between">
+                                            <div className="flex items-center gap-2">
+                                              {columnKey !== 'cleanedClass' && (
+                                                <div className="flex items-center gap-1.5">
+                                                  <BookOpen className="h-3.5 w-3.5 text-slate-500" />
+                                                  <span className="text-sm font-medium truncate max-w-[140px]">
+                                                    {item.cleanedClass}
+                                                  </span>
+                                                </div>
                                               )}
-                                            />
-                                          </button>
-                                        </CardHeader>
-                                        
-                                        <CardContent className="p-3 pt-2">
-                                          <div className="flex items-center gap-2 mb-2">
-                                            {cardMetric === 'totalCheckins' && (
-                                              <div className="flex items-center gap-2 bg-primary/10 px-2 py-1 rounded-md w-full">
-                                                <Users className="h-4 w-4 text-primary" />
-                                                <div className="flex justify-between items-center w-full">
-                                                  <span className="text-xs text-muted-foreground">Check-ins:</span>
-                                                  <span className="font-bold">{item.totalCheckins}</span>
+                                              
+                                              {columnKey !== 'dayOfWeek' && (
+                                                <div className="flex items-center gap-1.5">
+                                                  <Calendar className="h-3.5 w-3.5 text-slate-500" />
+                                                  <span className="text-sm">{item.dayOfWeek}</span>
                                                 </div>
-                                              </div>
-                                            )}
+                                              )}
+                                            </div>
                                             
-                                            {cardMetric === 'totalRevenue' && (
-                                              <div className="flex items-center gap-2 bg-amber-500/10 px-2 py-1 rounded-md w-full">
-                                                <IndianRupee className="h-4 w-4 text-amber-500" />
-                                                <div className="flex justify-between items-center w-full">
-                                                  <span className="text-xs text-muted-foreground">Revenue:</span>
-                                                  <span className="font-bold">{formatIndianCurrency(Number(item.totalRevenue))}</span>
-                                                </div>
-                                              </div>
-                                            )}
-                                            
-                                            {cardMetric === 'period' && (
-                                              <div className="flex items-center gap-2 bg-indigo-500/10 px-2 py-1 rounded-md w-full">
-                                                <Calendar className="h-4 w-4 text-indigo-500" />
-                                                <div className="flex justify-between items-center w-full">
-                                                  <span className="text-xs text-muted-foreground">Period:</span>
-                                                  <span className="font-bold">{item.period}</span>
-                                                </div>
-                                              </div>
-                                            )}
-                                          </div>
+                                            <button
+                                              onClick={(e) => toggleCardBookmark(item.uniqueID, e)}
+                                              className="text-amber-500 hover:text-amber-600 dark:text-amber-400 dark:hover:text-amber-300"
+                                            >
+                                              <Bookmark 
+                                                className={cn(
+                                                  "h-4 w-4",
+                                                  isBookmarked ? "fill-current" : "fill-none"
+                                                )}
+                                              />
+                                            </button>
+                                          </CardHeader>
                                           
-                                          <div className="grid grid-cols-2 gap-x-1 gap-y-1 text-xs text-muted-foreground">
-                                            {cardMetric !== 'totalCheckins' && (
-                                              <div className="flex items-center justify-between col-span-1">
-                                                <div className="flex items-center gap-1">
-                                                  <Users className="h-3 w-3" />
-                                                  <span>Checkins:</span>
+                                          <CardContent className="p-3 pt-2">
+                                            <div className="flex items-center gap-2 mb-2">
+                                              {cardMetric === 'totalCheckins' && (
+                                                <div className="flex items-center gap-2 bg-primary/10 px-2 py-1 rounded-md w-full">
+                                                  <Users className="h-4 w-4 text-primary" />
+                                                  <div className="flex justify-between items-center w-full">
+                                                    <span className="text-xs text-muted-foreground">Check-ins:</span>
+                                                    <span className="font-bold">{item.totalCheckins}</span>
+                                                  </div>
                                                 </div>
-                                                <span className="font-medium text-foreground">{item.totalCheckins}</span>
-                                              </div>
-                                            )}
+                                              )}
+                                              
+                                              {cardMetric === 'totalRevenue' && (
+                                                <div className="flex items-center gap-2 bg-amber-500/10 px-2 py-1 rounded-md w-full">
+                                                  <IndianRupee className="h-4 w-4 text-amber-500" />
+                                                  <div className="flex justify-between items-center w-full">
+                                                    <span className="text-xs text-muted-foreground">Revenue:</span>
+                                                    <span className="font-bold">{formatIndianCurrency(Number(item.totalRevenue))}</span>
+                                                  </div>
+                                                </div>
+                                              )}
+                                              
+                                              {cardMetric === 'period' && (
+                                                <div className="flex items-center gap-2 bg-indigo-500/10 px-2 py-1 rounded-md w-full">
+                                                  <Calendar className="h-4 w-4 text-indigo-500" />
+                                                  <div className="flex justify-between items-center w-full">
+                                                    <span className="text-xs text-muted-foreground">Period:</span>
+                                                    <span className="font-bold">{item.period}</span>
+                                                  </div>
+                                                </div>
+                                              )}
+                                            </div>
                                             
-                                            {cardMetric !== 'totalRevenue' && (
-                                              <div className="flex items-center justify-between col-span-1">
-                                                <div className="flex items-center gap-1">
-                                                  <IndianRupee className="h-3 w-3" />
-                                                  <span>Revenue:</span>
+                                            <div className="grid grid-cols-2 gap-x-1 gap-y-1 text-xs text-muted-foreground">
+                                              {cardMetric !== 'totalCheckins' && (
+                                                <div className="flex items-center justify-between col-span-1">
+                                                  <div className="flex items-center gap-1">
+                                                    <Users className="h-3 w-3" />
+                                                    <span>Checkins:</span>
+                                                  </div>
+                                                  <span className="font-medium text-foreground">{item.totalCheckins}</span>
                                                 </div>
-                                                <span className="font-medium text-foreground">
-                                                  {formatIndianCurrency(Number(item.totalRevenue))}
-                                                </span>
-                                              </div>
-                                            )}
+                                              )}
+                                              
+                                              {cardMetric !== 'totalRevenue' && (
+                                                <div className="flex items-center justify-between col-span-1">
+                                                  <div className="flex items-center gap-1">
+                                                    <IndianRupee className="h-3 w-3" />
+                                                    <span>Revenue:</span>
+                                                  </div>
+                                                  <span className="font-medium text-foreground">
+                                                    {formatIndianCurrency(Number(item.totalRevenue))}
+                                                  </span>
+                                                </div>
+                                              )}
+                                              
+                                              {cardMetric !== 'period' && (
+                                                <div className="flex items-center justify-between col-span-1">
+                                                  <div className="flex items-center gap-1">
+                                                    <Calendar className="h-3 w-3" />
+                                                    <span>Period:</span>
+                                                  </div>
+                                                  <span className="font-medium text-foreground">{item.period}</span>
+                                                </div>
+                                              )}
+                                              
+                                              {columnKey !== 'teacherName' && (
+                                                <div className="flex items-center justify-between col-span-1">
+                                                  <div className="flex items-center gap-1">
+                                                    <Users className="h-3 w-3" />
+                                                    <span>Teacher:</span>
+                                                  </div>
+                                                  <span className="font-medium text-foreground truncate max-w-[80px]">
+                                                    {item.teacherName}
+                                                  </span>
+                                                </div>
+                                              )}
+                                              
+                                              {columnKey !== 'location' && (
+                                                <div className="flex items-center justify-between col-span-1">
+                                                  <div className="flex items-center gap-1">
+                                                    <MapPin className="h-3 w-3" />
+                                                    <span>Location:</span>
+                                                  </div>
+                                                  <span className="font-medium text-foreground truncate max-w-[80px]">
+                                                    {item.location}
+                                                  </span>
+                                                </div>
+                                              )}
+                                            </div>
                                             
-                                            {cardMetric !== 'period' && (
-                                              <div className="flex items-center justify-between col-span-1">
-                                                <div className="flex items-center gap-1">
-                                                  <Calendar className="h-3 w-3" />
-                                                  <span>Period:</span>
-                                                </div>
-                                                <span className="font-medium text-foreground">{item.period}</span>
-                                              </div>
-                                            )}
-                                            
-                                            {columnKey !== 'teacherName' && (
-                                              <div className="flex items-center justify-between col-span-1">
-                                                <div className="flex items-center gap-1">
-                                                  <Users className="h-3 w-3" />
-                                                  <span>Teacher:</span>
-                                                </div>
-                                                <span className="font-medium text-foreground truncate max-w-[80px]">
-                                                  {item.teacherName}
-                                                </span>
-                                              </div>
-                                            )}
-                                            
-                                            {columnKey !== 'location' && (
-                                              <div className="flex items-center justify-between col-span-1">
-                                                <div className="flex items-center gap-1">
-                                                  <MapPin className="h-3 w-3" />
-                                                  <span>Location:</span>
-                                                </div>
-                                                <span className="font-medium text-foreground truncate max-w-[80px]">
-                                                  {item.location}
-                                                </span>
-                                              </div>
-                                            )}
-                                          </div>
+                                            <AnimatePresence>
+                                              {isExpanded && (
+                                                <motion.div
+                                                  initial={{ height: 0, opacity: 0 }}
+                                                  animate={{ height: 'auto', opacity: 1 }}
+                                                  exit={{ height: 0, opacity: 0 }}
+                                                  transition={{ duration: 0.2 }}
+                                                  className="mt-3 pt-3 border-t overflow-hidden"
+                                                >
+                                                  <div className="grid grid-cols-2 gap-x-2 gap-y-2 text-xs">
+                                                    <div className="flex items-center justify-between col-span-1">
+                                                      <span className="text-muted-foreground">Occurrences:</span>
+                                                      <span className="font-medium">{item.totalOccurrences}</span>
+                                                    </div>
+                                                    
+                                                    <div className="flex items-center justify-between col-span-1">
+                                                      <span className="text-muted-foreground">Class Time:</span>
+                                                      <span className="font-medium">{item.classTime}</span>
+                                                    </div>
+                                                    
+                                                    <div className="flex items-center justify-between col-span-1">
+                                                      <span className="text-muted-foreground">Cancelled:</span>
+                                                      <span className="font-medium">{item.totalCancelled}</span>
+                                                    </div>
+                                                    
+                                                    <div className="flex items-center justify-between col-span-1">
+                                                      <span className="text-muted-foreground">Empty:</span>
+                                                      <span className="font-medium">{item.totalEmpty}</span>
+                                                    </div>
+                                                    
+                                                    <div className="flex items-center justify-between col-span-1">
+                                                      <span className="text-muted-foreground">Non-Empty:</span>
+                                                      <span className="font-medium">{item.totalNonEmpty}</span>
+                                                    </div>
+                                                    
+                                                    <div className="flex items-center justify-between col-span-1">
+                                                      <span className="text-muted-foreground">Non-Paid:</span>
+                                                      <span className="font-medium">{item.totalNonPaid}</span>
+                                                    </div>
+                                                    
+                                                    <div className="flex items-center justify-between col-span-2">
+                                                      <span className="text-muted-foreground">Avg (All):</span>
+                                                      <span className="font-medium">{item.classAverageIncludingEmpty}</span>
+                                                    </div>
+                                                    
+                                                    <div className="flex items-center justify-between col-span-2">
+                                                      <span className="text-muted-foreground">Avg (Non-Empty):</span>
+                                                      <span className="font-medium">{item.classAverageExcludingEmpty}</span>
+                                                    </div>
+                                                  </div>
+                                                </motion.div>
+                                              )}
+                                            </AnimatePresence>
+                                          </CardContent>
                                           
-                                          <AnimatePresence>
-                                            {isExpanded && (
-                                              <motion.div
-                                                initial={{ height: 0, opacity: 0 }}
-                                                animate={{ height: 'auto', opacity: 1 }}
-                                                exit={{ height: 0, opacity: 0 }}
-                                                transition={{ duration: 0.2 }}
-                                                className="mt-3 pt-3 border-t overflow-hidden"
-                                              >
-                                                <div className="grid grid-cols-2 gap-x-2 gap-y-2 text-xs">
-                                                  <div className="flex items-center justify-between col-span-1">
-                                                    <span className="text-muted-foreground">Occurrences:</span>
-                                                    <span className="font-medium">{item.totalOccurrences}</span>
-                                                  </div>
-                                                    
-                                                  <div className="flex items-center justify-between col-span-1">
-                                                    <span className="text-muted-foreground">Class Time:</span>
-                                                    <span className="font-medium">{item.classTime}</span>
-                                                  </div>
-                                                    
-                                                  <div className="flex items-center justify-between col-span-1">
-                                                    <span className="text-muted-foreground">Cancelled:</span>
-                                                    <span className="font-medium">{item.totalCancelled}</span>
-                                                  </div>
-                                                    
-                                                  <div className="flex items-center justify-between col-span-1">
-                                                    <span className="text-muted-foreground">Empty:</span>
-                                                    <span className="font-medium">{item.totalEmpty}</span>
-                                                  </div>
-                                                    
-                                                  <div className="flex items-center justify-between col-span-1">
-                                                    <span className="text-muted-foreground">Non-Empty:</span>
-                                                    <span className="font-medium">{item.totalNonEmpty}</span>
-                                                  </div>
-                                                    
-                                                  <div className="flex items-center justify-between col-span-1">
-                                                    <span className="text-muted-foreground">Non-Paid:</span>
-                                                    <span className="font-medium">{item.totalNonPaid}</span>
-                                                  </div>
-                                                    
-                                                  <div className="flex items-center justify-between col-span-2">
-                                                    <span className="text-muted-foreground">Avg (All):</span>
-                                                    <span className="font-medium">{item.classAverageIncludingEmpty}</span>
-                                                  </div>
-                                                    
-                                                  <div className="flex items-center justify-between col-span-2">
-                                                    <span className="text-muted-foreground">Avg (Non-Empty):</span>
-                                                    <span className="font-medium">{item.classAverageExcludingEmpty}</span>
-                                                  </div>
-                                                </div>
-                                              </motion.div>
-                                            )}
-                                          </AnimatePresence>
-                                        </CardContent>
-                                        
-                                        <CardFooter className="p-2 border-t flex justify-center items-center text-xs text-muted-foreground">
-                                          {isExpanded ? "Click to collapse" : "Click for details"}
-                                        </CardFooter>
-                                      </Card>
-                                    </motion.div>
+                                          <CardFooter className="p-2 border-t flex justify-center items-center text-xs text-muted-foreground">
+                                            {isExpanded ? "Click to collapse" : "Click for details"}
+                                          </CardFooter>
+                                        </Card>
+                                      </motion.div>
+                                    </div>
                                   );
                                 }}
                               </Draggable>
