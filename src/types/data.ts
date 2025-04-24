@@ -75,6 +75,13 @@ export interface MetricData {
 export interface KanbanItem {
   id: string;
   content: ProcessedData;
+  data: ProcessedData;
+}
+
+export interface KanbanCardProps {
+  data: ProcessedData;
+  key: string;
+  isActive: boolean;
 }
 
 export type Theme = 'light' | 'dark' | 'system';

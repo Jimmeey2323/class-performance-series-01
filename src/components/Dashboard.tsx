@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ProcessedData, ViewMode, FilterOption, SortOption } from '@/types/data';
 import ViewSwitcherWrapper from './ViewSwitcherWrapper';
-import DataTable from '@/components/DataTable';
+import { DataTable } from '@/components/DataTable';
 import DataFilters from '@/components/DataFilters';
 import MetricsPanel from '@/components/MetricsPanel';
 import ChartPanel from '@/components/ChartPanel';
@@ -61,7 +61,6 @@ interface DashboardProps {
   onLogout: () => void;
 }
 
-// Trainer avatar mapping with updated image URLs
 export const trainerAvatars: Record<string, string> = {
   "Siddhartha Kusuma": "https://i.imgur.com/XE0p6mW.jpg",
   "Shruti Suresh": "https://i.imgur.com/dBuz7oK.jpg",
@@ -92,27 +91,22 @@ const Dashboard: React.FC<DashboardProps> = ({
   const [isFilterCollapsed, setIsFilterCollapsed] = useState(true);
   const [showTrainerComparison, setShowTrainerComparison] = useState(false);
 
-  // Apply filters and sorting to data, excluding future dates
   useEffect(() => {
     if (!data.length) return;
 
-    // First, filter out future classes
     const today = new Date();
     let result = data.filter(item => {
-      // Check if the class date is in the past or today
       if (item.period) {
         const [month, year] = item.period.split('-');
         const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
         const monthIndex = months.indexOf(month);
-        const fullYear = 2000 + parseInt(year); // Assuming years are in format '22' for 2022
-        
+        const fullYear = 2000 + parseInt(year);
         const periodDate = new Date(fullYear, monthIndex);
-        return periodDate <= today; // Only include past or current periods
+        return periodDate <= today;
       }
-      return true; // Include items without period data
+      return true;
     });
-    
-    // Apply search query
+
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
       result = result.filter(item => 
@@ -121,12 +115,10 @@ const Dashboard: React.FC<DashboardProps> = ({
         )
       );
     }
-    
-    // Apply filters
+
     if (filters.length > 0) {
       result = result.filter(item => {
         return filters.every(filter => {
-          // Special case for period with OR logic
           if (filter.field === 'period' && filter.operator === 'in') {
             const selectedPeriods = filter.value.split(',');
             return selectedPeriods.some(period => item.period === period);
@@ -153,15 +145,13 @@ const Dashboard: React.FC<DashboardProps> = ({
         });
       });
     }
-    
-    // Apply sorting
+
     if (sortOptions.length > 0) {
       result.sort((a, b) => {
         for (const sort of sortOptions) {
           const valueA = a[sort.field];
           const valueB = b[sort.field];
           
-          // Determine if the values are numeric
           const isNumeric = !isNaN(Number(valueA)) && !isNaN(Number(valueB));
           
           let comparison = 0;
@@ -195,7 +185,6 @@ const Dashboard: React.FC<DashboardProps> = ({
     if (format === 'csv') {
       exportToCSV(filteredData);
     } else if (format === 'json') {
-      // Export as JSON
       const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(filteredData, null, 2));
       const downloadAnchorNode = document.createElement('a');
       downloadAnchorNode.setAttribute("href", dataStr);
@@ -204,7 +193,6 @@ const Dashboard: React.FC<DashboardProps> = ({
       downloadAnchorNode.click();
       downloadAnchorNode.remove();
     } else if (format === 'excel') {
-      // CSV format that Excel can open
       exportToCSV(filteredData);
     }
   };
