@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { ProcessedData } from '@/types/data';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -149,7 +148,7 @@ const PivotView: React.FC<PivotViewProps> = ({ data, trainerAvatars }) => {
     
     if (metric === 'totalRevenue') {
       return formatIndianCurrency(value);
-    } else if (metric === 'classAverageExcludingEmpty' || metric === 'classAverageIncludingEmpty') {
+    } else if (['classAverageIncludingEmpty', 'classAverageExcludingEmpty'].includes(metric as string)) {
       return value.toFixed(1);
     } else {
       return value.toLocaleString();
@@ -312,7 +311,7 @@ const PivotView: React.FC<PivotViewProps> = ({ data, trainerAvatars }) => {
     
     toast({
       title: "Configuration saved",
-      description: `"${newConfigName.trim()}" has been saved to your pivot views`
+      description: `"${newConfigName.trim()}" has been saved to your pivot views"
     });
   };
 
@@ -631,7 +630,6 @@ const PivotView: React.FC<PivotViewProps> = ({ data, trainerAvatars }) => {
               <div className="space-y-2">
                 <Label htmlFor="rowDimension">Row Dimension</Label>
                 <Select 
-                  id="rowDimension" 
                   value={activeConfig.rowDimension} 
                   onValueChange={(value) => setActiveConfig({
                     ...activeConfig,
@@ -652,7 +650,6 @@ const PivotView: React.FC<PivotViewProps> = ({ data, trainerAvatars }) => {
               <div className="space-y-2">
                 <Label htmlFor="colDimension">Column Dimension</Label>
                 <Select 
-                  id="colDimension" 
                   value={activeConfig.colDimension} 
                   onValueChange={(value) => setActiveConfig({
                     ...activeConfig,
@@ -673,7 +670,6 @@ const PivotView: React.FC<PivotViewProps> = ({ data, trainerAvatars }) => {
               <div className="space-y-2">
                 <Label htmlFor="metric">Metric</Label>
                 <Select 
-                  id="metric" 
                   value={activeConfig.metric} 
                   onValueChange={(value) => setActiveConfig({
                     ...activeConfig,
@@ -694,7 +690,6 @@ const PivotView: React.FC<PivotViewProps> = ({ data, trainerAvatars }) => {
               <div className="space-y-2">
                 <Label htmlFor="valueDisplay">Value Display</Label>
                 <Select 
-                  id="valueDisplay" 
                   value={activeConfig.valueDisplay} 
                   onValueChange={(value) => setActiveConfig({
                     ...activeConfig,

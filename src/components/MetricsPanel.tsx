@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { ProcessedData } from '@/types/data';
 import { Card, CardContent } from '@/components/ui/card';
@@ -136,7 +135,7 @@ const MetricsPanel: React.FC<MetricsPanelProps> = ({ data }) => {
             <div>
               <p className="text-sm font-medium text-purple-800 dark:text-purple-300">Total Check-ins</p>
               <h3 className="text-2xl font-bold text-purple-900 dark:text-purple-100 mt-1">
-                <CountUp end={totalCheckins} separator="," duration={1.5} />
+                <CountUp end={totalCheckins} duration={2} />
               </h3>
               <p className="text-xs text-purple-700 dark:text-purple-400 mt-1">
                 <span className="font-medium">{averageClassSize}</span> per class
@@ -194,7 +193,7 @@ const MetricsPanel: React.FC<MetricsPanelProps> = ({ data }) => {
             <div>
               <p className="text-sm font-medium text-blue-800 dark:text-blue-300">Total Classes</p>
               <h3 className="text-2xl font-bold text-blue-900 dark:text-blue-100 mt-1">
-                <CountUp end={totalClasses} separator="," duration={1.5} />
+                <CountUp end={totalClasses} duration={2} />
               </h3>
               <p className="text-xs text-blue-700 dark:text-blue-400 mt-1">
                 <span className="font-medium">{occupancyRate}%</span> occupancy rate
@@ -223,7 +222,7 @@ const MetricsPanel: React.FC<MetricsPanelProps> = ({ data }) => {
             <div>
               <p className="text-sm font-medium text-amber-800 dark:text-amber-300">Cancellations</p>
               <h3 className="text-2xl font-bold text-amber-900 dark:text-amber-100 mt-1">
-                <CountUp end={totalCancellations} separator="," duration={1.5} />
+                <CountUp end={totalCancellations} duration={2} />
               </h3>
               <p className="text-xs text-amber-700 dark:text-amber-400 mt-1">
                 <span className="font-medium">{cancellationRate}%</span> of total classes

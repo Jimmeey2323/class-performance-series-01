@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { FilterOption, SortOption, ProcessedData } from '@/types/data';
 import { Input } from '@/components/ui/input';
@@ -22,7 +21,7 @@ const TableFilterPanel: React.FC<TableFilterPanelProps> = ({ onFilterChange, onS
   const [newSort, setNewSort] = useState<SortOption>({ field: 'totalCheckins', direction: 'desc' });
 
   // Operators based on field type
-  const getOperatorsForField = (field: string) => {
+  const getOperatorsForField = (field: keyof ProcessedData): { value: FilterOption['operator']; label: string }[] => {
     const numericFields = ['totalCheckins', 'totalRevenue', 'totalCancelled', 'totalOccurrences'];
     const dateFields = ['date', 'period'];
     
@@ -44,6 +43,7 @@ const TableFilterPanel: React.FC<TableFilterPanelProps> = ({ onFilterChange, onS
         { value: 'equals', label: 'Equals' },
         { value: 'starts', label: 'Starts with' },
         { value: 'ends', label: 'Ends with' },
+        { value: 'in', label: 'In' },
       ];
     }
   };

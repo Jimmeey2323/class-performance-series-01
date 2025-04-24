@@ -1,792 +1,889 @@
-
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ProcessedData } from '@/types/data';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
-import { formatIndianCurrency } from './MetricsPanel';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Save, Download, Edit, Settings, ArrowDown, ArrowUp } from 'lucide-react';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { formatIndianCurrency } from '../MetricsPanel';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
-import { Switch } from '@/components/ui/switch';
-import {
-  DropdownMenu,
-  DropdownMenuTrigger,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-} from '@/components/ui/dropdown-menu';
-import { cn } from '@/lib/utils';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
+import { ChevronDown, ChevronUp, Save, FileDown, Trash, Plus, X, Bookmark, Settings, Download, Filter, LayoutGrid, BarChart3, RefreshCw } from 'lucide-react';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
+import { toast } from '@/components/ui/use-toast';
 
-interface PivotTableProps {
+interface PivotViewProps {
   data: ProcessedData[];
+  trainerAvatars: Record<string, string>;
 }
+
+type PivotDimension = 'cleanedClass' | 'teacherName' | 'location' | 'dayOfWeek' | 'period' | 'time' | 'month' | 'quarter' | 'year';
+type PivotMetric = 'totalCheckins' | 'totalRevenue' | 'totalOccurrences' | 'classAverageExcludingEmpty' | 'totalCancelled' | 'totalEmpty';
 
 interface PivotConfig {
   id: string;
   name: string;
-  rowField: keyof ProcessedData;
-  colField: keyof ProcessedData;
-  valueField: keyof ProcessedData;
-  aggregation: 'sum' | 'avg' | 'count' | 'min' | 'max';
-  groupRowsBy?: 'none' | 'month' | 'quarter' | 'year' | 'day';
-  groupColsBy?: 'none' | 'month' | 'quarter' | 'year' | 'day';
+  rowDimension: PivotDimension;
+  colDimension: PivotDimension;
+  metric: PivotMetric;
   showTotals: boolean;
-  showAverage: boolean;
-  sortOrder: 'asc' | 'desc' | 'none';
-  sortBy: 'row' | 'value';
+  showPercentages: boolean;
+  dateGrouping: 'none' | 'month' | 'quarter' | 'year';
+  valueDisplay: 'raw' | 'formatted';
+  colorIntensity: boolean;
 }
 
-const DEFAULT_CONFIG: PivotConfig = {
-  id: 'default',
-  name: 'Default View',
-  rowField: 'cleanedClass',
-  colField: 'dayOfWeek',
-  valueField: 'totalCheckins',
-  aggregation: 'sum',
-  groupRowsBy: 'none',
-  groupColsBy: 'none',
-  showTotals: true,
-  showAverage: false,
-  sortOrder: 'desc',
-  sortBy: 'value'
-};
-
-// Helper function to group values by period
-const groupByPeriod = (value: string, groupBy: string): string => {
-  if (!value || groupBy === 'none') return value;
-  
-  if (groupBy === 'month') {
-    // For period like 'Jan-23', just return as is
-    return value;
-  } else if (groupBy === 'quarter') {
-    // For period like 'Jan-23', convert to 'Q1 2023'
-    if (value.includes('-')) {
-      const [month, year] = value.split('-');
-      const monthIndex = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'].indexOf(month);
-      const quarter = Math.floor(monthIndex / 3) + 1;
-      return `Q${quarter} 20${year}`;
-    }
-    return value;
-  } else if (groupBy === 'year') {
-    // For period like 'Jan-23', extract year
-    if (value.includes('-')) {
-      const [_, year] = value.split('-');
-      return `20${year}`;
-    }
-    return value;
-  } else if (groupBy === 'day') {
-    // For dayOfWeek, group by weekday/weekend
-    if (['Saturday', 'Sunday'].includes(value)) {
-      return 'Weekend';
-    } else {
-      return 'Weekday';
-    }
-  }
-  
-  return value;
-};
-
-// Format value for display based on field type
-const formatValue = (value: number, field: keyof ProcessedData): string => {
-  if (field === 'totalRevenue') {
-    return formatIndianCurrency(value);
-  } else if (field === 'classAverageIncludingEmpty' || field === 'classAverageExcludingEmpty') {
-    return value.toFixed(1);
-  } else {
-    return value.toLocaleString();
+// Helper functions for time periods
+const getMonthFromDate = (dateStr: string): string => {
+  try {
+    const date = new Date(dateStr.split(',')[0]);
+    return date.toLocaleString('default', { month: 'short', year: 'numeric' });
+  } catch (e) {
+    return 'Unknown';
   }
 };
 
-// Get cell color based on value and range
-const getCellColor = (value: number, max: number): string => {
-  if (value === 0) return '';
-  
-  const intensity = Math.min(Math.max(value / max, 0.1), 1);
-  
-  // Use a color scale from light to dark
-  return `rgba(79, 70, 229, ${intensity * 0.2}) dark:bg-indigo-900/20`;
+const getQuarterFromDate = (dateStr: string): string => {
+  try {
+    const date = new Date(dateStr.split(',')[0]);
+    const quarter = Math.floor(date.getMonth() / 3) + 1;
+    return `Q${quarter} ${date.getFullYear()}`;
+  } catch (e) {
+    return 'Unknown';
+  }
 };
 
-const PivotTable: React.FC<PivotTableProps> = ({ data }) => {
-  const [savedConfigs, setSavedConfigs] = useLocalStorage<PivotConfig[]>('pivot-table-configs', [DEFAULT_CONFIG]);
-  const [activeConfigId, setActiveConfigId] = useState<string>(savedConfigs[0]?.id || 'default');
+const getYearFromDate = (dateStr: string): string => {
+  try {
+    const date = new Date(dateStr.split(',')[0]);
+    return date.getFullYear().toString();
+  } catch (e) {
+    return 'Unknown';
+  }
+};
+
+const PivotView: React.FC<PivotViewProps> = ({ data, trainerAvatars }) => {
+  // Default pivot configuration
+  const defaultPivotConfig: PivotConfig = {
+    id: 'default',
+    name: 'Default View',
+    rowDimension: 'cleanedClass',
+    colDimension: 'dayOfWeek',
+    metric: 'totalCheckins',
+    showTotals: true,
+    showPercentages: false,
+    dateGrouping: 'none',
+    valueDisplay: 'raw',
+    colorIntensity: true,
+  };
+
+  // Load saved configurations from localStorage
+  const [savedConfigs, setSavedConfigs] = useLocalStorage<PivotConfig[]>('class-analytics-pivot-configs', [defaultPivotConfig]);
+  
+  const [activeConfig, setActiveConfig] = useState<PivotConfig>(defaultPivotConfig);
   const [newConfigName, setNewConfigName] = useState('');
-  const [isEditMode, setIsEditMode] = useState(false);
-  const [showDialog, setShowDialog] = useState(false);
+  const [showSaveDialog, setShowSaveDialog] = useState(false);
+  const [editMode, setEditMode] = useState(false);
+  const [sortColumn, setSortColumn] = useState<string | null>(null);
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
+  const [minimumValue, setMinimumValue] = useState<number | null>(null);
   
-  // Find active config
-  const activeConfig = savedConfigs.find(config => config.id === activeConfigId) || DEFAULT_CONFIG;
-  
-  // Current editable config
-  const [currentConfig, setCurrentConfig] = useState<PivotConfig>({...activeConfig});
+  const [filterMode, setFilterMode] = useState<'off' | 'exclude' | 'include'>('off');
+  const [selectedFilters, setSelectedFilters] = useState<Record<string, boolean>>({});
+  const [filterField, setFilterField] = useState<PivotDimension>('cleanedClass');
 
-  // Update config when active config changes
-  React.useEffect(() => {
-    setCurrentConfig({...activeConfig});
-  }, [activeConfig]);
-  
-  // Available fields for pivot
-  const rowFields = [
+  // Set active config on load
+  useEffect(() => {
+    if (savedConfigs.length > 0) {
+      setActiveConfig(savedConfigs[0]);
+    }
+  }, [savedConfigs]);
+
+  // Enhanced dimension options including time periods
+  const dimensionOptions = [
     { value: 'cleanedClass', label: 'Class Type' },
     { value: 'teacherName', label: 'Instructor' },
     { value: 'location', label: 'Location' },
     { value: 'dayOfWeek', label: 'Day of Week' },
-    { value: 'period', label: 'Period' }
-  ];
-  
-  const colFields = [
-    { value: 'dayOfWeek', label: 'Day of Week' },
     { value: 'period', label: 'Period' },
-    { value: 'location', label: 'Location' },
-    { value: 'teacherName', label: 'Instructor' },
-    { value: 'cleanedClass', label: 'Class Type' }
-  ];
-  
-  const valueFields = [
-    { value: 'totalCheckins', label: 'Check-ins' },
-    { value: 'totalRevenue', label: 'Revenue' },
-    { value: 'totalOccurrences', label: 'Classes' },
-    { value: 'totalCancelled', label: 'Cancellations' },
-    { value: 'classAverageIncludingEmpty', label: 'Avg. Attendance (All)' },
-    { value: 'classAverageExcludingEmpty', label: 'Avg. Attendance (Non-empty)' }
-  ];
-  
-  const aggregationOptions = [
-    { value: 'sum', label: 'Sum' },
-    { value: 'avg', label: 'Average' },
-    { value: 'count', label: 'Count' },
-    { value: 'min', label: 'Minimum' },
-    { value: 'max', label: 'Maximum' }
-  ];
-  
-  const groupingOptions = [
-    { value: 'none', label: 'No Grouping' },
     { value: 'month', label: 'Month' },
     { value: 'quarter', label: 'Quarter' },
     { value: 'year', label: 'Year' },
-    { value: 'day', label: 'Weekday/Weekend' }
+    { value: 'time', label: 'Time' },
   ];
-  
-  // Generate pivot table data
-  const pivotData = useMemo(() => {
-    if (!data || data.length === 0) return { rows: [], cols: [], data: {}, totals: {}, maxValue: 0 };
-    
-    const config = isEditMode ? currentConfig : activeConfig;
-    const { rowField, colField, valueField, aggregation, groupRowsBy, groupColsBy, sortBy, sortOrder } = config;
-    
-    // Step 1: Group the data by row and column dimensions
-    const groupedData: Record<string, Record<string, number[]>> = {};
-    const rowValues = new Set<string>();
-    const colValues = new Set<string>();
-    
-    // Preprocess data
-    data.forEach(item => {
-      const rowValue = String(item[rowField] || 'Unknown');
-      const colValue = String(item[colField] || 'Unknown');
-      const value = Number(item[valueField] || 0);
-      
-      // Apply grouping if specified
-      const groupedRowValue = groupByPeriod(rowValue, groupRowsBy || 'none');
-      const groupedColValue = groupByPeriod(colValue, groupColsBy || 'none');
-      
-      rowValues.add(groupedRowValue);
-      colValues.add(groupedColValue);
-      
-      if (!groupedData[groupedRowValue]) {
-        groupedData[groupedRowValue] = {};
-      }
-      
-      if (!groupedData[groupedRowValue][groupedColValue]) {
-        groupedData[groupedRowValue][groupedColValue] = [];
-      }
-      
-      groupedData[groupedRowValue][groupedColValue].push(value);
-    });
-    
-    // Step 2: Apply aggregation function to each cell
-    const aggregatedData: Record<string, Record<string, number>> = {};
-    let maxValue = 0;
-    
-    Object.entries(groupedData).forEach(([row, columns]) => {
-      aggregatedData[row] = {};
-      
-      Object.entries(columns).forEach(([col, values]) => {
-        let aggregatedValue: number;
-        
-        switch (aggregation) {
-          case 'sum':
-            aggregatedValue = values.reduce((sum, val) => sum + val, 0);
-            break;
-          case 'avg':
-            aggregatedValue = values.reduce((sum, val) => sum + val, 0) / values.length;
-            break;
-          case 'count':
-            aggregatedValue = values.length;
-            break;
-          case 'min':
-            aggregatedValue = Math.min(...values);
-            break;
-          case 'max':
-            aggregatedValue = Math.max(...values);
-            break;
-          default:
-            aggregatedValue = values.reduce((sum, val) => sum + val, 0);
-        }
-        
-        aggregatedData[row][col] = aggregatedValue;
-        
-        if (aggregatedValue > maxValue) {
-          maxValue = aggregatedValue;
-        }
-      });
-    });
-    
-    // Step 3: Calculate row and column totals
-    const rowTotals: Record<string, number> = {};
-    const colTotals: Record<string, number> = {};
-    
-    // Array of all row and column values
-    let rows = Array.from(rowValues);
-    let cols = Array.from(colValues);
-    
-    // Sort columns by day of week if it's the column field
-    if (colField === 'dayOfWeek' && !groupColsBy) {
-      const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-      cols = cols.sort((a, b) => days.indexOf(a) - days.indexOf(b));
+
+  const metricOptions = [
+    { value: 'totalCheckins', label: 'Check-ins' },
+    { value: 'totalRevenue', label: 'Revenue' },
+    { value: 'totalOccurrences', label: 'Classes' },
+    { value: 'classAverageExcludingEmpty', label: 'Avg. Attendance' },
+    { value: 'totalCancelled', label: 'Cancellations' },
+    { value: 'totalEmpty', label: 'Empty Classes' },
+  ];
+
+  // Get dimension value based on current date grouping setting
+  const getDimensionValue = (item: ProcessedData, dimension: PivotDimension): string => {
+    if (dimension === 'month') {
+      return getMonthFromDate(item.date || '');
+    } else if (dimension === 'quarter') {
+      return getQuarterFromDate(item.date || '');
+    } else if (dimension === 'year') {
+      return getYearFromDate(item.date || '');
+    } else if (dimension === 'time') {
+      return item.classTime || 'Unknown';
+    } else {
+      return String(item[dimension] || 'Unknown');
+    }
+  };
+
+  // Format cell values based on the metric
+  const formatCellValue = (value: number, metric: PivotMetric): string => {
+    if (activeConfig.valueDisplay === 'raw') {
+      return value.toString();
     }
     
-    // Calculate row totals
-    rows.forEach(row => {
-      let total = 0;
-      let count = 0;
-      
-      cols.forEach(col => {
-        if (aggregatedData[row] && aggregatedData[row][col] !== undefined) {
-          total += aggregatedData[row][col];
-          count++;
-        }
-      });
-      
-      rowTotals[row] = aggregation === 'avg' && count > 0 ? total / count : total;
-    });
+    if (metric === 'totalRevenue') {
+      return formatIndianCurrency(value);
+    } else if (metric === 'classAverageExcludingEmpty' || metric === 'classAverageIncludingEmpty') {
+      return value.toFixed(1);
+    } else {
+      return value.toLocaleString();
+    }
+  };
+
+  // Process data for pivot table
+  const pivotData = React.useMemo(() => {
+    const rows = new Map<string, Map<string, number>>();
+    const rowTotals = new Map<string, number>();
+    const colTotals = new Map<string, number>();
+    const colValues = new Set<string>();
+    let grandTotal = 0;
     
-    // Calculate column totals
-    cols.forEach(col => {
-      let total = 0;
-      let count = 0;
-      
-      rows.forEach(row => {
-        if (aggregatedData[row] && aggregatedData[row][col] !== undefined) {
-          total += aggregatedData[row][col];
-          count++;
-        }
-      });
-      
-      colTotals[col] = aggregation === 'avg' && count > 0 ? total / count : total;
-    });
+    // Apply date grouping if needed
+    let processedData = [...data];
     
-    // Step 4: Sort rows based on sort options
-    if (sortOrder !== 'none') {
-      if (sortBy === 'row') {
-        // Sort alphabetically by row name
-        rows = rows.sort((a, b) => sortOrder === 'asc' ? a.localeCompare(b) : b.localeCompare(a));
+    // Apply filters
+    if (filterMode !== 'off' && Object.keys(selectedFilters).length > 0) {
+      processedData = processedData.filter(item => {
+        const value = getDimensionValue(item, filterField);
+        if (filterMode === 'include') {
+          return selectedFilters[value];
+        } else if (filterMode === 'exclude') {
+          return !selectedFilters[value];
+        }
+        return true;
+      });
+    }
+
+    // Aggregate data
+    processedData.forEach(item => {
+      const rowValue = getDimensionValue(item, activeConfig.rowDimension);
+      const colValue = getDimensionValue(item, activeConfig.colDimension);
+      
+      // Add column value to set of all column values
+      colValues.add(colValue);
+      
+      // Get the metric value
+      let value: number;
+      if (typeof item[activeConfig.metric] === 'string') {
+        value = parseFloat(String(item[activeConfig.metric]));
+        if (isNaN(value)) value = 0;
       } else {
-        // Sort by row totals
-        rows = rows.sort((a, b) => {
-          const aTotal = rowTotals[a] || 0;
-          const bTotal = rowTotals[b] || 0;
-          return sortOrder === 'asc' ? aTotal - bTotal : bTotal - aTotal;
+        value = Number(item[activeConfig.metric] || 0);
+      }
+
+      // Initialize row if needed
+      if (!rows.has(rowValue)) {
+        rows.set(rowValue, new Map<string, number>());
+      }
+      
+      // Initialize cell if needed
+      const row = rows.get(rowValue)!;
+      if (!row.has(colValue)) {
+        row.set(colValue, 0);
+      }
+      
+      // Update cell value
+      row.set(colValue, row.get(colValue)! + value);
+      
+      // Update row total
+      if (!rowTotals.has(rowValue)) {
+        rowTotals.set(rowValue, 0);
+      }
+      rowTotals.set(rowValue, rowTotals.get(rowValue)! + value);
+      
+      // Update column total
+      if (!colTotals.has(colValue)) {
+        colTotals.set(colValue, 0);
+      }
+      colTotals.set(colValue, colTotals.get(colValue)! + value);
+      
+      // Update grand total
+      grandTotal += value;
+    });
+    
+    // Sort columns alphabetically (except for days of week)
+    let sortedCols = Array.from(colValues);
+    if (activeConfig.colDimension === 'dayOfWeek') {
+      const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+      sortedCols = sortedCols.sort((a, b) => {
+        const indexA = days.indexOf(a);
+        const indexB = days.indexOf(b);
+        return indexA - indexB;
+      });
+    } else {
+      sortedCols.sort();
+    }
+    
+    // Convert to sorted array of rows for rendering
+    let rowEntries = Array.from(rows.entries());
+    
+    // Apply sort if specified
+    if (sortColumn) {
+      if (sortColumn === 'row') {
+        rowEntries.sort(([rowA], [rowB]) => {
+          const valueA = rowTotals.get(rowA) || 0;
+          const valueB = rowTotals.get(rowB) || 0;
+          return sortDirection === 'desc' ? valueB - valueA : valueA - valueB;
+        });
+      } else if (sortColumn === 'total') {
+        rowEntries.sort(([rowA], [rowB]) => {
+          const valueA = rowTotals.get(rowA) || 0;
+          const valueB = rowTotals.get(rowB) || 0;
+          return sortDirection === 'desc' ? valueB - valueA : valueA - valueB;
+        });
+      } else {
+        rowEntries.sort(([rowA, cellsA], [rowB, cellsB]) => {
+          const valueA = cellsA.get(sortColumn) || 0;
+          const valueB = cellsB.get(sortColumn) || 0;
+          return sortDirection === 'desc' ? valueB - valueA : valueA - valueB;
         });
       }
     }
+
+    // Filter by minimum value if specified
+    if (minimumValue !== null) {
+      rowEntries = rowEntries.filter(([rowKey, cells]) => {
+        return rowTotals.get(rowKey)! >= minimumValue;
+      });
+    }
+
+    // Find max values for color intensity
+    const maxValue = Math.max(...Array.from(rowTotals.values()));
+    const maxColValue = Math.max(...Array.from(colTotals.values()));
     
     return {
-      rows,
-      cols,
-      data: aggregatedData,
+      rows: rowEntries,
+      columns: sortedCols,
       rowTotals,
       colTotals,
-      maxValue
+      grandTotal,
+      maxValue,
+      maxColValue
     };
-  }, [data, activeConfig, currentConfig, isEditMode]);
+  }, [data, activeConfig, sortColumn, sortDirection, minimumValue, filterMode, selectedFilters, filterField]);
 
-  // Handle save config
-  const handleSaveConfig = () => {
-    if (!newConfigName) return;
+  // Save current configuration
+  const saveCurrentConfig = () => {
+    if (!newConfigName.trim()) {
+      toast({
+        title: "Error",
+        description: "Please enter a name for this configuration",
+        variant: "destructive"
+      });
+      return;
+    }
     
     const newConfig = {
-      ...currentConfig,
+      ...activeConfig,
       id: `config-${Date.now()}`,
-      name: newConfigName
+      name: newConfigName.trim()
     };
     
-    const updatedConfigs = [...savedConfigs, newConfig];
-    setSavedConfigs(updatedConfigs);
-    setActiveConfigId(newConfig.id);
+    setSavedConfigs([...savedConfigs, newConfig]);
+    setActiveConfig(newConfig);
     setNewConfigName('');
-    setShowDialog(false);
-  };
-  
-  // Handle update config
-  const handleUpdateConfig = () => {
-    const updatedConfigs = savedConfigs.map(config => 
-      config.id === activeConfigId ? currentConfig : config
-    );
+    setShowSaveDialog(false);
     
-    setSavedConfigs(updatedConfigs);
-    setIsEditMode(false);
+    toast({
+      title: "Configuration saved",
+      description: `"${newConfigName.trim()}" has been saved to your pivot views`
+    });
   };
 
-  // Handle delete config
-  const handleDeleteConfig = (id: string) => {
-    if (savedConfigs.length <= 1) return;
+  // Delete a saved configuration
+  const deleteConfig = (id: string) => {
+    const newConfigs = savedConfigs.filter(config => config.id !== id);
+    setSavedConfigs(newConfigs);
     
-    const updatedConfigs = savedConfigs.filter(config => config.id !== id);
-    setSavedConfigs(updatedConfigs);
-    
-    if (activeConfigId === id) {
-      setActiveConfigId(updatedConfigs[0].id);
+    // If current config was deleted, switch to default
+    if (activeConfig.id === id) {
+      setActiveConfig(newConfigs.length > 0 ? newConfigs[0] : defaultPivotConfig);
     }
+    
+    toast({
+      title: "Configuration deleted",
+      description: "The pivot view configuration has been removed"
+    });
   };
 
-  // Export to CSV
-  const exportToCSV = () => {
-    const { rows, cols, data, rowTotals, colTotals } = pivotData;
-    const config = isEditMode ? currentConfig : activeConfig;
-    
-    let csvContent = 'data:text/csv;charset=utf-8,';
-    
-    // Headers
-    csvContent += `${config.rowField} / ${config.colField},${cols.join(',')},Total\n`;
-    
-    // Rows
-    rows.forEach(row => {
-      csvContent += `${row},`;
-      
-      cols.forEach(col => {
-        const value = data[row] && data[row][col] !== undefined ? data[row][col] : '';
-        csvContent += `${value},`;
-      });
-      
-      csvContent += `${rowTotals[row]}\n`;
+  // Export pivot data as CSV
+  const exportPivotData = () => {
+    const headers = ['Row', ...pivotData.columns, 'Total'];
+    const rows = pivotData.rows.map(([rowKey, cells]) => {
+      return [
+        rowKey,
+        ...pivotData.columns.map(col => cells.get(col) || 0),
+        pivotData.rowTotals.get(rowKey) || 0
+      ];
     });
     
-    // Totals row
-    csvContent += 'Total,';
-    cols.forEach(col => {
-      csvContent += `${colTotals[col]},`;
-    });
+    // Add totals row
+    const totalsRow = [
+      'Total',
+      ...pivotData.columns.map(col => pivotData.colTotals.get(col) || 0),
+      pivotData.grandTotal
+    ];
     
-    // Calculate grand total
-    const grandTotal = Object.values(rowTotals).reduce((sum, val) => sum + val, 0);
-    csvContent += `${grandTotal}\n`;
+    // Convert to CSV
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row => row.join(',')),
+      totalsRow.join(',')
+    ].join('\n');
     
     // Create download link
-    const encodedUri = encodeURI(csvContent);
+    const encodedUri = encodeURI('data:text/csv;charset=utf-8,' + csvContent);
     const link = document.createElement('a');
     link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `pivot-table-${config.name.toLowerCase().replace(/\s+/g, '-')}.csv`);
+    link.setAttribute('download', `pivot-${activeConfig.rowDimension}-${activeConfig.colDimension}-${activeConfig.metric}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    
+    toast({
+      title: "Export successful",
+      description: "Pivot table data has been exported to CSV"
+    });
   };
+
+  // Get unique values for filtering
+  const getFilterValues = React.useMemo(() => {
+    const values = new Set<string>();
+    
+    data.forEach(item => {
+      const value = getDimensionValue(item, filterField);
+      values.add(value);
+    });
+    
+    return Array.from(values).sort();
+  }, [data, filterField]);
   
+  // Initialize filter selections
+  useEffect(() => {
+    const initialSelections: Record<string, boolean> = {};
+    getFilterValues.forEach(value => {
+      initialSelections[value] = false;
+    });
+    setSelectedFilters(initialSelections);
+  }, [filterField, getFilterValues]);
+
+  // Toggle all filters
+  const toggleAllFilters = (checked: boolean) => {
+    const newSelections = { ...selectedFilters };
+    Object.keys(newSelections).forEach(key => {
+      newSelections[key] = checked;
+    });
+    setSelectedFilters(newSelections);
+  };
+
+  // Count selected filters
+  const selectedFilterCount = Object.values(selectedFilters).filter(Boolean).length;
+
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap gap-4 justify-between items-center">
+      <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
         <div className="flex items-center gap-2">
-          <h3 className="text-lg font-medium">Pivot Table</h3>
-          <Badge variant="outline" className="font-normal">
-            {activeConfig.name}
-          </Badge>
+          <LayoutGrid className="h-5 w-5 text-muted-foreground" />
+          <h2 className="text-xl font-semibold">Pivot Table Analysis</h2>
         </div>
         
-        <div className="flex flex-wrap gap-2">
-          {isEditMode ? (
-            <>
-              <Button onClick={handleUpdateConfig} size="sm" variant="default">
-                Save Changes
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Saved configurations dropdown */}
+          <Select value={activeConfig.id} onValueChange={(value) => {
+            const selected = savedConfigs.find(c => c.id === value);
+            if (selected) setActiveConfig(selected);
+          }}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Select view" />
+            </SelectTrigger>
+            <SelectContent>
+              {savedConfigs.map((config) => (
+                <SelectItem key={config.id} value={config.id}>
+                  <div className="flex items-center">
+                    <span>{config.name}</span>
+                  </div>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          
+          {/* Save configuration button */}
+          <Dialog open={showSaveDialog} onOpenChange={setShowSaveDialog}>
+            <DialogTrigger asChild>
+              <Button variant="outline" size="sm">
+                <Save className="h-4 w-4 mr-2" />
+                Save View
               </Button>
-              <Button onClick={() => setIsEditMode(false)} size="sm" variant="outline">
-                Cancel
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Save Pivot View Configuration</DialogTitle>
+                <DialogDescription>
+                  Save your current pivot table settings for easy access later
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 py-4">
+                <div className="space-y-2">
+                  <Label htmlFor="configName">Configuration Name</Label>
+                  <Input
+                    id="configName"
+                    placeholder="e.g., Revenue by Class and Instructor"
+                    value={newConfigName}
+                    onChange={(e) => setNewConfigName(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <Label>Current Settings</Label>
+                  <ul className="mt-2 text-sm space-y-1">
+                    <li><Badge variant="outline" className="mr-2">Rows</Badge> {dimensionOptions.find(d => d.value === activeConfig.rowDimension)?.label}</li>
+                    <li><Badge variant="outline" className="mr-2">Columns</Badge> {dimensionOptions.find(d => d.value === activeConfig.colDimension)?.label}</li>
+                    <li><Badge variant="outline" className="mr-2">Metric</Badge> {metricOptions.find(m => m.value === activeConfig.metric)?.label}</li>
+                  </ul>
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setShowSaveDialog(false)}>Cancel</Button>
+                <Button onClick={saveCurrentConfig}>Save Configuration</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+          
+          {/* Edit mode toggle */}
+          <Button
+            variant={editMode ? "default" : "outline"}
+            size="sm"
+            onClick={() => setEditMode(!editMode)}
+          >
+            <Settings className="h-4 w-4 mr-2" />
+            {editMode ? "Exit Settings" : "Edit Settings"}
+          </Button>
+
+          {/* Export button */}
+          <Button variant="outline" size="sm" onClick={exportPivotData}>
+            <Download className="h-4 w-4 mr-2" />
+            Export
+          </Button>
+
+          {/* Filter button */}
+          <Dialog>
+            <DialogTrigger asChild>
+              <Button variant={filterMode !== 'off' ? "default" : "outline"} size="sm">
+                <Filter className="h-4 w-4 mr-2" />
+                Filter
+                {filterMode !== 'off' && selectedFilterCount > 0 && (
+                  <Badge variant="secondary" className="ml-2">{selectedFilterCount}</Badge>
+                )}
               </Button>
-            </>
-          ) : (
-            <>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm">
-                    <Settings className="mr-2 h-4 w-4" />
-                    Views
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56">
-                  <DropdownMenuLabel>Saved Views</DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  {savedConfigs.map((config) => (
-                    <DropdownMenuItem 
-                      key={config.id}
-                      className="flex justify-between"
-                      onSelect={() => setActiveConfigId(config.id)}
-                    >
-                      <span className={cn(activeConfigId === config.id ? 'font-medium' : '')}>
-                        {config.name}
-                      </span>
-                      {savedConfigs.length > 1 && activeConfigId !== config.id && (
+            </DialogTrigger>
+            <DialogContent className="max-w-2xl">
+              <DialogHeader>
+                <DialogTitle>Filter Pivot Data</DialogTitle>
+                <DialogDescription>
+                  Include or exclude specific values from your pivot table
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 py-4">
+                <div className="flex gap-4">
+                  <div className="space-y-2 flex-1">
+                    <Label>Filter Mode</Label>
+                    <Select value={filterMode} onValueChange={(value) => setFilterMode(value as 'off' | 'include' | 'exclude')}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select filter mode" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="off">No Filtering</SelectItem>
+                        <SelectItem value="include">Include Only</SelectItem>
+                        <SelectItem value="exclude">Exclude</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  <div className="space-y-2 flex-1">
+                    <Label>Filter Field</Label>
+                    <Select value={filterField} onValueChange={(value) => setFilterField(value as PivotDimension)}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select field" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {dimensionOptions.map(option => (
+                          <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                
+                {filterMode !== 'off' && (
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                      <Label>Filter Values</Label>
+                      <div className="flex gap-2">
                         <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          className="h-4 w-4" 
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDeleteConfig(config.id);
-                          }}
+                          variant="outline" 
+                          size="sm" 
+                          onClick={() => toggleAllFilters(true)}
                         >
-                          <X className="h-3 w-3" />
+                          Select All
                         </Button>
-                      )}
-                    </DropdownMenuItem>
-                  ))}
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onSelect={() => setShowDialog(true)}>
-                    <Save className="mr-2 h-4 w-4" />
-                    Save Current View
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onSelect={() => setIsEditMode(true)}>
-                    <Edit className="mr-2 h-4 w-4" />
-                    Customize Current View
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-              
-              <Button onClick={() => exportToCSV()} size="sm" variant="outline">
-                <Download className="mr-2 h-4 w-4" />
-                Export
-              </Button>
-              
-              <Button onClick={() => setIsEditMode(true)} size="sm" variant="outline">
-                <Edit className="mr-2 h-4 w-4" />
-                Edit
-              </Button>
-            </>
-          )}
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          onClick={() => toggleAllFilters(false)}
+                        >
+                          Clear All
+                        </Button>
+                      </div>
+                    </div>
+                    
+                    <ScrollArea className="h-64 border rounded-md p-4">
+                      <div className="space-y-2">
+                        {getFilterValues.map((value) => (
+                          <div key={value} className="flex items-center space-x-2">
+                            <Checkbox 
+                              id={`filter-${value}`} 
+                              checked={selectedFilters[value] || false}
+                              onCheckedChange={(checked) => {
+                                setSelectedFilters({
+                                  ...selectedFilters,
+                                  [value]: checked === true
+                                });
+                              }}
+                            />
+                            <Label htmlFor={`filter-${value}`}>{value}</Label>
+                          </div>
+                        ))}
+                      </div>
+                    </ScrollArea>
+                  </div>
+                )}
+                
+                <div className="space-y-2">
+                  <Label htmlFor="minValue">Minimum Value</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      id="minValue"
+                      type="number"
+                      placeholder="No minimum"
+                      value={minimumValue === null ? '' : minimumValue}
+                      onChange={(e) => {
+                        const value = e.target.value === '' ? null : Number(e.target.value);
+                        setMinimumValue(value);
+                      }}
+                    />
+                    {minimumValue !== null && (
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        onClick={() => setMinimumValue(null)}
+                        title="Clear minimum value"
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => {
+                  setFilterMode('off');
+                  setMinimumValue(null);
+                  toggleAllFilters(false);
+                }}>
+                  Reset Filters
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </div>
       </div>
-
-      {isEditMode ? (
-        <Card>
-          <CardContent className="p-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="rowField">Row Dimension</Label>
-                  <Select 
-                    value={currentConfig.rowField as string}
-                    onValueChange={(value) => setCurrentConfig({...currentConfig, rowField: value as keyof ProcessedData})}
-                  >
-                    <SelectTrigger id="rowField">
-                      <SelectValue placeholder="Select row field" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {rowFields.map(field => (
-                        <SelectItem key={field.value} value={field.value}>{field.label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="groupRowsBy">Group Rows By</Label>
-                  <Select 
-                    value={currentConfig.groupRowsBy || 'none'}
-                    onValueChange={(value) => setCurrentConfig({
-                      ...currentConfig, 
-                      groupRowsBy: value as 'none' | 'month' | 'quarter' | 'year' | 'day'
+      
+      {/* Edit configuration panel */}
+      {editMode && (
+        <Card className="mb-4 animate-fade-in bg-muted/30">
+          <CardContent className="pt-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="rowDimension">Row Dimension</Label>
+                <Select 
+                  id="rowDimension" 
+                  value={activeConfig.rowDimension} 
+                  onValueChange={(value) => setActiveConfig({
+                    ...activeConfig,
+                    rowDimension: value as PivotDimension
+                  })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select row dimension" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {dimensionOptions.map(option => (
+                      <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="colDimension">Column Dimension</Label>
+                <Select 
+                  id="colDimension" 
+                  value={activeConfig.colDimension} 
+                  onValueChange={(value) => setActiveConfig({
+                    ...activeConfig,
+                    colDimension: value as PivotDimension
+                  })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select column dimension" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {dimensionOptions.map(option => (
+                      <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="metric">Metric</Label>
+                <Select 
+                  id="metric" 
+                  value={activeConfig.metric} 
+                  onValueChange={(value) => setActiveConfig({
+                    ...activeConfig,
+                    metric: value as PivotMetric
+                  })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select metric" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {metricOptions.map(option => (
+                      <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="valueDisplay">Value Display</Label>
+                <Select 
+                  id="valueDisplay" 
+                  value={activeConfig.valueDisplay} 
+                  onValueChange={(value) => setActiveConfig({
+                    ...activeConfig,
+                    valueDisplay: value as 'raw' | 'formatted'
+                  })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select value display" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="raw">Raw Numbers</SelectItem>
+                    <SelectItem value="formatted">Formatted (Currency, etc.)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div className="space-y-2 flex items-center">
+                <div className="flex items-center space-x-2">
+                  <Checkbox 
+                    id="showTotals" 
+                    checked={activeConfig.showTotals}
+                    onCheckedChange={(checked) => setActiveConfig({
+                      ...activeConfig,
+                      showTotals: checked === true
                     })}
-                  >
-                    <SelectTrigger id="groupRowsBy">
-                      <SelectValue placeholder="Select grouping" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {groupingOptions.map(option => (
-                        <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="colField">Column Dimension</Label>
-                  <Select 
-                    value={currentConfig.colField as string}
-                    onValueChange={(value) => setCurrentConfig({...currentConfig, colField: value as keyof ProcessedData})}
-                  >
-                    <SelectTrigger id="colField">
-                      <SelectValue placeholder="Select column field" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {colFields.map(field => (
-                        <SelectItem key={field.value} value={field.value}>{field.label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="groupColsBy">Group Columns By</Label>
-                  <Select 
-                    value={currentConfig.groupColsBy || 'none'}
-                    onValueChange={(value) => setCurrentConfig({
-                      ...currentConfig, 
-                      groupColsBy: value as 'none' | 'month' | 'quarter' | 'year' | 'day'
-                    })}
-                  >
-                    <SelectTrigger id="groupColsBy">
-                      <SelectValue placeholder="Select grouping" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {groupingOptions.map(option => (
-                        <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  />
+                  <Label htmlFor="showTotals">Show Totals</Label>
                 </div>
               </div>
               
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="valueField">Value Field</Label>
-                  <Select 
-                    value={currentConfig.valueField as string}
-                    onValueChange={(value) => setCurrentConfig({...currentConfig, valueField: value as keyof ProcessedData})}
-                  >
-                    <SelectTrigger id="valueField">
-                      <SelectValue placeholder="Select value field" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {valueFields.map(field => (
-                        <SelectItem key={field.value} value={field.value}>{field.label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="aggregation">Aggregation</Label>
-                  <Select 
-                    value={currentConfig.aggregation}
-                    onValueChange={(value) => setCurrentConfig({
-                      ...currentConfig, 
-                      aggregation: value as 'sum' | 'avg' | 'count' | 'min' | 'max'
+              <div className="space-y-2 flex items-center">
+                <div className="flex items-center space-x-2">
+                  <Checkbox 
+                    id="colorIntensity" 
+                    checked={activeConfig.colorIntensity}
+                    onCheckedChange={(checked) => setActiveConfig({
+                      ...activeConfig,
+                      colorIntensity: checked === true
                     })}
+                  />
+                  <Label htmlFor="colorIntensity">Use Color Intensity</Label>
+                </div>
+              </div>
+            </div>
+            
+            <div className="mt-6">
+              <h3 className="text-sm font-medium mb-2">Saved Configurations</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+                {savedConfigs.map((config) => (
+                  <div 
+                    key={config.id} 
+                    className={`flex justify-between items-center p-2 border rounded-md ${
+                      activeConfig.id === config.id ? 'bg-primary/10 border-primary' : ''
+                    }`}
                   >
-                    <SelectTrigger id="aggregation">
-                      <SelectValue placeholder="Select aggregation" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {aggregationOptions.map(option => (
-                        <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="sortBy">Sort By</Label>
-                  <div className="grid grid-cols-2 gap-2">
-                    <Select 
-                      value={currentConfig.sortBy}
-                      onValueChange={(value) => setCurrentConfig({
-                        ...currentConfig, 
-                        sortBy: value as 'row' | 'value'
-                      })}
-                    >
-                      <SelectTrigger id="sortBy">
-                        <SelectValue placeholder="Sort by" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="row">Row Label</SelectItem>
-                        <SelectItem value="value">Row Total</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    
-                    <Select 
-                      value={currentConfig.sortOrder}
-                      onValueChange={(value) => setCurrentConfig({
-                        ...currentConfig, 
-                        sortOrder: value as 'asc' | 'desc' | 'none'
-                      })}
-                    >
-                      <SelectTrigger id="sortOrder">
-                        <SelectValue placeholder="Sort order" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="asc">Ascending</SelectItem>
-                        <SelectItem value="desc">Descending</SelectItem>
-                        <SelectItem value="none">None</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <div className="flex items-center flex-1 min-w-0">
+                      <Bookmark className="h-4 w-4 mr-2 text-primary" />
+                      <span className="truncate">{config.name}</span>
+                    </div>
+                    <div className="flex">
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        className="h-8 w-8 p-0"
+                        onClick={() => setActiveConfig(config)} 
+                      >
+                        <RefreshCw className="h-4 w-4" />
+                      </Button>
+                      
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            className="h-8 w-8 p-0 text-destructive"
+                          >
+                            <Trash className="h-4 w-4" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Delete Saved Configuration</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Are you sure you want to delete "{config.name}"? This action cannot be undone.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction 
+                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                              onClick={() => deleteConfig(config.id)}
+                            >
+                              Delete
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
                   </div>
-                </div>
-                
-                <div className="space-y-4 pt-2">
-                  <div className="flex items-center space-x-2">
-                    <Switch 
-                      id="showTotals"
-                      checked={currentConfig.showTotals}
-                      onCheckedChange={(checked) => setCurrentConfig({...currentConfig, showTotals: checked})}
-                    />
-                    <Label htmlFor="showTotals">Show Totals</Label>
-                  </div>
-                  
-                  <div className="flex items-center space-x-2">
-                    <Switch 
-                      id="showAverage"
-                      checked={currentConfig.showAverage}
-                      onCheckedChange={(checked) => setCurrentConfig({...currentConfig, showAverage: checked})}
-                    />
-                    <Label htmlFor="showAverage">Show Averages</Label>
-                  </div>
-                </div>
+                ))}
+                <Dialog>
+                  <DialogTrigger asChild>
+                    <Button variant="outline" className="flex items-center justify-center h-[40px]">
+                      <Plus className="h-4 w-4 mr-2" />
+                      Add New Configuration
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Save Current Configuration</DialogTitle>
+                      <DialogDescription>
+                        Enter a name for your custom pivot table configuration
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="py-4">
+                      <Label htmlFor="newConfigName">Configuration Name</Label>
+                      <Input
+                        id="newConfigName"
+                        className="mt-2"
+                        value={newConfigName}
+                        onChange={(e) => setNewConfigName(e.target.value)}
+                        placeholder="E.g., Revenue by Class Type and Day"
+                      />
+                    </div>
+                    <DialogFooter>
+                      <Button variant="outline">Cancel</Button>
+                      <Button onClick={saveCurrentConfig}>Save Configuration</Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
               </div>
             </div>
           </CardContent>
         </Card>
-      ) : null}
+      )}
 
-      <Dialog open={showDialog} onOpenChange={setShowDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Save Pivot Table View</DialogTitle>
-          </DialogHeader>
-          <div className="py-4">
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="viewName">View Name</Label>
-                <Input
-                  id="viewName"
-                  placeholder="Enter view name"
-                  value={newConfigName}
-                  onChange={(e) => setNewConfigName(e.target.value)}
-                />
-              </div>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowDialog(false)}>Cancel</Button>
-            <Button onClick={handleSaveConfig} disabled={!newConfigName}>Save View</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Pivot Table */}
-      <Card className="overflow-hidden">
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="font-medium border-r">
-                  {isEditMode ? currentConfig.rowField : activeConfig.rowField} / {isEditMode ? currentConfig.colField : activeConfig.colField}
-                </TableHead>
-                {pivotData.cols.map((col) => (
-                  <TableHead key={col} className="text-center min-w-[100px]">
-                    {col}
-                  </TableHead>
-                ))}
-                {(isEditMode ? currentConfig.showTotals : activeConfig.showTotals) && (
-                  <TableHead className="text-center font-medium bg-muted/50 min-w-[100px]">Total</TableHead>
-                )}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {pivotData.rows.map((row) => (
-                <TableRow key={row}>
-                  <TableCell className="font-medium border-r">{row}</TableCell>
-                  {pivotData.cols.map((col) => (
-                    <TableCell 
-                      key={`${row}-${col}`}
-                      className={`text-center ${getCellColor(
-                        pivotData.data[row]?.[col] || 0, 
-                        pivotData.maxValue
-                      )}`}
+      {/* Pivot table */}
+      <div className="bg-white dark:bg-gray-950 rounded-lg border overflow-x-auto">
+        <table className="w-full">
+          <thead>
+            <tr className="bg-muted/50">
+              <th className="p-2 px-4 text-left border-b border-r font-medium">
+                <div className="flex items-center gap-1">
+                  <span>
+                    {dimensionOptions.find(d => d.value === activeConfig.rowDimension)?.label || activeConfig.rowDimension}
+                  </span>
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className={`h-6 w-6 p-0 ${sortColumn === 'row' ? 'text-primary' : 'text-muted-foreground'}`}
+                    onClick={() => {
+                      if (sortColumn === 'row') {
+                        setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+                      } else {
+                        setSortColumn('row');
+                        setSortDirection('desc');
+                      }
+                    }}
+                  >
+                    {sortColumn === 'row' ? (
+                      sortDirection === 'asc' ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />
+                    ) : (
+                      <ChevronDown className="h-4 w-4" />
+                    )}
+                  </Button>
+                </div>
+              </th>
+              {pivotData.columns.map((col) => (
+                <th key={col} className="p-2 px-4 text-center border-b border-r font-medium">
+                  <div className="flex items-center justify-center gap-1">
+                    <span>{col}</span>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className={`h-6 w-6 p-0 ${sortColumn === col ? 'text-primary' : 'text-muted-foreground'}`}
+                      onClick={() => {
+                        if (sortColumn === col) {
+                          setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+                        } else {
+                          setSortColumn(col);
+                          setSortDirection('desc');
+                        }
+                      }}
                     >
-                      {pivotData.data[row]?.[col] !== undefined
-                        ? formatValue(pivotData.data[row][col], (isEditMode ? currentConfig.valueField : activeConfig.valueField))
-                        : '-'}
-                    </TableCell>
-                  ))}
-                  {(isEditMode ? currentConfig.showTotals : activeConfig.showTotals) && (
-                    <TableCell className="text-center font-medium bg-muted/50">
-                      {formatValue(pivotData.rowTotals[row] || 0, (isEditMode ? currentConfig.valueField : activeConfig.valueField))}
-                    </TableCell>
-                  )}
-                </TableRow>
+                      {sortColumn === col ? (
+                        sortDirection === 'asc' ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />
+                      ) : (
+                        <ChevronDown className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </div>
+                </th>
               ))}
-              
-              {/* Totals row */}
-              {(isEditMode ? currentConfig.showTotals : activeConfig.showTotals) && (
-                <TableRow>
-                  <TableCell className="font-medium border-r bg-muted/50">Total</TableCell>
-                  {pivotData.cols.map((col) => (
-                    <TableCell 
-                      key={`total-${col}`}
-                      className="text-center font-medium bg-muted/50"
-                    >
-                      {formatValue(pivotData.colTotals[col] || 0, (isEditMode ? currentConfig.valueField : activeConfig.valueField))}
-                    </TableCell>
-                  ))}
-                  <TableCell className="text-center font-medium bg-muted/70">
-                    {formatValue(
-                      Object.values(pivotData.rowTotals).reduce((sum, val) => sum + val, 0),
-                      (isEditMode ? currentConfig.valueField : activeConfig.valueField)
-                    )}
-                  </TableCell>
-                </TableRow>
-              )}
-              
-              {/* Averages row */}
-              {(isEditMode ? currentConfig.showAverage : activeConfig.showAverage) && pivotData.rows.length > 0 && (
-                <TableRow>
-                  <TableCell className="font-medium border-r bg-muted/30">Average</TableCell>
-                  {pivotData.cols.map((col) => {
-                    const values = pivotData.rows
-                      .filter(row => pivotData.data[row]?.[col] !== undefined)
-                      .map(row => pivotData.data[row][col]);
-                      
-                    const avg = values.length > 0 
-                      ? values.reduce((sum, val) => sum + val, 0) / values.length 
-                      : 0;
-                      
-                    return (
-                      <TableCell 
-                        key={`avg-${col}`}
-                        className="text-center bg-muted/30"
-                      >
-                        {formatValue(avg, (isEditMode ? currentConfig.valueField : activeConfig.valueField))}
-                      </TableCell>
-                    );
-                  })}
-                  <TableCell className="text-center font-medium bg-muted/50">
-                    {formatValue(
-                      Object.values(pivotData.rowTotals).reduce((sum, val) => sum + val, 0) / Math.max(1, pivotData.rows.length),
-                      (isEditMode ? currentConfig.valueField : activeConfig.valueField)
-                    )}
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </div>
-      </Card>
-    </div>
-  );
-};
-
-export default PivotTable;
