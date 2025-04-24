@@ -5,7 +5,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { 
   ArrowUp, ArrowDown, Activity, Users, Calendar, IndianRupee,
-  Clock, UserCheck, Building, Percentage, TrendingUp, BadgePercent,
+  Clock, UserCheck, Building, Percent, TrendingUp, BadgePercent,
   Wallet, Award
 } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -144,7 +144,7 @@ const MetricsPanel: React.FC<MetricsPanelProps> = ({ data }) => {
     {
       title: 'Fill Rate',
       value: fillRate.toFixed(1) + '%',
-      icon: Percentage,
+      icon: Percent,
       sparkline: sparklineData.checkIns,
       trend: 3.1,
       gradient: 'from-cyan-500 to-blue-600',
