@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { Card } from '@/components/ui/card';
 import { ProcessedData } from '@/types/data';
@@ -259,7 +258,6 @@ const MetricsPanel: React.FC<MetricsPanelProps> = ({ data }) => {
                           end={metric.value}
                           decimals={metric.title.includes('Avg') || metric.title.includes('Rate') ? 1 : 0}
                           delay={0.5}
-                          duration={2}
                         />
                       ) : '0'
                     ) : (
