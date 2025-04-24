@@ -15,8 +15,8 @@ const LocationComparisonView: React.FC<LocationComparisonViewProps> = ({ data })
       comparisonField="location"
       valueField="totalCheckins"
       secondaryValueField="totalRevenue"
-      tertiaryValueField="classAverageIncludingEmpty"
-      colors={['#4f46e5', '#8b5cf6', '#a855f7', '#d946ef']}
+      tertiaryValueField="classAverageExcludingEmpty"
+      colors={['#3b82f6', '#60a5fa', '#93c5fd', '#bfdbfe']}
     />
   );
 };
