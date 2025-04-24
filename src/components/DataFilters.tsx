@@ -1,6 +1,15 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { ProcessedData, FilterOption, SortOption } from '@/types/data';
+import { ProcessedData, FilterOption } from '@/types/data';
+import { DateRange } from 'react-day-picker';
+import { format } from 'date-fns';
+import { Calendar as CalendarIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Calendar } from '@/components/ui/calendar';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -18,19 +27,12 @@ import {
 } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Plus, Trash2, ArrowUpDown, Filter, Calendar } from 'lucide-react';
-import { 
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover';
-import { Calendar as CalendarComponent } from '@/components/ui/calendar';
-import { format } from 'date-fns';
+import { Plus, Trash2, ArrowUpDown, Filter as FilterIcon, Calendar as CalendarLucide } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface DataFiltersProps {
   onFilterChange: (filters: FilterOption[]) => void;
-  onSortChange: (sortOptions: SortOption[]) => void;
+  onSortChange: (sortOptions: any[]) => void;
   data: ProcessedData[];
   activeFilters: number;
 }
@@ -41,14 +43,16 @@ interface FilterOptionWithId extends FilterOption {
   id: string;
 }
 
-const getTimeRangeFilter = (range: string) => {
+const getTimeRangeFilter = (range: string): FilterOptionWithId[] => {
   const now = new Date();
-  const filters: FilterOption[] = [];
+  const filters: FilterOptionWithId[] = [];
+  const id = `filter-${Date.now()}`;
   
   switch (range) {
     case 'last-week':
       const lastWeek = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
       filters.push({
+        id,
         field: 'period',
         operator: 'greater',
         value: lastWeek.toISOString()
@@ -57,6 +61,7 @@ const getTimeRangeFilter = (range: string) => {
     case 'last-month':
       const lastMonth = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
       filters.push({
+        id,
         field: 'period',
         operator: 'greater',
         value: lastMonth.toISOString()
@@ -65,6 +70,7 @@ const getTimeRangeFilter = (range: string) => {
     case 'last-quarter':
       const lastQuarter = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
       filters.push({
+        id,
         field: 'period',
         operator: 'greater',
         value: lastQuarter.toISOString()
@@ -85,7 +91,7 @@ const DataFilters: React.FC<DataFiltersProps> = ({
   activeFilters,
 }) => {
   const [filters, setFilters] = useState<FilterOptionWithId[]>([]);
-  const [sortOptions, setSortOptions] = useState<SortOption[]>([]);
+  const [sortOptions, setSortOptions] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState('filters');
   const [date, setDate] = useState<Date | undefined>(undefined);
 
@@ -199,14 +205,14 @@ const DataFilters: React.FC<DataFiltersProps> = ({
   };
 
   const handleAddSort = () => {
-    const newSort: SortOption = {
+    const newSort: any = {
       field: 'totalCheckins',
       direction: 'desc',
     };
     setSortOptions([...sortOptions, newSort]);
   };
 
-  const handleUpdateSort = (index: number, key: keyof SortOption, value: string) => {
+  const handleUpdateSort = (index: number, key: keyof any, value: string) => {
     const updatedSortOptions = [...sortOptions];
     updatedSortOptions[index] = { 
       ...updatedSortOptions[index], 
@@ -310,12 +316,12 @@ const DataFilters: React.FC<DataFiltersProps> = ({
                 !date && "text-muted-foreground"
               )}
             >
-              <Calendar className="mr-2 h-4 w-4" />
+              <CalendarLucide className="mr-2 h-4 w-4" />
               {date ? format(date, "PPP") : "Select date"}
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-auto p-0">
-            <CalendarComponent
+            <Calendar
               mode="single"
               selected={date}
               onSelect={(newDate) => {
@@ -358,7 +364,7 @@ const DataFilters: React.FC<DataFiltersProps> = ({
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="filters" className="text-sm">
-            <Filter className="h-4 w-4 mr-2" />
+            <FilterIcon className="h-4 w-4 mr-2" />
             Filters {activeFilters > 0 && <Badge className="ml-2">{activeFilters}</Badge>}
           </TabsTrigger>
           <TabsTrigger value="sorting" className="text-sm">
@@ -581,11 +587,12 @@ const DataFilters: React.FC<DataFiltersProps> = ({
               >
                 Last Quarter
               </Button>
-              <DateRangePicker 
+              <DateRangeSelector 
                 onChange={(range) => {
                   if (range.from && range.to) {
                     setFilters([
                       {
+                        id: `filter-${Date.now()}`,
                         field: 'period',
                         operator: 'between',
                         value: `${range.from.toISOString()},${range.to.toISOString()}`
@@ -699,6 +706,56 @@ const DataFilters: React.FC<DataFiltersProps> = ({
           </div>
         </TabsContent>
       </Tabs>
+    </div>
+  );
+};
+
+// Replace DateRangePicker with a custom date range selector
+const DateRangeSelector = ({ onChange }: { onChange: (range: DateRange) => void }) => {
+  const [date, setDate] = React.useState<DateRange | undefined>();
+
+  return (
+    <div className="grid gap-2">
+      <Popover>
+        <PopoverTrigger asChild>
+          <Button
+            id="date"
+            variant={"outline"}
+            className={cn(
+              "w-[300px] justify-start text-left font-normal",
+              !date && "text-muted-foreground"
+            )}
+          >
+            <CalendarIcon className="mr-2 h-4 w-4" />
+            {date?.from ? (
+              date.to ? (
+                <>
+                  {format(date.from, "LLL dd, y")} -{" "}
+                  {format(date.to, "LLL dd, y")}
+                </>
+              ) : (
+                format(date.from, "LLL dd, y")
+              )
+            ) : (
+              <span>Pick a date range</span>
+            )}
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-auto p-0" align="start">
+          <Calendar
+            initialFocus
+            mode="range"
+            defaultMonth={date?.from}
+            selected={date}
+            onSelect={(newDate) => {
+              setDate(newDate);
+              if (newDate?.from && newDate?.to) {
+                onChange(newDate);
+              }
+            }}
+          />
+        </PopoverContent>
+      </Popover>
     </div>
   );
 };

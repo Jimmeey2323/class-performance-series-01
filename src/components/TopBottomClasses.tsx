@@ -1,10 +1,10 @@
-
 import React, { useState } from 'react';
 import { ProcessedData } from '@/types/data';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
+import { formatIndianCurrency } from './MetricsPanel';
 
 interface TopBottomClassesProps {
   data: ProcessedData[];
@@ -54,7 +54,7 @@ const TopBottomClasses: React.FC<TopBottomClassesProps> = ({ data }) => {
           .slice(0, 5)
       };
     } else {
-      // Group by class type only
+      // Group by class type only, ignoring trainers
       const grouped = data.reduce((acc, item) => {
         if (!acc[item.cleanedClass]) {
           acc[item.cleanedClass] = {

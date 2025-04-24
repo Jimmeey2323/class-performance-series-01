@@ -99,13 +99,16 @@ const MetricsPanel: React.FC<MetricsPanelProps> = ({ data }) => {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3, delay: index * 0.1 }}
         >
-          <Card className="overflow-hidden">
+          <Card className="overflow-hidden relative group hover:shadow-lg transition-shadow duration-200">
             <CardContent className="p-6">
               <div className="flex items-center justify-between mb-4">
-                <div className={`p-3 rounded-lg bg-gradient-to-br ${metric.gradient} text-white`}>
+                <div className={`p-3 rounded-lg bg-gradient-to-br ${metric.gradient} text-white shadow-md`}>
                   <metric.icon className="h-6 w-6" />
                 </div>
-                <Badge variant={metric.trend > 0 ? 'default' : 'destructive'} className="flex items-center gap-1">
+                <Badge 
+                  variant={metric.trend > 0 ? 'default' : 'destructive'} 
+                  className="flex items-center gap-1 shadow-sm"
+                >
                   {metric.trend > 0 ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
                   {Math.abs(metric.trend)}%
                 </Badge>
@@ -114,7 +117,7 @@ const MetricsPanel: React.FC<MetricsPanelProps> = ({ data }) => {
                 <h3 className="text-sm font-medium text-muted-foreground">{metric.title}</h3>
                 <p className="text-2xl font-bold">{metric.value}</p>
               </div>
-              <div className="h-16 mt-4">
+              <div className="h-16 mt-4 opacity-50 group-hover:opacity-100 transition-opacity duration-200">
                 <Sparklines data={metric.sparkline} width={200} height={60} margin={5}>
                   <SparklinesLine 
                     style={{ 
