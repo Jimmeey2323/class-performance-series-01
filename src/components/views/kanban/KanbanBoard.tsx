@@ -130,23 +130,28 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({ data, trainerAvatars }) => {
                   >
                     {columns[columnId].items.map((item, index) => (
                       <Draggable key={item.id} draggableId={item.id} index={index}>
-                        {(provided) => (
-                          <motion.div
-                            ref={provided.innerRef}
-                            {...provided.draggableProps}
-                            {...provided.dragHandleProps}
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ duration: 0.2, delay: index * 0.05 }}
-                            className="mb-3"
-                          >
-                            <KanbanCard
-                              key={item.id} 
-                              data={item.data}
-                              isActive={selectedCard === item.id}
-                            />
-                          </motion.div>
-                        )}
+                        {(provided) => {
+                          // Extract the provided props
+                          const { innerRef, draggableProps, dragHandleProps } = provided;
+                          
+                          return (
+                            <motion.div
+                              ref={innerRef}
+                              {...draggableProps}
+                              {...dragHandleProps}
+                              initial={{ opacity: 0, y: 20 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              transition={{ duration: 0.2, delay: index * 0.05 }}
+                              className="mb-3"
+                            >
+                              <KanbanCard
+                                key={item.id} 
+                                data={item.data}
+                                isActive={selectedCard === item.id}
+                              />
+                            </motion.div>
+                          );
+                        }}
                       </Draggable>
                     ))}
                     {provided.placeholder}

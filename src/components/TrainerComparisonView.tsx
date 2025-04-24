@@ -597,7 +597,10 @@ const TrainerComparisonView: React.FC<TrainerComparisonViewProps> = ({ data, tra
                 <PolarAngleAxis dataKey="name" tick={{ fontSize: 12 }} />
                 <PolarRadiusAxis angle={30} domain={[0, 100]} tickCount={5} />
                 <Tooltip 
-                  formatter={(value) => [`${value.toFixed(1)}%`, '']} 
+                  formatter={(value) => {
+                    // Check if value is a number before calling toFixed
+                    return typeof value === 'number' ? [`${value.toFixed(1)}%`, ''] : [value, ''];
+                  }}
                   labelFormatter={(label) => `${label}`}
                 />
                 <Legend />

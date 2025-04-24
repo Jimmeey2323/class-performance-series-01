@@ -205,10 +205,9 @@ const MetricsPanel: React.FC<MetricsPanelProps> = ({ data }) => {
                       <CountUp 
                         start={0} 
                         end={metric.value} 
-                        duration={2} 
-                        separator="," 
-                        decimal="." 
                         decimals={metric.title.includes('Avg') || metric.title.includes('Rate') ? 1 : 0}
+                        separator="," 
+                        decimal="."
                       /> : 0
                   ) : (
                     metric.value
