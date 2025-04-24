@@ -1,334 +1,333 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import { ProcessedData } from '@/types/data';
-import { Card, CardContent } from '@/components/ui/card';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Switch } from '@/components/ui/switch';
-import { Label } from '@/components/ui/label';
-import { Button } from '@/components/ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { Progress } from '@/components/ui/progress';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { trainerAvatars } from './Dashboard';
 import { formatIndianCurrency } from './MetricsPanel';
-import { Calendar, Clock, MapPin, ChevronDown } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { ChevronDown } from 'lucide-react';
 
 interface TopBottomClassesProps {
   data: ProcessedData[];
 }
 
 const TopBottomClasses: React.FC<TopBottomClassesProps> = ({ data }) => {
-  const [groupByTrainer, setGroupByTrainer] = useState(false);
-  const [metric, setMetric] = useState<'attendance' | 'revenue'>('attendance');
-  const [displayCount, setDisplayCount] = useState(5);
+  const [showCount, setShowCount] = useState({ top: 5, bottom: 5 });
 
-  const getTopBottomClasses = () => {
-    if (!data || data.length === 0) return { top: [], bottom: [] };
+  // Handle cases with no data
+  if (!data.length) {
+    return <div>No data available</div>;
+  }
 
-    if (groupByTrainer) {
-      // Group by trainer and class type
-      const grouped = data.reduce((acc, item) => {
-        const key = `${item.teacherName}-${item.cleanedClass}-${item.dayOfWeek}-${item.classTime}-${item.location}`;
-        if (!acc[key]) {
-          acc[key] = {
-            teacherName: item.teacherName,
-            cleanedClass: item.cleanedClass,
-            dayOfWeek: item.dayOfWeek,
-            classTime: item.classTime,
-            location: item.location,
-            totalCheckins: 0,
-            totalRevenue: 0,
-            totalOccurrences: 0,
-            classAverageIncludingEmpty: 0,
-            classAverageExcludingEmpty: 0
-          };
-        }
-        acc[key].totalCheckins += Number(item.totalCheckins);
-        acc[key].totalRevenue += Number(item.totalRevenue);
-        acc[key].totalOccurrences += Number(item.totalOccurrences);
-        
-        return acc;
-      }, {} as Record<string, any>);
-
-      const classes = Object.values(grouped).map(item => ({
-        ...item,
-        average: item.totalOccurrences > 0 ? item.totalCheckins / item.totalOccurrences : 0,
-        classAverageIncludingEmpty: item.totalOccurrences > 0 ? item.totalCheckins / item.totalOccurrences : 0,
-        classAverageExcludingEmpty: item.totalOccurrences > 0 ? item.totalCheckins / item.totalOccurrences : 0
-      }));
-
-      // Filter out classes that don't meet criteria
-      const filteredClasses = classes.filter(item => {
-        return !item.cleanedClass.includes('Hosted') && 
-               !item.cleanedClass.includes('Recovery') && 
-               item.totalOccurrences >= 2;
-      });
-
-      return {
-        top: filteredClasses
-          .sort((a, b) => metric === 'attendance' 
-            ? b.average - a.average 
-            : b.totalRevenue - a.totalRevenue
-          )
-          .slice(0, displayCount),
-        bottom: filteredClasses
-          .sort((a, b) => metric === 'attendance'
-            ? a.average - b.average
-            : a.totalRevenue - b.totalRevenue
-          )
-          .slice(0, displayCount)
-      };
-    } else {
-      // Group by class type, day, time and location
-      const grouped = data.reduce((acc, item) => {
-        const key = `${item.cleanedClass}-${item.dayOfWeek}-${item.classTime}-${item.location}`;
-        if (!acc[key]) {
-          acc[key] = {
-            cleanedClass: item.cleanedClass,
-            dayOfWeek: item.dayOfWeek,
-            classTime: item.classTime,
-            location: item.location,
-            totalCheckins: 0,
-            totalRevenue: 0,
-            totalOccurrences: 0,
-            trainers: new Set(),
-          };
-        }
-        acc[key].totalCheckins += Number(item.totalCheckins);
-        acc[key].totalRevenue += Number(item.totalRevenue);
-        acc[key].totalOccurrences += Number(item.totalOccurrences);
-        acc[key].trainers.add(item.teacherName);
-        
-        return acc;
-      }, {} as Record<string, any>);
-
-      const classes = Object.values(grouped).map(item => ({
-        ...item,
-        trainers: Array.from(item.trainers),
-        average: item.totalOccurrences > 0 ? item.totalCheckins / item.totalOccurrences : 0,
-        classAverageIncludingEmpty: item.totalOccurrences > 0 ? item.totalCheckins / item.totalOccurrences : 0,
-        classAverageExcludingEmpty: item.totalOccurrences > 0 ? item.totalCheckins / item.totalOccurrences : 0
-      }));
-
-      // Filter out classes that don't meet criteria
-      const filteredClasses = classes.filter(item => {
-        return !item.cleanedClass.includes('Hosted') && 
-               !item.cleanedClass.includes('Recovery') && 
-               item.totalOccurrences >= 2;
-      });
-
-      return {
-        top: filteredClasses
-          .sort((a, b) => metric === 'attendance'
-            ? b.average - a.average
-            : b.totalRevenue - a.totalRevenue
-          )
-          .slice(0, displayCount),
-        bottom: filteredClasses
-          .sort((a, b) => metric === 'attendance'
-            ? a.average - b.average
-            : a.totalRevenue - b.totalRevenue
-          )
-          .slice(0, displayCount)
-      };
-    }
+  // Helper function to filter excluded classes
+  const shouldExcludeClass = (className: string, count: number): boolean => {
+    return className.toLowerCase().includes('hosted') || 
+           className.toLowerCase().includes('recovery') || 
+           count < 2;
   };
 
-  const { top, bottom } = getTopBottomClasses();
-  const hasMoreData = useMemo(() => {
-    const totalFilteredClasses = data.filter(item => 
-      !item.cleanedClass.includes('Hosted') && 
-      !item.cleanedClass.includes('Recovery')
-    ).length;
-    
-    return totalFilteredClasses > displayCount;
-  }, [data, displayCount]);
+  // Helper to get color based on value
+  const getColorByValue = (value: number, min: number, max: number) => {
+    const ratio = max === min ? 0.5 : (value - min) / (max - min);
+    if (ratio > 0.7) return 'bg-green-600 text-white';
+    if (ratio > 0.4) return 'bg-blue-600 text-white';
+    return 'bg-slate-200 text-slate-900 dark:bg-slate-800 dark:text-slate-100';
+  };
 
-  const handleShowMore = () => {
-    setDisplayCount(prev => prev + 5);
+  // Group classes for more accurate analysis
+  const groupedClasses = data.reduce((acc, curr) => {
+    // Create a grouping key based on the combined factors
+    const groupKey = `${curr.cleanedClass}|${curr.dayOfWeek}|${curr.classTime}|${curr.location}`;
+    
+    if (!acc[groupKey]) {
+      acc[groupKey] = {
+        key: groupKey,
+        cleanedClass: curr.cleanedClass,
+        dayOfWeek: curr.dayOfWeek,
+        classTime: curr.classTime,
+        location: curr.location,
+        totalOccurrences: 0,
+        totalCheckins: 0,
+        totalRevenue: 0,
+        teacherNames: new Set<string>(),
+        classAverageIncludingEmpty: 0
+      };
+    }
+    
+    // Accumulate values
+    acc[groupKey].totalOccurrences += curr.totalOccurrences;
+    acc[groupKey].totalCheckins += curr.totalCheckins;
+    acc[groupKey].totalRevenue += typeof curr.totalRevenue === 'string' ? 
+      parseFloat(curr.totalRevenue) : curr.totalRevenue;
+    acc[groupKey].teacherNames.add(curr.teacherName);
+    
+    // Recalculate averages
+    acc[groupKey].classAverageIncludingEmpty = 
+      acc[groupKey].totalOccurrences > 0 ? 
+      acc[groupKey].totalCheckins / acc[groupKey].totalOccurrences : 0;
+    
+    return acc;
+  }, {} as Record<string, any>);
+
+  // Convert grouped data to array for sorting and filtering
+  const groupedClassesArray = Object.values(groupedClasses)
+    .filter(cls => !shouldExcludeClass(cls.cleanedClass, cls.totalOccurrences));
+
+  // Sort by totalCheckins for top/bottom classes
+  const topClassesByAttendance = [...groupedClassesArray]
+    .sort((a, b) => b.totalCheckins - a.totalCheckins)
+    .slice(0, showCount.top);
+
+  const bottomClassesByAttendance = [...groupedClassesArray]
+    .sort((a, b) => a.totalCheckins - b.totalCheckins)
+    .slice(0, showCount.bottom);
+
+  // Sort by revenue for top/bottom revenue classes
+  const topClassesByRevenue = [...groupedClassesArray]
+    .sort((a, b) => b.totalRevenue - a.totalRevenue)
+    .slice(0, showCount.top);
+
+  const bottomClassesByRevenue = [...groupedClassesArray]
+    .sort((a, b) => a.totalRevenue - b.totalRevenue)
+    .slice(0, showCount.bottom);
+
+  // Sort by average for top/bottom average classes
+  const topClassesByAverage = [...groupedClassesArray]
+    .sort((a, b) => b.classAverageIncludingEmpty - a.classAverageIncludingEmpty)
+    .slice(0, showCount.top);
+
+  const bottomClassesByAverage = [...groupedClassesArray]
+    .sort((a, b) => a.classAverageIncludingEmpty - b.classAverageIncludingEmpty)
+    .slice(0, showCount.bottom);
+
+  // Max values for visualization
+  const maxAttendance = Math.max(...groupedClassesArray.map(c => c.totalCheckins));
+  const minAttendance = Math.min(...groupedClassesArray.map(c => c.totalCheckins));
+  
+  const maxRevenue = Math.max(...groupedClassesArray.map(c => c.totalRevenue));
+  const minRevenue = Math.min(...groupedClassesArray.map(c => c.totalRevenue));
+  
+  const maxAverage = Math.max(...groupedClassesArray.map(c => c.classAverageIncludingEmpty));
+  const minAverage = Math.min(...groupedClassesArray.map(c => c.classAverageIncludingEmpty));
+
+  const handleShowMore = (type: 'top' | 'bottom') => {
+    setShowCount(prev => ({
+      ...prev,
+      [type]: prev[type] + 5
+    }));
+  };
+
+  const renderClassItem = (cls: any, index: number, metric: 'attendance' | 'revenue' | 'average') => {
+    let value: number | string = 0;
+    let max = 0;
+    let min = 0;
+    
+    if (metric === 'attendance') {
+      value = cls.totalCheckins;
+      max = maxAttendance;
+      min = minAttendance;
+    } else if (metric === 'revenue') {
+      value = formatIndianCurrency(cls.totalRevenue);
+      max = maxRevenue;
+      min = minRevenue;
+    } else {
+      value = cls.classAverageIncludingEmpty.toFixed(1);
+      max = maxAverage;
+      min = minAverage;
+    }
+    
+    return (
+      <div key={index} className="flex items-center gap-4 p-3 rounded-md bg-white dark:bg-slate-950 mb-2 shadow-sm">
+        <div className="font-medium text-lg w-8 text-center">{index + 1}</div>
+        <div className="flex-grow">
+          <h4 className="font-medium text-base">{cls.cleanedClass}</h4>
+          <div className="flex items-center text-sm text-muted-foreground gap-2">
+            <span>{cls.dayOfWeek} • {cls.classTime} • {cls.location}</span>
+          </div>
+          {cls.teacherNames.size > 0 && (
+            <div className="flex mt-1 -space-x-2">
+              {Array.from(cls.teacherNames).slice(0, 3).map((teacher: string, i: number) => (
+                <Avatar key={i} className="h-6 w-6 border-2 border-white dark:border-slate-900">
+                  <AvatarImage src={trainerAvatars[teacher]} alt={teacher} />
+                  <AvatarFallback className="text-xs">
+                    {teacher.split(' ').map(part => part.charAt(0)).join('').toUpperCase().slice(0, 2)}
+                  </AvatarFallback>
+                </Avatar>
+              ))}
+              {cls.teacherNames.size > 3 && (
+                <Avatar className="h-6 w-6 border-2 border-white dark:border-slate-900 bg-slate-200 dark:bg-slate-800">
+                  <AvatarFallback className="text-xs">
+                    +{cls.teacherNames.size - 3}
+                  </AvatarFallback>
+                </Avatar>
+              )}
+            </div>
+          )}
+        </div>
+        <div className="text-right">
+          <div className="text-sm font-medium mb-1">
+            {metric === 'attendance' && `${value} check-ins`}
+            {metric === 'revenue' && `${value}`}
+            {metric === 'average' && `${value} avg/class`}
+          </div>
+          <div className="w-24">
+            <Progress 
+              className={getColorByValue(
+                metric === 'attendance' ? cls.totalCheckins : 
+                metric === 'revenue' ? cls.totalRevenue : 
+                cls.classAverageIncludingEmpty,
+                metric === 'attendance' ? minAttendance : 
+                metric === 'revenue' ? minRevenue : 
+                minAverage,
+                metric === 'attendance' ? maxAttendance : 
+                metric === 'revenue' ? maxRevenue : 
+                maxAverage
+              )} 
+              value={
+                ((metric === 'attendance' ? cls.totalCheckins : 
+                metric === 'revenue' ? cls.totalRevenue : 
+                cls.classAverageIncludingEmpty) - 
+                (metric === 'attendance' ? minAttendance : 
+                metric === 'revenue' ? minRevenue : 
+                minAverage)) / 
+                ((metric === 'attendance' ? maxAttendance : 
+                metric === 'revenue' ? maxRevenue : 
+                maxAverage) - 
+                (metric === 'attendance' ? minAttendance : 
+                metric === 'revenue' ? minRevenue : 
+                minAverage)) * 100
+              } 
+            />
+          </div>
+        </div>
+      </div>
+    );
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <h2 className="text-2xl font-bold">Top & Bottom Classes</h2>
-        <div className="flex items-center gap-4">
-          <div className="flex items-center space-x-2">
-            <Switch
-              checked={groupByTrainer}
-              onCheckedChange={setGroupByTrainer}
-              id="trainer-switch"
-            />
-            <Label htmlFor="trainer-switch">Group by Trainer</Label>
-          </div>
-          <Tabs defaultValue="attendance" className="w-[400px]">
-            <TabsList>
-              <TabsTrigger 
-                value="attendance" 
-                onClick={() => setMetric('attendance')}
-              >
-                By Attendance
-              </TabsTrigger>
-              <TabsTrigger 
-                value="revenue" 
-                onClick={() => setMetric('revenue')}
-              >
-                By Revenue
-              </TabsTrigger>
-            </TabsList>
-          </Tabs>
-        </div>
+    <div>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4">
+        <h2 className="text-2xl font-semibold">Class Performance</h2>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Top Classes */}
-        <Card>
-          <CardContent className="p-6">
-            <h3 className="text-lg font-semibold mb-4">Top {displayCount} Classes</h3>
-            <div className="space-y-4">
-              {top.length > 0 ? top.map((item, index) => (
-                <div key={index} className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-900/50 rounded-lg">
-                  <div className="flex items-center gap-3">
-                    <span className="text-2xl font-bold text-indigo-600 dark:text-indigo-400 w-8">
-                      #{index + 1}
-                    </span>
-                    <div className="space-y-1">
-                      <p className="font-medium">{item.cleanedClass}</p>
-                      {groupByTrainer ? (
-                        <p className="text-sm text-muted-foreground">{item.teacherName}</p>
-                      ) : (
-                        <p className="text-sm text-muted-foreground">
-                          {Array.isArray(item.trainers) 
-                            ? `${item.trainers.length} trainer${item.trainers.length > 1 ? 's' : ''}` 
-                            : ''}
-                        </p>
-                      )}
-                      <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                        <span className="flex items-center gap-1">
-                          <Calendar className="h-3 w-3" />
-                          {item.dayOfWeek}
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <Clock className="h-3 w-3" />
-                          {item.classTime}
-                        </span>
-                        <span>{item.totalOccurrences} classes</span>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="text-right space-y-1">
-                    <p className="text-lg font-semibold">
-                      {metric === 'attendance' 
-                        ? item.average.toFixed(1)
-                        : formatIndianCurrency(item.totalRevenue)
-                      }
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      {metric === 'attendance' ? 'Avg. Attendance' : 'Total Revenue'}
-                    </p>
-                    <div className="text-xs flex justify-end gap-2">
-                      <span>Total check-ins: {item.totalCheckins}</span>
-                      <span>|</span>
-                      <span>
-                        Avg (incl. empty): {typeof item.classAverageIncludingEmpty === 'number' 
-                          ? item.classAverageIncludingEmpty.toFixed(1) 
-                          : item.classAverageIncludingEmpty}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              )) : (
-                <div className="p-4 text-center text-muted-foreground">
-                  No classes found matching the criteria
-                </div>
-              )}
-            </div>
-            {hasMoreData && (
-              <div className="mt-4 text-center">
-                <Button 
-                  variant="outline" 
-                  onClick={handleShowMore}
-                  className="text-sm"
-                >
-                  Show More <ChevronDown className="ml-2 h-4 w-4" />
-                </Button>
+      <Tabs defaultValue="attendance" className="w-full">
+        <TabsList className="w-full justify-start mb-4">
+          <TabsTrigger value="attendance">By Attendance</TabsTrigger>
+          <TabsTrigger value="revenue">By Revenue</TabsTrigger>
+          <TabsTrigger value="average">By Average</TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="attendance" className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-lg">Top Classes by Attendance</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-1">
+                {topClassesByAttendance.map((cls, index) => renderClassItem(cls, index, 'attendance'))}
+                {topClassesByAttendance.length < groupedClassesArray.length && (
+                  <Button variant="ghost" className="w-full mt-2" onClick={() => handleShowMore('top')}>
+                    <ChevronDown className="h-4 w-4 mr-2" />
+                    Show More
+                  </Button>
+                )}
               </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Bottom Classes */}
-        <Card>
-          <CardContent className="p-6">
-            <h3 className="text-lg font-semibold mb-4">Bottom {displayCount} Classes</h3>
-            <div className="space-y-4">
-              {bottom.length > 0 ? bottom.map((item, index) => (
-                <div key={index} className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-900/50 rounded-lg">
-                  <div className="flex items-center gap-3">
-                    <span className="text-2xl font-bold text-red-500 dark:text-red-400 w-8">
-                      #{displayCount - index}
-                    </span>
-                    <div className="space-y-1">
-                      <p className="font-medium">{item.cleanedClass}</p>
-                      {groupByTrainer ? (
-                        <p className="text-sm text-muted-foreground">{item.teacherName}</p>
-                      ) : (
-                        <p className="text-sm text-muted-foreground">
-                          {Array.isArray(item.trainers) 
-                            ? `${item.trainers.length} trainer${item.trainers.length > 1 ? 's' : ''}` 
-                            : ''}
-                        </p>
-                      )}
-                      <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                        <span className="flex items-center gap-1">
-                          <Calendar className="h-3 w-3" />
-                          {item.dayOfWeek}
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <Clock className="h-3 w-3" />
-                          {item.classTime}
-                        </span>
-                        <span>{item.totalOccurrences} classes</span>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="text-right space-y-1">
-                    <p className="text-lg font-semibold">
-                      {metric === 'attendance'
-                        ? item.average.toFixed(1)
-                        : formatIndianCurrency(item.totalRevenue)
-                      }
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      {metric === 'attendance' ? 'Avg. Attendance' : 'Total Revenue'}
-                    </p>
-                    <div className="text-xs flex justify-end gap-2">
-                      <span>Total check-ins: {item.totalCheckins}</span>
-                      <span>|</span>
-                      <span>
-                        Avg (incl. empty): {typeof item.classAverageIncludingEmpty === 'number' 
-                          ? item.classAverageIncludingEmpty.toFixed(1) 
-                          : item.classAverageIncludingEmpty}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              )) : (
-                <div className="p-4 text-center text-muted-foreground">
-                  No classes found matching the criteria
-                </div>
-              )}
-            </div>
-            {hasMoreData && (
-              <div className="mt-4 text-center">
-                <Button 
-                  variant="outline" 
-                  onClick={handleShowMore}
-                  className="text-sm"
-                >
-                  Show More <ChevronDown className="ml-2 h-4 w-4" />
-                </Button>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-lg">Bottom Classes by Attendance</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-1">
+                {bottomClassesByAttendance.map((cls, index) => renderClassItem(cls, index, 'attendance'))}
+                {bottomClassesByAttendance.length < groupedClassesArray.length && (
+                  <Button variant="ghost" className="w-full mt-2" onClick={() => handleShowMore('bottom')}>
+                    <ChevronDown className="h-4 w-4 mr-2" />
+                    Show More
+                  </Button>
+                )}
               </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+        
+        <TabsContent value="revenue" className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-lg">Top Classes by Revenue</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-1">
+                {topClassesByRevenue.map((cls, index) => renderClassItem(cls, index, 'revenue'))}
+                {topClassesByRevenue.length < groupedClassesArray.length && (
+                  <Button variant="ghost" className="w-full mt-2" onClick={() => handleShowMore('top')}>
+                    <ChevronDown className="h-4 w-4 mr-2" />
+                    Show More
+                  </Button>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-lg">Bottom Classes by Revenue</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-1">
+                {bottomClassesByRevenue.map((cls, index) => renderClassItem(cls, index, 'revenue'))}
+                {bottomClassesByRevenue.length < groupedClassesArray.length && (
+                  <Button variant="ghost" className="w-full mt-2" onClick={() => handleShowMore('bottom')}>
+                    <ChevronDown className="h-4 w-4 mr-2" />
+                    Show More
+                  </Button>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+        
+        <TabsContent value="average" className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-lg">Top Classes by Average Attendance</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-1">
+                {topClassesByAverage.map((cls, index) => renderClassItem(cls, index, 'average'))}
+                {topClassesByAverage.length < groupedClassesArray.length && (
+                  <Button variant="ghost" className="w-full mt-2" onClick={() => handleShowMore('top')}>
+                    <ChevronDown className="h-4 w-4 mr-2" />
+                    Show More
+                  </Button>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-lg">Bottom Classes by Average Attendance</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-1">
+                {bottomClassesByAverage.map((cls, index) => renderClassItem(cls, index, 'average'))}
+                {bottomClassesByAverage.length < groupedClassesArray.length && (
+                  <Button variant="ghost" className="w-full mt-2" onClick={() => handleShowMore('bottom')}>
+                    <ChevronDown className="h-4 w-4 mr-2" />
+                    Show More
+                  </Button>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };

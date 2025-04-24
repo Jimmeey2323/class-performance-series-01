@@ -185,7 +185,7 @@ const MetricsPanel: React.FC<MetricsPanelProps> = ({ data }) => {
 
   return (
     <div className="mb-6">
-      <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
+      <div className="grid grid-cols-4 md:grid-cols-6 gap-2">
         {metrics.map((metric, index) => (
           <motion.div
             key={index}
@@ -193,34 +193,32 @@ const MetricsPanel: React.FC<MetricsPanelProps> = ({ data }) => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: index * 0.05, duration: 0.3 }}
           >
-            <Card className="h-28 border shadow-sm overflow-hidden">
-              <CardContent className="p-3 h-full flex flex-col">
+            <Card className="h-24 border shadow-sm overflow-hidden bg-gradient-to-br from-white to-gray-50 dark:from-gray-900 dark:to-gray-800">
+              <CardContent className="p-2 h-full flex flex-col">
                 <div className="flex items-center justify-between mb-1">
-                  <p className="text-xs font-medium text-muted-foreground">{metric.title}</p>
-                  <metric.icon className={cn("h-3.5 w-3.5", metric.textColor)} />
+                  <p className="text-[0.65rem] font-semibold text-muted-foreground truncate">{metric.title}</p>
+                  <metric.icon className={cn("h-3 w-3", metric.textColor)} />
                 </div>
-                <div className="mt-1 text-lg font-semibold">
+                <div className="mt-0.5 text-base font-semibold">
                   {typeof metric.value === 'number' ? (
-                    showCountUp ? 
+                    showCountUp ? (
                       <CountUp 
-                        start={0} 
                         end={metric.value} 
                         decimals={metric.title.includes('Avg') || metric.title.includes('Rate') ? 1 : 0}
-                        separator="," 
-                        decimal="."
-                      /> : 0
+                      />
+                    ) : 0
                   ) : (
                     metric.value
                   )}
                 </div>
-                <div className="mt-auto h-8">
+                <div className="mt-auto h-7">
                   {metric.sparkData && metric.sparkData.length > 1 && (
                     <Sparklines data={metric.sparkData} height={20} margin={0}>
                       <SparklinesLine 
-                        color={metric.textColor.replace('text-', '')} 
-                        style={{ strokeWidth: 2, fill: "none" }} 
+                        color={metric.color.replace('bg-', '')} 
+                        style={{ strokeWidth: 1.5, fill: "none" }} 
                       />
-                      <SparklinesSpots size={1} style={{ stroke: metric.textColor.replace('text-', '') }} />
+                      <SparklinesSpots size={1} style={{ stroke: metric.color.replace('bg-', '') }} />
                     </Sparklines>
                   )}
                 </div>

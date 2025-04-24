@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { ProcessedData, ViewMode, FilterOption, SortOption } from '@/types/data';
 import ViewSwitcherWrapper from './ViewSwitcherWrapper';
@@ -15,6 +16,8 @@ import TrainerComparisonView from '@/components/TrainerComparisonView';
 import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { exportToCSV } from '@/utils/fileProcessing';
+import TableFilterPanel, { FilterState } from '@/components/TableFilterPanel';
+import AdvancedPivotTable from '@/components/AdvancedPivotTable';
 import { 
   Upload, 
   BarChart3, 
@@ -28,7 +31,12 @@ import {
   ChevronDown,
   ChevronUp,
   Filter,
-  X
+  X,
+  Building,
+  Activity,
+  Calendar,
+  Clock,
+  ArrowUpDown
 } from 'lucide-react';
 import ProgressBar from '@/components/ProgressBar';
 import { Card, CardContent } from '@/components/ui/card';
@@ -39,6 +47,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { 
   Dialog,
@@ -50,6 +59,9 @@ import {
 } from "@/components/ui/dialog";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { DateRange } from "@/components/DateRangePicker";
+import { parse, isWithinInterval } from 'date-fns';
 
 interface DashboardProps {
   data: ProcessedData[];
@@ -90,23 +102,113 @@ const Dashboard: React.FC<DashboardProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [isFilterCollapsed, setIsFilterCollapsed] = useState(true);
   const [showTrainerComparison, setShowTrainerComparison] = useState(false);
+  const [showLocationComparison, setShowLocationComparison] = useState(false);
+  const [showClassLevelComparison, setShowClassLevelComparison] = useState(false);
+  const [showTimeComparison, setShowTimeComparison] = useState(false);
+  const [activeComparisonView, setActiveComparisonView] = useState<string | null>(null);
+  const [tableFilterState, setTableFilterState] = useState<FilterState>({
+    className: "all",
+    location: "all",
+    dayOfWeek: "all",
+    teacherName: "all",
+    classTime: "all",
+    hasParticipants: false,
+    dateRange: { from: undefined, to: undefined },
+    searchTerm: "",
+  });
+  const [showAdvancedPivotTable, setShowAdvancedPivotTable] = useState(false);
 
+  // Helper to parse dates from the data
+  const parseClassDate = (dateStr: string | undefined): Date | undefined => {
+    if (!dateStr) return undefined;
+    
+    // Try parsing as MM/DD/YYYY
+    let parsed = parse(dateStr, "MM/dd/yyyy", new Date());
+    
+    // If that fails, try alternative formats
+    if (isNaN(parsed.getTime())) {
+      parsed = parse(dateStr, "yyyy-MM-dd", new Date());
+      if (isNaN(parsed.getTime())) {
+        // Try one more format
+        parsed = parse(dateStr, "dd/MM/yyyy", new Date());
+        if (isNaN(parsed.getTime())) return undefined;
+      }
+    }
+    
+    return parsed;
+  };
+
+  // Apply filters based on the combined filter state
   useEffect(() => {
     if (!data.length) return;
 
-    const today = new Date();
-    let result = data.filter(item => {
-      if (item.period) {
-        const [month, year] = item.period.split('-');
-        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-        const monthIndex = months.indexOf(month);
-        const fullYear = 2000 + parseInt(year);
-        const periodDate = new Date(fullYear, monthIndex);
-        return periodDate <= today;
-      }
-      return true;
-    });
+    let result = [...data];
 
+    // Apply date range filter if set
+    if (tableFilterState.dateRange.from || tableFilterState.dateRange.to) {
+      result = result.filter(item => {
+        // Extract period and convert to date
+        const periodParts = item.period ? item.period.split('-') : [];
+        if (periodParts.length !== 2) return true;
+        
+        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        const month = months.indexOf(periodParts[0]);
+        const year = 2000 + parseInt(periodParts[1], 10);
+        
+        if (month === -1 || isNaN(year)) return true;
+        
+        const itemDate = new Date(year, month);
+        
+        const fromDate = tableFilterState.dateRange.from;
+        const toDate = tableFilterState.dateRange.to;
+        
+        if (fromDate && toDate) {
+          return itemDate >= fromDate && itemDate <= toDate;
+        } else if (fromDate) {
+          return itemDate >= fromDate;
+        } else if (toDate) {
+          return itemDate <= toDate;
+        }
+        
+        return true;
+      });
+    }
+
+    // Apply table filters
+    if (tableFilterState.className !== 'all') {
+      result = result.filter(item => item.cleanedClass === tableFilterState.className);
+    }
+    
+    if (tableFilterState.location !== 'all') {
+      result = result.filter(item => item.location === tableFilterState.location);
+    }
+    
+    if (tableFilterState.dayOfWeek !== 'all') {
+      result = result.filter(item => item.dayOfWeek === tableFilterState.dayOfWeek);
+    }
+    
+    if (tableFilterState.teacherName !== 'all') {
+      result = result.filter(item => item.teacherName === tableFilterState.teacherName);
+    }
+    
+    if (tableFilterState.classTime !== 'all') {
+      result = result.filter(item => item.classTime === tableFilterState.classTime);
+    }
+    
+    if (tableFilterState.hasParticipants) {
+      result = result.filter(item => item.totalCheckins > 0);
+    }
+    
+    if (tableFilterState.searchTerm) {
+      const term = tableFilterState.searchTerm.toLowerCase();
+      result = result.filter(item => 
+        Object.values(item).some(value => 
+          String(value).toLowerCase().includes(term)
+        )
+      );
+    }
+
+    // Apply search query
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
       result = result.filter(item => 
@@ -116,6 +218,7 @@ const Dashboard: React.FC<DashboardProps> = ({
       );
     }
 
+    // Apply filters from DataFilters component
     if (filters.length > 0) {
       result = result.filter(item => {
         return filters.every(filter => {
@@ -146,6 +249,7 @@ const Dashboard: React.FC<DashboardProps> = ({
       });
     }
 
+    // Apply sorting
     if (sortOptions.length > 0) {
       result.sort((a, b) => {
         for (const sort of sortOptions) {
@@ -171,7 +275,7 @@ const Dashboard: React.FC<DashboardProps> = ({
     }
     
     setFilteredData(result);
-  }, [data, filters, sortOptions, searchQuery]);
+  }, [data, filters, sortOptions, searchQuery, tableFilterState]);
 
   const handleFilterChange = (newFilters: FilterOption[]) => {
     setFilters(newFilters);
@@ -204,6 +308,28 @@ const Dashboard: React.FC<DashboardProps> = ({
   const clearFilters = () => {
     setFilters([]);
     setSearchQuery('');
+    setTableFilterState({
+      className: "all",
+      location: "all",
+      dayOfWeek: "all",
+      teacherName: "all",
+      classTime: "all",
+      hasParticipants: false,
+      dateRange: { from: undefined, to: undefined },
+      searchTerm: "",
+    });
+  };
+
+  const handleShowComparison = (type: string) => {
+    setShowTrainerComparison(type === 'trainer');
+    setShowLocationComparison(type === 'location');
+    setShowClassLevelComparison(type === 'class');
+    setShowTimeComparison(type === 'time');
+    setActiveComparisonView(type);
+  };
+
+  const handleTableFilterChange = (newFilterState: FilterState) => {
+    setTableFilterState(newFilterState);
   };
 
   if (loading) {
@@ -300,7 +426,7 @@ const Dashboard: React.FC<DashboardProps> = ({
               <div className="flex-1 max-w-xl">
                 <SearchBar onSearch={handleSearchChange} data={data} />
               </div>
-              {filters.length > 0 && (
+              {(filters.length > 0 || Object.values(tableFilterState).some(val => val !== 'all' && val !== false)) && (
                 <Button 
                   variant="ghost" 
                   size="sm" 
@@ -314,20 +440,42 @@ const Dashboard: React.FC<DashboardProps> = ({
             </div>
             
             <div className="flex items-center gap-2">
-              <Button 
-                variant={showTrainerComparison ? "default" : "outline"} 
-                size="sm" 
-                onClick={() => setShowTrainerComparison(!showTrainerComparison)}
-                className="hidden sm:flex"
-              >
-                <Users className="mr-2 h-4 w-4" />
-                Trainer Comparison
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="hidden sm:flex">
+                    <Activity className="mr-2 h-4 w-4" />
+                    Comparisons
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => handleShowComparison('trainer')}>
+                    <Users className="mr-2 h-4 w-4" />
+                    Trainer Comparison
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleShowComparison('location')}>
+                    <Building className="mr-2 h-4 w-4" />
+                    Location Comparison
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleShowComparison('class')}>
+                    <Activity className="mr-2 h-4 w-4" />
+                    Class Level Comparison
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleShowComparison('time')}>
+                    <Clock className="mr-2 h-4 w-4" />
+                    Day & Time Comparison
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => setShowAdvancedPivotTable(!showAdvancedPivotTable)}>
+                    <ArrowUpDown className="mr-2 h-4 w-4" />
+                    Advanced Pivot Table
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
               
               <CollapsibleTrigger asChild>
                 <Button variant="outline" size="sm" className="flex items-center gap-1">
                   <Filter className="h-4 w-4" />
-                  <span className="hidden sm:inline">Advanced Filters</span>
+                  <span className="hidden sm:inline">General Filters</span>
                   {isFilterCollapsed ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
                 </Button>
               </CollapsibleTrigger>
@@ -356,15 +504,63 @@ const Dashboard: React.FC<DashboardProps> = ({
           </Card>
         </div>
         
-        {showTrainerComparison && (
+        {activeComparisonView && (
           <div className="grid grid-cols-1 gap-6 mb-6">
             <Card>
               <CardContent className="p-6">
-                <TrainerComparisonView data={filteredData} trainerAvatars={trainerAvatars} />
+                <Tabs defaultValue={activeComparisonView}>
+                  <TabsList className="mb-4">
+                    <TabsTrigger value="trainer" onClick={() => handleShowComparison('trainer')}>
+                      <Users className="mr-2 h-4 w-4" />
+                      Trainer Comparison
+                    </TabsTrigger>
+                    <TabsTrigger value="location" onClick={() => handleShowComparison('location')}>
+                      <Building className="mr-2 h-4 w-4" />
+                      Location Comparison
+                    </TabsTrigger>
+                    <TabsTrigger value="class" onClick={() => handleShowComparison('class')}>
+                      <Activity className="mr-2 h-4 w-4" />
+                      Class Level Comparison
+                    </TabsTrigger>
+                    <TabsTrigger value="time" onClick={() => handleShowComparison('time')}>
+                      <Clock className="mr-2 h-4 w-4" />
+                      Day & Time Comparison
+                    </TabsTrigger>
+                  </TabsList>
+                  
+                  <TabsContent value="trainer">
+                    <TrainerComparisonView data={filteredData} trainerAvatars={trainerAvatars} />
+                  </TabsContent>
+                  <TabsContent value="location">
+                    <TrainerComparisonView data={filteredData} trainerAvatars={trainerAvatars} groupByKey="location" headerTitle="Location Comparison" />
+                  </TabsContent>
+                  <TabsContent value="class">
+                    <TrainerComparisonView data={filteredData} trainerAvatars={trainerAvatars} groupByKey="cleanedClass" headerTitle="Class Level Comparison" />
+                  </TabsContent>
+                  <TabsContent value="time">
+                    <TrainerComparisonView data={filteredData} trainerAvatars={trainerAvatars} groupByKey="dayOfWeek" headerTitle="Day & Time Comparison" secondaryGroupByKey="classTime" />
+                  </TabsContent>
+                </Tabs>
               </CardContent>
             </Card>
           </div>
         )}
+
+        {showAdvancedPivotTable && (
+          <div className="grid grid-cols-1 gap-6 mb-6">
+            <Card>
+              <CardContent className="p-6">
+                <AdvancedPivotTable data={filteredData} trainerAvatars={trainerAvatars} />
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        <TableFilterPanel 
+          data={data}
+          onFilterChange={handleTableFilterChange}
+          activeFilters={tableFilterState}
+        />
 
         <ViewSwitcherWrapper viewMode={viewMode} setViewMode={setViewMode} />
 
