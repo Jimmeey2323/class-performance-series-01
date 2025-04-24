@@ -1,86 +1,83 @@
-import React, { useState } from 'react';
+
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import FileUploader from '@/components/FileUploader';
 import Dashboard from '@/components/Dashboard';
 import { ProcessedData, ViewMode } from '@/types/data';
-import { processZipFile } from '@/utils/fileProcessing';
-import { useToast } from '@/components/ui/use-toast';
-import { motion } from 'framer-motion';
+import { handleZipFile, processData } from '@/utils/fileProcessing';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useLocalStorage } from '@/hooks/useLocalStorage';
+
 const Index = () => {
   const [data, setData] = useState<ProcessedData[]>([]);
   const [loading, setLoading] = useState(false);
-  const [fileUploaded, setFileUploaded] = useState(false);
   const [progress, setProgress] = useState(0);
   const [viewMode, setViewMode] = useState<ViewMode>('table');
-  const {
-    toast
-  } = useToast();
-  const navigate = useNavigate();
+  
+  // Use localStorage for persistence
+  const [persistentData, setPersistentData] = useLocalStorage<ProcessedData[]>('class-data', []);
+  const [hasInitialized, setHasInitialized] = useState(false);
+  
+  // Check if data exists in localStorage on first load
+  useEffect(() => {
+    if (!hasInitialized && persistentData.length > 0) {
+      setData(persistentData);
+      setHasInitialized(true);
+    }
+  }, [persistentData, hasInitialized]);
+
   const handleFileUpload = async (file: File) => {
     setLoading(true);
-    setProgress(10);
+    setProgress(0);
+    
     try {
-      setProgress(30);
-      const processedData = await processZipFile(file);
-      setProgress(70);
-      if (processedData && processedData.length > 0) {
-        setData(processedData);
-        setFileUploaded(true);
-        setProgress(100);
-        toast({
-          title: 'File processed successfully',
-          description: `Processed ${processedData.length} records from the file.`,
-          duration: 3000
+      if (file.name.endsWith('.zip')) {
+        const csvData = await handleZipFile(file, (progress) => {
+          setProgress(progress);
         });
+        
+        if (csvData) {
+          const processedData = processData(csvData);
+          setData(processedData);
+          setPersistentData(processedData);
+          setProgress(100);
+        } else {
+          console.error('Failed to process ZIP file');
+        }
       } else {
-        throw new Error('No data found or processed');
+        console.error('Invalid file format. Please upload a ZIP file.');
       }
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error processing file:', error);
-      toast({
-        title: 'Error processing file',
-        description: error.message || 'There was an error processing your file. Please try again.',
-        variant: 'destructive',
-        duration: 5000
-      });
     } finally {
-      setTimeout(() => {
-        setLoading(false);
-      }, 1000); // Keep loading for a short period to show progress
+      setLoading(false);
     }
   };
+
   const handleReset = () => {
     setData([]);
-    setFileUploaded(false);
-    setProgress(0);
+    setPersistentData([]);
   };
-  const handleLogout = () => {
-    navigate('/auth');
-  };
-  return <div className="bg-slate-50 dark:bg-gray-900 min-h-screen">
-      {!fileUploaded ? <motion.div className="flex flex-col items-center justify-center min-h-screen p-6" initial={{
-      opacity: 0,
-      y: 20
-    }} animate={{
-      opacity: 1,
-      y: 0
-    }} transition={{
-      duration: 0.5
-    }}>
-          <motion.img src="https://i.imgur.com/9mOm7gP.png" alt="Logo" initial={{
-        rotate: 0
-      }} animate={{
-        rotate: 360
-      }} transition={{
-        duration: 20,
-        repeat: Infinity,
-        ease: "linear"
-      }} className="h-20 w-auto mb-6 object-contain" />
-          
-          
-          
+
+  return (
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      {data.length === 0 ? (
+        <div className="container mx-auto py-16 px-4">
           <FileUploader onFileUpload={handleFileUpload} />
-        </motion.div> : <Dashboard data={data} loading={loading} progress={progress} onReset={handleReset} viewMode={viewMode} setViewMode={setViewMode} onLogout={handleLogout} />}
-    </div>;
+        </div>
+      ) : (
+        <Dashboard 
+          data={data} 
+          loading={loading} 
+          progress={progress} 
+          onReset={handleReset}
+          viewMode={viewMode}
+          setViewMode={setViewMode}
+          onLogout={handleReset}
+        />
+      )}
+    </div>
+  );
 };
+
 export default Index;
