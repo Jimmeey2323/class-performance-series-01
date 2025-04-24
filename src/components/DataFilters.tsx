@@ -1,533 +1,433 @@
 
-import React, { useState, useEffect } from 'react';
-import { FilterOption, SortOption, ProcessedData } from '@/types/data';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { DateRangePicker, DateRange } from './DateRangePicker';
-import { parse } from 'date-fns';
-import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Filter, Plus, X, Check, ChevronDown, ChevronUp } from 'lucide-react';
-import { Checkbox } from '@/components/ui/checkbox';
+import React, { useState } from 'react';
+import { Button } from "@/components/ui/button";
+import { ProcessedData, FilterOption, SortOption } from '@/types/data';
+import { DateRangePicker, DateRange } from '@/components/DateRangePicker';
+import { 
+  ChevronDown, 
+  ChevronUp, 
+  Plus, 
+  Trash, 
+  Filter, 
+  ArrowUp, 
+  ArrowDown,
+  Calendar
+} from 'lucide-react';
 import { Label } from '@/components/ui/label';
-import { motion, AnimatePresence } from 'framer-motion';
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
+import { 
+  Accordion, 
+  AccordionContent, 
+  AccordionItem, 
+  AccordionTrigger 
+} from '@/components/ui/accordion';
+import { Card, CardContent } from "@/components/ui/card";
 
 interface DataFiltersProps {
   onFilterChange: (filters: FilterOption[]) => void;
-  onSortChange: (sortOptions: SortOption[]) => void;
+  onSortChange: (sorts: SortOption[]) => void;
+  onDateRangeChange?: (dateRange: DateRange | undefined) => void;
   data: ProcessedData[];
   activeFilters: number;
+  dateRange?: DateRange;
 }
 
-const parseClassDate = (dateStr: string | undefined): Date | undefined => {
-  if (!dateStr) return undefined;
-  
-  // Try parsing as MM/DD/YYYY first, which is commonly used in the data
-  let parsed = parse(dateStr.split(',')[0], "MM/dd/yyyy", new Date());
-  
-  // If that fails, try alternative formats
-  if (isNaN(parsed.getTime())) {
-    parsed = parse(dateStr.split(',')[0], "yyyy-MM-dd", new Date());
-    if (isNaN(parsed.getTime())) {
-      // Try one more format as a last resort
-      parsed = parse(dateStr.split(',')[0], "dd/MM/yyyy", new Date());
-      if (isNaN(parsed.getTime())) return undefined;
-    }
-  }
-  
-  return parsed;
-};
+interface Filter {
+  id: string;
+  field: keyof ProcessedData;
+  operator: 'contains' | 'equals' | 'starts' | 'ends' | 'greater' | 'less' | 'after' | 'before' | 'on' | 'in';
+  value: string;
+}
 
-const DataFilters: React.FC<DataFiltersProps> = ({ onFilterChange, onSortChange, data, activeFilters }) => {
-  const [activeTab, setActiveTab] = useState<'filter' | 'sort'>('filter');
-  const [filters, setFilters] = useState<FilterOption[]>([]);
-  const [sortOptions, setSortOptions] = useState<SortOption[]>([]);
-  const [newFilter, setNewFilter] = useState<FilterOption>({ field: 'cleanedClass', operator: 'contains', value: '' });
-  const [newSort, setNewSort] = useState<SortOption>({ field: 'totalCheckins', direction: 'desc' });
-  const [isExpanded, setIsExpanded] = useState(false);
+interface Sort {
+  id: string;
+  field: keyof ProcessedData;
+  direction: 'asc' | 'desc';
+}
 
-  // Extract unique options for selects
-  const classNames = React.useMemo(() => {
-    if (!data || data.length === 0) return [];
-    const uniqueClasses = new Set(data.map(row => row.cleanedClass).filter(Boolean));
-    return Array.from(uniqueClasses).sort();
-  }, [data]);
+const DataFilters: React.FC<DataFiltersProps> = ({ 
+  onFilterChange, 
+  onSortChange,
+  onDateRangeChange, 
+  data,
+  activeFilters,
+  dateRange
+}) => {
+  const [filters, setFilters] = useState<Filter[]>([]);
+  const [sorts, setSorts] = useState<Sort[]>([]);
+  const [expandedSection, setExpandedSection] = useState<string | null>('filters');
 
-  const locations = React.useMemo(() => {
-    if (!data || data.length === 0) return [];
-    const uniqueLocations = new Set(data.map(row => row.location).filter(Boolean));
-    return Array.from(uniqueLocations).sort();
-  }, [data]);
-
-  const daysOfWeek = React.useMemo(() => {
-    if (!data || data.length === 0) return [];
-    const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
-    const availableDays = new Set(data.map(row => row.dayOfWeek).filter(Boolean));
-    return days.filter(day => availableDays.has(day));
-  }, [data]);
-
-  const periods = React.useMemo(() => {
-    if (!data || data.length === 0) return [];
-    const uniquePeriods = new Set(data.map(row => row.period).filter(Boolean));
-    return Array.from(uniquePeriods).sort();
-  }, [data]);
-  
-  const [filterSettings, setFilterSettings] = useState({
-    className: "all",
-    location: "all",
-    dayOfWeek: "all",
-    hasParticipants: false,
-    dateRange: { from: undefined, to: undefined } as DateRange,
-  });
+  // Get unique values for certain fields to provide dropdown options
+  const uniquePeriods = [...new Set(data.map(item => item.period))].filter(Boolean).sort();
+  const uniqueLocations = [...new Set(data.map(item => item.location))].filter(Boolean).sort();
+  const uniqueClasses = [...new Set(data.map(item => item.cleanedClass))].filter(Boolean).sort();
+  const uniqueTeachers = [...new Set(data.map(item => item.teacherName))].filter(Boolean).sort();
 
   const addFilter = () => {
-    if (newFilter.value) {
-      const updatedFilters = [...filters, { ...newFilter }];
-      setFilters(updatedFilters);
-      onFilterChange(updatedFilters);
-      setNewFilter({ ...newFilter, value: '' }); // Reset value but keep field and operator
-    }
+    const newFilter = {
+      id: `filter-${Date.now()}`,
+      field: 'teacherName' as keyof ProcessedData,
+      operator: 'contains' as const,
+      value: ''
+    };
+    setFilters([...filters, newFilter]);
   };
 
-  const removeFilter = (index: number) => {
-    const updatedFilters = filters.filter((_, i) => i !== index);
+  const updateFilter = (id: string, field: keyof Filter, value: any) => {
+    const updatedFilters = filters.map(filter => {
+      if (filter.id === id) {
+        return { ...filter, [field]: value };
+      }
+      return filter;
+    });
     setFilters(updatedFilters);
-    onFilterChange(updatedFilters);
+    
+    // Convert filters to FilterOption and notify parent
+    const filterOptions = updatedFilters.filter(f => f.value !== '').map(({field, operator, value}) => ({
+      field,
+      operator,
+      value
+    }));
+    onFilterChange(filterOptions);
+  };
+
+  const removeFilter = (id: string) => {
+    const updatedFilters = filters.filter(filter => filter.id !== id);
+    setFilters(updatedFilters);
+    
+    // Convert filters to FilterOption and notify parent
+    const filterOptions = updatedFilters.map(({field, operator, value}) => ({
+      field,
+      operator,
+      value
+    }));
+    onFilterChange(filterOptions);
   };
 
   const addSort = () => {
-    const updatedSortOptions = [...sortOptions, { ...newSort }];
-    setSortOptions(updatedSortOptions);
-    onSortChange(updatedSortOptions);
+    const newSort = {
+      id: `sort-${Date.now()}`,
+      field: 'totalCheckins' as keyof ProcessedData,
+      direction: 'desc' as const
+    };
+    setSorts([...sorts, newSort]);
   };
 
-  const removeSort = (index: number) => {
-    const updatedSortOptions = sortOptions.filter((_, i) => i !== index);
-    setSortOptions(updatedSortOptions);
-    onSortChange(updatedSortOptions);
-  };
-
-  const clearAll = () => {
-    setFilters([]);
-    setSortOptions([]);
-    setFilterSettings({
-      className: "all",
-      location: "all",
-      dayOfWeek: "all",
-      hasParticipants: false,
-      dateRange: { from: undefined, to: undefined },
+  const updateSort = (id: string, field: keyof Sort, value: any) => {
+    const updatedSorts = sorts.map(sort => {
+      if (sort.id === id) {
+        return { ...sort, [field]: value };
+      }
+      return sort;
     });
-    onFilterChange([]);
-    onSortChange([]);
+    setSorts(updatedSorts);
+    
+    // Convert sorts to SortOption and notify parent
+    const sortOptions = updatedSorts.map(({field, direction}) => ({
+      field,
+      direction
+    }));
+    onSortChange(sortOptions);
   };
 
-  const applyFilters = () => {
-    const newFilters: FilterOption[] = [];
+  const removeSort = (id: string) => {
+    const updatedSorts = sorts.filter(sort => sort.id !== id);
+    setSorts(updatedSorts);
     
-    if (filterSettings.className !== "all") {
-      newFilters.push({
-        field: "cleanedClass",
-        operator: "equals",
-        value: filterSettings.className
-      });
-    }
-
-    if (filterSettings.location !== "all") {
-      newFilters.push({
-        field: "location",
-        operator: "equals",
-        value: filterSettings.location
-      });
-    }
-
-    if (filterSettings.dayOfWeek !== "all") {
-      newFilters.push({
-        field: "dayOfWeek",
-        operator: "equals",
-        value: filterSettings.dayOfWeek
-      });
-    }
-
-    if (filterSettings.hasParticipants) {
-      newFilters.push({
-        field: "totalCheckins",
-        operator: "greater",
-        value: "0"
-      });
-    }
-
-    // Date range filter
-    if (filterSettings.dateRange.from || filterSettings.dateRange.to) {
-      const dateFilters = [];
-      
-      if (filterSettings.dateRange.from) {
-        dateFilters.push({
-          field: "date",
-          operator: "after",
-          value: filterSettings.dateRange.from.toISOString().split('T')[0]
-        });
-      }
-      
-      if (filterSettings.dateRange.to) {
-        dateFilters.push({
-          field: "date",
-          operator: "before",
-          value: filterSettings.dateRange.to.toISOString().split('T')[0]
-        });
-      }
-      
-      newFilters.push(...dateFilters);
-    }
-
-    setFilters(newFilters);
-    onFilterChange(newFilters);
+    // Convert sorts to SortOption and notify parent
+    const sortOptions = updatedSorts.map(({field, direction}) => ({
+      field,
+      direction
+    }));
+    onSortChange(sortOptions);
   };
 
-  // Operators based on field type
-  const getOperatorsForField = (field: string) => {
-    const numericFields = ['totalCheckins', 'totalRevenue', 'totalCancelled', 'totalOccurrences'];
-    const dateFields = ['date', 'period'];
+  const handleDateRangeChange = (range: DateRange | undefined) => {
+    if (onDateRangeChange) {
+      onDateRangeChange(range);
+    }
+  };
+
+  // Get predefined filters for specific fields
+  const getQuickFilters = (field: keyof ProcessedData) => {
+    switch (field) {
+      case 'location':
+        return uniqueLocations.map(location => ({
+          label: location,
+          value: location,
+          operator: 'equals' as const
+        }));
+      case 'period':
+        return uniquePeriods.map(period => ({
+          label: period,
+          value: period,
+          operator: 'equals' as const
+        }));
+      case 'cleanedClass':
+        return uniqueClasses.map(className => ({
+          label: className,
+          value: className,
+          operator: 'equals' as const
+        }));
+      case 'teacherName':
+        return uniqueTeachers.map(teacher => ({
+          label: teacher,
+          value: teacher,
+          operator: 'equals' as const
+        }));
+      default:
+        return [];
+    }
+  };
+
+  // Handle quick filter selection
+  const handleQuickFilter = (field: keyof ProcessedData, value: string, operator: 'contains' | 'equals') => {
+    const filterExists = filters.some(f => f.field === field && f.value === value && f.operator === operator);
     
-    if (numericFields.includes(field)) {
-      return [
-        { value: 'greater', label: 'Greater than' },
-        { value: 'less', label: 'Less than' },
-        { value: 'equals', label: 'Equals' },
-      ];
-    } else if (dateFields.includes(field)) {
-      return [
-        { value: 'after', label: 'After' },
-        { value: 'before', label: 'Before' },
-        { value: 'on', label: 'On' },
-      ];
+    if (filterExists) {
+      const updatedFilters = filters.filter(f => !(f.field === field && f.value === value && f.operator === operator));
+      setFilters(updatedFilters);
+      
+      const filterOptions = updatedFilters.map(({field, operator, value}) => ({
+        field,
+        operator,
+        value
+      }));
+      onFilterChange(filterOptions);
     } else {
-      return [
-        { value: 'contains', label: 'Contains' },
-        { value: 'equals', label: 'Equals' },
-        { value: 'starts', label: 'Starts with' },
-        { value: 'ends', label: 'Ends with' },
-      ];
+      const newFilter = {
+        id: `filter-${Date.now()}`,
+        field,
+        operator,
+        value
+      };
+      const updatedFilters = [...filters, newFilter];
+      setFilters(updatedFilters);
+      
+      const filterOptions = updatedFilters.map(({field, operator, value}) => ({
+        field,
+        operator,
+        value
+      }));
+      onFilterChange(filterOptions);
     }
   };
-
-  const fields = [
-    { value: 'cleanedClass', label: 'Class Type' },
-    { value: 'teacherName', label: 'Instructor' },
-    { value: 'location', label: 'Location' },
-    { value: 'dayOfWeek', label: 'Day of Week' },
-    { value: 'classTime', label: 'Class Time' },
-    { value: 'date', label: 'Class Date' },
-    { value: 'period', label: 'Period' },
-    { value: 'totalCheckins', label: 'Check-ins' },
-    { value: 'totalRevenue', label: 'Revenue' },
-    { value: 'totalCancelled', label: 'Cancellations' },
-    { value: 'totalOccurrences', label: 'Class Count' },
-  ];
-
-  const sortableFields = [
-    { value: 'cleanedClass', label: 'Class Type' },
-    { value: 'teacherName', label: 'Instructor' },
-    { value: 'location', label: 'Location' },
-    { value: 'dayOfWeek', label: 'Day of Week' },
-    { value: 'classTime', label: 'Class Time' },
-    { value: 'date', label: 'Class Date' },
-    { value: 'totalCheckins', label: 'Check-ins' },
-    { value: 'totalRevenue', label: 'Revenue' },
-    { value: 'totalCancelled', label: 'Cancellations' },
-    { value: 'totalOccurrences', label: 'Class Count' },
-    { value: 'classAverageIncludingEmpty', label: 'Avg. Attendance (All)' },
-    { value: 'classAverageExcludingEmpty', label: 'Avg. Attendance (Non-empty)' },
-  ];
 
   return (
-    <Card className="mb-6">
-      <CardHeader className="pb-3 flex flex-row items-center justify-between space-y-0">
-        <CardTitle className="text-md font-medium flex items-center gap-2">
-          <Filter className="h-4 w-4" />
-          Filter & Sort Data {activeFilters > 0 && (
-            <Badge variant="secondary" className="ml-2">{activeFilters} active</Badge>
-          )}
-        </CardTitle>
-        <Button variant="ghost" size="sm" onClick={() => setIsExpanded(!isExpanded)}>
-          {isExpanded ? (
-            <ChevronUp className="h-4 w-4" />
-          ) : (
-            <ChevronDown className="h-4 w-4" />
-          )}
-        </Button>
-      </CardHeader>
-      
-      {isExpanded && (
-        <CardContent className="space-y-4">
-          <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'filter' | 'sort')}>
-            <TabsList className="grid grid-cols-2 w-[200px] mb-4">
-              <TabsTrigger value="filter">Filter</TabsTrigger>
-              <TabsTrigger value="sort">Sort</TabsTrigger>
-            </TabsList>
+    <div className="space-y-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="md:col-span-2">
+          <Label className="mb-2 block text-sm font-medium">Date Range</Label>
+          <DateRangePicker value={dateRange} onChange={handleDateRangeChange} placeholder="Filter by date range" />
+        </div>
 
-            {activeTab === 'filter' && (
-              <div className="space-y-4">
-                {/* Simple filters */}
-                <div className="grid md:grid-cols-4 gap-4">
-                  <div className="space-y-2">
-                    <Label>Class Type</Label>
-                    <Select
-                      value={filterSettings.className}
-                      onValueChange={(value) => setFilterSettings({ ...filterSettings, className: value })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select class type" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Classes</SelectItem>
-                        {classNames.map((className) => (
-                          <SelectItem key={className} value={className}>
-                            {className}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label>Location</Label>
-                    <Select
-                      value={filterSettings.location}
-                      onValueChange={(value) => setFilterSettings({ ...filterSettings, location: value })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select location" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Locations</SelectItem>
-                        {locations.map((location) => (
-                          <SelectItem key={location} value={location}>
-                            {location}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label>Day of Week</Label>
-                    <Select
-                      value={filterSettings.dayOfWeek}
-                      onValueChange={(value) => setFilterSettings({ ...filterSettings, dayOfWeek: value })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select day" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Days</SelectItem>
-                        {daysOfWeek.map((day) => (
-                          <SelectItem key={day} value={day}>
-                            {day}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+        <div className="md:col-span-2">
+          <Label className="mb-2 block text-sm font-medium">Quick Filters</Label>
+          <div className="flex flex-wrap gap-2">
+            <Select 
+              onValueChange={(value) => {
+                const [field, val, operator] = value.split('|');
+                handleQuickFilter(field as keyof ProcessedData, val, operator as 'contains' | 'equals');
+              }}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Add location filter" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  <SelectLabel>Locations</SelectLabel>
+                  {getQuickFilters('location').map((filter, index) => (
+                    <SelectItem key={`loc-${index}`} value={`location|${filter.value}|equals`}>
+                      {filter.label}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+      </div>
 
-                  <div className="space-y-2">
-                    <Label>Date Range</Label>
-                    <DateRangePicker
-                      value={filterSettings.dateRange}
-                      onChange={(dateRange) =>
-                        setFilterSettings({ ...filterSettings, dateRange: dateRange || { from: undefined, to: undefined } })
-                      }
-                    />
-                  </div>
-                </div>
-                
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="hasParticipants"
-                    checked={filterSettings.hasParticipants}
-                    onCheckedChange={(checked) => 
-                      setFilterSettings({ ...filterSettings, hasParticipants: checked === true })
-                    }
-                  />
-                  <Label htmlFor="hasParticipants">Only show classes with participants</Label>
-                </div>
-                
-                <div className="flex justify-between">
-                  <Button variant="outline" onClick={clearAll}>
-                    Clear All
-                  </Button>
-                  <Button onClick={applyFilters}>
-                    Apply Filters
-                  </Button>
-                </div>
-
-                {/* Advanced Filters */}
-                <div className="mt-6 border-t pt-6">
-                  <h3 className="text-sm font-medium mb-4">Advanced Filters</h3>
-
-                  {/* Add new filter controls */}
-                  <div className="flex flex-wrap gap-2 mb-4">
-                    <div className="w-full sm:w-auto">
-                      <Select value={newFilter.field} onValueChange={(value) => setNewFilter({ ...newFilter, field: value as keyof ProcessedData, operator: getOperatorsForField(value)[0].value })}>
-                        <SelectTrigger className="w-full sm:w-[180px]">
-                          <SelectValue placeholder="Select field" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {fields.map(field => (
-                            <SelectItem key={field.value} value={field.value}>{field.label}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="w-full sm:w-auto">
-                      <Select value={newFilter.operator} onValueChange={(value) => setNewFilter({ ...newFilter, operator: value })}>
-                        <SelectTrigger className="w-full sm:w-[150px]">
-                          <SelectValue placeholder="Operator" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {getOperatorsForField(newFilter.field).map(op => (
-                            <SelectItem key={op.value} value={op.value}>{op.label}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="flex-1">
-                      <Input 
-                        placeholder="Value" 
-                        value={newFilter.value} 
-                        onChange={(e) => setNewFilter({ ...newFilter, value: e.target.value })}
-                      />
-                    </div>
-
-                    <Button type="button" onClick={addFilter} size="sm" className="whitespace-nowrap">
-                      <Plus className="h-4 w-4 mr-1" /> Add Filter
-                    </Button>
-                  </div>
-
-                  {/* Active filters */}
-                  <div className="space-y-2">
-                    <AnimatePresence>
-                      {filters.map((filter, index) => {
-                        const field = fields.find(f => f.value === filter.field);
-                        const operator = getOperatorsForField(filter.field).find(op => op.value === filter.operator);
-                        
-                        return (
-                          <motion.div 
-                            key={index}
-                            initial={{ opacity: 0, height: 0 }}
-                            animate={{ opacity: 1, height: 'auto' }}
-                            exit={{ opacity: 0, height: 0 }}
-                            className="flex items-center gap-2 p-2 border rounded-md bg-muted/20"
-                          >
-                            <Badge variant="secondary" className="whitespace-nowrap">
-                              {field?.label || filter.field}
-                            </Badge>
-                            <Badge variant="outline" className="whitespace-nowrap">
-                              {operator?.label || filter.operator}
-                            </Badge>
-                            <span className="text-sm truncate flex-1">{filter.value}</span>
-                            <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-foreground" onClick={() => removeFilter(index)}>
-                              <X className="h-4 w-4" />
-                            </Button>
-                          </motion.div>
-                        );
-                      })}
-                    </AnimatePresence>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {activeTab === 'sort' && (
-              <div className="space-y-4">
-                <h3 className="text-sm font-medium mb-4">Sort Order</h3>
-
-                {/* Add new sort controls */}
-                <div className="flex flex-wrap gap-2 mb-4">
-                  <div className="w-full sm:w-auto">
-                    <Select value={newSort.field} onValueChange={(value) => setNewSort({ ...newSort, field: value as keyof ProcessedData })}>
-                      <SelectTrigger className="w-full sm:w-[200px]">
-                        <SelectValue placeholder="Select field" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {sortableFields.map(field => (
-                          <SelectItem key={field.value} value={field.value}>{field.label}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="w-full sm:w-auto">
-                    <Select value={newSort.direction} onValueChange={(value) => setNewSort({ ...newSort, direction: value as 'asc' | 'desc' })}>
-                      <SelectTrigger className="w-full sm:w-[150px]">
-                        <SelectValue placeholder="Direction" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="asc">Ascending</SelectItem>
-                        <SelectItem value="desc">Descending</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <Button type="button" onClick={addSort} size="sm">
-                    <Plus className="h-4 w-4 mr-1" /> Add Sort
-                  </Button>
-                </div>
-
-                {/* Active sort options */}
-                <div className="space-y-2">
-                  <AnimatePresence>
-                    {sortOptions.map((sort, index) => {
-                      const field = sortableFields.find(f => f.value === sort.field);
-                      
-                      return (
-                        <motion.div 
-                          key={index}
-                          initial={{ opacity: 0, height: 0 }}
-                          animate={{ opacity: 1, height: 'auto' }}
-                          exit={{ opacity: 0, height: 0 }}
-                          className="flex items-center gap-2 p-2 border rounded-md bg-muted/20"
-                        >
-                          <div className="flex-1 flex items-center gap-2">
-                            <Badge variant="secondary" className="whitespace-nowrap">
-                              {field?.label || sort.field}
-                            </Badge>
-                            <Badge variant="outline" className="whitespace-nowrap">
-                              {sort.direction === 'asc' ? 'Ascending' : 'Descending'}
-                            </Badge>
-                            {index === 0 && (
-                              <Badge className="bg-primary/20 text-primary border-primary/20">Primary</Badge>
-                            )}
-                          </div>
-                          <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-foreground" onClick={() => removeSort(index)}>
-                            <X className="h-4 w-4" />
-                          </Button>
-                        </motion.div>
-                      );
-                    })}
-                  </AnimatePresence>
-                </div>
-
-                {/* Clear all button */}
-                {sortOptions.length > 0 && (
-                  <div className="flex justify-end">
-                    <Button variant="outline" size="sm" onClick={() => {
-                      setSortOptions([]);
-                      onSortChange([]);
-                    }}>
-                      Clear All Sorts
-                    </Button>
-                  </div>
+      <Accordion type="single" collapsible value={expandedSection || undefined} onValueChange={(value) => setExpandedSection(value)}>
+        <AccordionItem value="filters" className="border-none">
+          <div className="flex items-center justify-between">
+            <AccordionTrigger className="py-2 hover:no-underline">
+              <div className="flex items-center">
+                <Filter className="h-4 w-4 mr-2" />
+                <span className="font-medium">Advanced Filters</span>
+                {filters.length > 0 && (
+                  <Badge variant="secondary" className="ml-2">{filters.length}</Badge>
                 )}
               </div>
-            )}
-          </Tabs>
-        </CardContent>
-      )}
-    </Card>
+            </AccordionTrigger>
+            <Button variant="ghost" size="sm" onClick={addFilter}>
+              <Plus className="h-4 w-4 mr-1" /> Add Filter
+            </Button>
+          </div>
+          <AccordionContent>
+            <div className="space-y-3">
+              {filters.map((filter) => (
+                <Card key={filter.id} className="border-[#E0E6F0]">
+                  <CardContent className="p-3">
+                    <div className="grid grid-cols-12 gap-2">
+                      <div className="col-span-4">
+                        <Select 
+                          value={filter.field} 
+                          onValueChange={(value) => updateFilter(filter.id, 'field', value)}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select field" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectGroup>
+                              <SelectLabel>Text Fields</SelectLabel>
+                              <SelectItem value="teacherName">Teacher Name</SelectItem>
+                              <SelectItem value="location">Location</SelectItem>
+                              <SelectItem value="cleanedClass">Class Type</SelectItem>
+                              <SelectItem value="dayOfWeek">Day of Week</SelectItem>
+                              <SelectItem value="period">Period</SelectItem>
+                            </SelectGroup>
+                            <SelectGroup>
+                              <SelectLabel>Numeric Fields</SelectLabel>
+                              <SelectItem value="totalCheckins">Check-ins</SelectItem>
+                              <SelectItem value="totalRevenue">Revenue</SelectItem>
+                              <SelectItem value="totalOccurrences">Class Count</SelectItem>
+                              <SelectItem value="totalCancelled">Cancellations</SelectItem>
+                              <SelectItem value="classAverageIncludingEmpty">Average Class Size</SelectItem>
+                            </SelectGroup>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="col-span-3">
+                        <Select 
+                          value={filter.operator} 
+                          onValueChange={(value) => updateFilter(filter.id, 'operator', value as any)}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Operator" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="contains">Contains</SelectItem>
+                            <SelectItem value="equals">Equals</SelectItem>
+                            <SelectItem value="starts">Starts with</SelectItem>
+                            <SelectItem value="ends">Ends with</SelectItem>
+                            <SelectItem value="greater">Greater than</SelectItem>
+                            <SelectItem value="less">Less than</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="col-span-4">
+                        <Input 
+                          value={filter.value} 
+                          onChange={(e) => updateFilter(filter.id, 'value', e.target.value)} 
+                          placeholder="Value"
+                        />
+                      </div>
+                      <div className="col-span-1 flex items-center justify-center">
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          onClick={() => removeFilter(filter.id)}
+                          className="w-8 h-8"
+                        >
+                          <Trash className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </AccordionContent>
+        </AccordionItem>
+        
+        <AccordionItem value="sorts" className="border-none">
+          <div className="flex items-center justify-between">
+            <AccordionTrigger className="py-2 hover:no-underline">
+              <div className="flex items-center">
+                <ArrowDown className="h-4 w-4 mr-2" />
+                <span className="font-medium">Sort Options</span>
+                {sorts.length > 0 && (
+                  <Badge variant="secondary" className="ml-2">{sorts.length}</Badge>
+                )}
+              </div>
+            </AccordionTrigger>
+            <Button variant="ghost" size="sm" onClick={addSort}>
+              <Plus className="h-4 w-4 mr-1" /> Add Sort
+            </Button>
+          </div>
+          <AccordionContent>
+            <div className="space-y-3">
+              {sorts.map((sort) => (
+                <Card key={sort.id} className="border-[#E0E6F0]">
+                  <CardContent className="p-3">
+                    <div className="grid grid-cols-12 gap-2">
+                      <div className="col-span-6">
+                        <Select 
+                          value={sort.field} 
+                          onValueChange={(value) => updateSort(sort.id, 'field', value)}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select field" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="teacherName">Teacher Name</SelectItem>
+                            <SelectItem value="location">Location</SelectItem>
+                            <SelectItem value="cleanedClass">Class Type</SelectItem>
+                            <SelectItem value="totalCheckins">Check-ins</SelectItem>
+                            <SelectItem value="totalRevenue">Revenue</SelectItem>
+                            <SelectItem value="totalOccurrences">Class Count</SelectItem>
+                            <SelectItem value="totalCancelled">Cancellations</SelectItem>
+                            <SelectItem value="classAverageIncludingEmpty">Average Class Size</SelectItem>
+                            <SelectItem value="period">Period</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="col-span-5">
+                        <Select 
+                          value={sort.direction} 
+                          onValueChange={(value) => updateSort(sort.id, 'direction', value as 'asc' | 'desc')}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Direction" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="asc">
+                              <div className="flex items-center">
+                                <ArrowUp className="h-4 w-4 mr-2" />
+                                Ascending
+                              </div>
+                            </SelectItem>
+                            <SelectItem value="desc">
+                              <div className="flex items-center">
+                                <ArrowDown className="h-4 w-4 mr-2" />
+                                Descending
+                              </div>
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="col-span-1 flex items-center justify-center">
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          onClick={() => removeSort(sort.id)}
+                          className="w-8 h-8"
+                        >
+                          <Trash className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </AccordionContent>
+        </AccordionItem>
+      </Accordion>
+    </div>
   );
 };
 

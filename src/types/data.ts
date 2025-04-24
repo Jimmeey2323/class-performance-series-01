@@ -49,13 +49,14 @@ export interface ProcessedData {
   totalTips?: number | string;
   totalParticipants?: number | string;
   totalComps?: number | string;
+  datesOccurred?: Set<string>;
 }
 
 export type ViewMode = 'table' | 'grid' | 'kanban' | 'timeline' | 'pivot';
 
 export interface FilterOption {
   field: keyof ProcessedData;
-  operator: string; // 'contains' | 'equals' | 'starts' | 'ends' | 'greater' | 'less'
+  operator: 'contains' | 'equals' | 'starts' | 'ends' | 'greater' | 'less' | 'after' | 'before' | 'on' | 'in';
   value: string;
 }
 

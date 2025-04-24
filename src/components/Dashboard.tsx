@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { ProcessedData, ViewMode, FilterOption, SortOption } from '@/types/data';
 import ViewSwitcherWrapper from './ViewSwitcherWrapper';
@@ -12,6 +13,11 @@ import TimelineView from '@/components/views/TimelineView';
 import PivotView from '@/components/views/PivotView';
 import SearchBar from '@/components/SearchBar';
 import TrainerComparisonView from '@/components/TrainerComparisonView';
+import LocationComparisonView from '@/components/comparisons/LocationComparisonView';
+import ClassComparisonView from '@/components/comparisons/ClassComparisonView';
+import TimeComparisonView from '@/components/comparisons/TimeComparisonView';
+import PivotTableConfiguration from '@/components/PivotTableConfiguration';
+import { DateRange } from '@/components/DateRangePicker';
 import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { exportToCSV } from '@/utils/fileProcessing';
@@ -25,13 +31,18 @@ import {
   FileSpreadsheet,
   FileJson,
   Users,
+  MapPin,
+  Clock,
+  BookOpen,
   ChevronDown,
   ChevronUp,
   Filter,
-  X
+  X,
+  Settings
 } from 'lucide-react';
 import ProgressBar from '@/components/ProgressBar';
 import { Card, CardContent } from '@/components/ui/card';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import CountUp from 'react-countup';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
@@ -50,6 +61,7 @@ import {
 } from "@/components/ui/dialog";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { useToast } from '@/components/ui/use-toast';
 
 interface DashboardProps {
   data: ProcessedData[];
@@ -84,29 +96,40 @@ const Dashboard: React.FC<DashboardProps> = ({
   setViewMode,
   onLogout
 }) => {
+  const { toast } = useToast();
   const [filteredData, setFilteredData] = useState<ProcessedData[]>([]);
   const [filters, setFilters] = useState<FilterOption[]>([]);
   const [sortOptions, setSortOptions] = useState<SortOption[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [isFilterCollapsed, setIsFilterCollapsed] = useState(true);
+  const [isTableFilterCollapsed, setIsTableFilterCollapsed] = useState(true);
   const [showTrainerComparison, setShowTrainerComparison] = useState(false);
+  const [activeComparisonTab, setActiveComparisonTab] = useState('trainers');
+  const [dateRange, setDateRange] = useState<DateRange | undefined>();
+  const [savedPivotConfigs, setSavedPivotConfigs] = useState<any[]>([]);
+  const [showPivotConfig, setShowPivotConfig] = useState(false);
 
+  // Apply filters effect
   useEffect(() => {
     if (!data.length) return;
 
-    const today = new Date();
-    let result = data.filter(item => {
-      if (item.period) {
-        const [month, year] = item.period.split('-');
-        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-        const monthIndex = months.indexOf(month);
-        const fullYear = 2000 + parseInt(year);
-        const periodDate = new Date(fullYear, monthIndex);
-        return periodDate <= today;
-      }
-      return true;
-    });
+    let result = [...data];
 
+    // Apply date range filter if set
+    if (dateRange && dateRange.from) {
+      result = result.filter(item => {
+        const itemDate = new Date(item.date);
+        if (dateRange.from && itemDate < dateRange.from) {
+          return false;
+        }
+        if (dateRange.to && itemDate > dateRange.to) {
+          return false;
+        }
+        return true;
+      });
+    }
+
+    // Apply search filter
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
       result = result.filter(item => 
@@ -116,6 +139,7 @@ const Dashboard: React.FC<DashboardProps> = ({
       );
     }
 
+    // Apply other filters
     if (filters.length > 0) {
       result = result.filter(item => {
         return filters.every(filter => {
@@ -139,6 +163,12 @@ const Dashboard: React.FC<DashboardProps> = ({
               return Number(fieldValue) > Number(filter.value);
             case 'less':
               return Number(fieldValue) < Number(filter.value);
+            case 'after':
+              return new Date(fieldValue) > new Date(filter.value);
+            case 'before':
+              return new Date(fieldValue) < new Date(filter.value);
+            case 'on':
+              return new Date(fieldValue).toDateString() === new Date(filter.value).toDateString();
             default:
               return true;
           }
@@ -146,6 +176,7 @@ const Dashboard: React.FC<DashboardProps> = ({
       });
     }
 
+    // Apply sorting
     if (sortOptions.length > 0) {
       result.sort((a, b) => {
         for (const sort of sortOptions) {
@@ -171,7 +202,19 @@ const Dashboard: React.FC<DashboardProps> = ({
     }
     
     setFilteredData(result);
-  }, [data, filters, sortOptions, searchQuery]);
+  }, [data, filters, sortOptions, searchQuery, dateRange]);
+
+  // Load saved pivot configurations and data from localStorage on component mount
+  useEffect(() => {
+    const savedConfigs = localStorage.getItem('pivotConfigs');
+    if (savedConfigs) {
+      try {
+        setSavedPivotConfigs(JSON.parse(savedConfigs));
+      } catch (error) {
+        console.error('Error loading saved pivot configurations:', error);
+      }
+    }
+  }, []);
 
   const handleFilterChange = (newFilters: FilterOption[]) => {
     setFilters(newFilters);
@@ -179,6 +222,10 @@ const Dashboard: React.FC<DashboardProps> = ({
 
   const handleSortChange = (newSortOptions: SortOption[]) => {
     setSortOptions(newSortOptions);
+  };
+
+  const handleDateRangeChange = (range?: DateRange) => {
+    setDateRange(range);
   };
 
   const handleExport = (format: 'csv' | 'json' | 'excel') => {
@@ -204,6 +251,23 @@ const Dashboard: React.FC<DashboardProps> = ({
   const clearFilters = () => {
     setFilters([]);
     setSearchQuery('');
+    setDateRange(undefined);
+  };
+
+  const handleSavePivotConfig = (config: any) => {
+    const newConfigs = [...savedPivotConfigs, config];
+    setSavedPivotConfigs(newConfigs);
+    localStorage.setItem('pivotConfigs', JSON.stringify(newConfigs));
+    toast({
+      title: "Configuration Saved",
+      description: "Your pivot table configuration has been saved."
+    });
+  };
+
+  const handleDeletePivotConfig = (index: number) => {
+    const newConfigs = savedPivotConfigs.filter((_, i) => i !== index);
+    setSavedPivotConfigs(newConfigs);
+    localStorage.setItem('pivotConfigs', JSON.stringify(newConfigs));
   };
 
   if (loading) {
@@ -216,6 +280,7 @@ const Dashboard: React.FC<DashboardProps> = ({
             <span className="text-primary mx-1">
               <CountUp 
                 end={data.length} 
+                decimals={0}
               />
             </span> 
             records so far
@@ -227,7 +292,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   }
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="space-y-6 animate-fade-in bg-gradient-to-b from-[#F8F9FC] to-[#F0F4FF] dark:from-gray-900 dark:to-gray-950 min-h-screen">
       <div className="bg-white dark:bg-gray-900 border-b shadow-sm sticky top-0 z-50">
         <div className="container mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center">
@@ -240,10 +305,10 @@ const Dashboard: React.FC<DashboardProps> = ({
               transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
             />
             <div>
-              <h1 className="text-xl font-bold text-slate-800 dark:text-slate-100">
+              <h1 className="text-xl md:text-2xl font-bold text-[#1E2F4D] dark:text-slate-100">
                 Class Analytics Dashboard
               </h1>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
+              <p className="text-xs text-[#6B7A99] dark:text-slate-400">
                 {filteredData.length} Classes | {filters.length} Active Filters
               </p>
             </div>
@@ -252,14 +317,14 @@ const Dashboard: React.FC<DashboardProps> = ({
           <div className="flex items-center gap-2 ml-auto">
             <ThemeToggle />
             
-            <Button variant="outline" size="sm" onClick={onReset}>
+            <Button variant="outline" size="sm" onClick={onReset} className="border-[#E0E6F0]">
               <RefreshCw className="mr-2 h-4 w-4" />
               Upload New
             </Button>
             
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm">
+                <Button variant="outline" size="sm" className="border-[#E0E6F0]">
                   <Download className="mr-2 h-4 w-4" />
                   Export
                 </Button>
@@ -280,6 +345,11 @@ const Dashboard: React.FC<DashboardProps> = ({
               </DropdownMenuContent>
             </DropdownMenu>
             
+            <Button variant="outline" size="sm" onClick={() => setShowPivotConfig(true)} className="hidden md:flex border-[#E0E6F0]">
+              <Settings className="mr-2 h-4 w-4" />
+              Customize
+            </Button>
+            
             <Button variant="ghost" size="icon" onClick={onLogout}>
               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
@@ -293,14 +363,14 @@ const Dashboard: React.FC<DashboardProps> = ({
         <Collapsible
           open={!isFilterCollapsed}
           onOpenChange={(open) => setIsFilterCollapsed(!open)}
-          className="w-full bg-white dark:bg-gray-900 shadow-sm rounded-lg border mb-6"
+          className="w-full bg-white dark:bg-gray-900 shadow-sm rounded-lg border border-[#E0E6F0] mb-6"
         >
           <div className="flex items-center justify-between p-4">
             <div className="flex items-center gap-3 flex-1">
               <div className="flex-1 max-w-xl">
                 <SearchBar onSearch={handleSearchChange} data={data} />
               </div>
-              {filters.length > 0 && (
+              {(filters.length > 0 || dateRange || searchQuery) && (
                 <Button 
                   variant="ghost" 
                   size="sm" 
@@ -314,20 +384,10 @@ const Dashboard: React.FC<DashboardProps> = ({
             </div>
             
             <div className="flex items-center gap-2">
-              <Button 
-                variant={showTrainerComparison ? "default" : "outline"} 
-                size="sm" 
-                onClick={() => setShowTrainerComparison(!showTrainerComparison)}
-                className="hidden sm:flex"
-              >
-                <Users className="mr-2 h-4 w-4" />
-                Trainer Comparison
-              </Button>
-              
               <CollapsibleTrigger asChild>
-                <Button variant="outline" size="sm" className="flex items-center gap-1">
+                <Button variant="outline" size="sm" className="flex items-center gap-1 border-[#E0E6F0]">
                   <Filter className="h-4 w-4" />
-                  <span className="hidden sm:inline">Advanced Filters</span>
+                  <span className="hidden sm:inline">Global Filters</span>
                   {isFilterCollapsed ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
                 </Button>
               </CollapsibleTrigger>
@@ -339,8 +399,10 @@ const Dashboard: React.FC<DashboardProps> = ({
               <DataFilters 
                 onFilterChange={handleFilterChange} 
                 onSortChange={handleSortChange}
+                onDateRangeChange={handleDateRangeChange}
                 data={data}
                 activeFilters={filters.length}
+                dateRange={dateRange}
               />
             </div>
           </CollapsibleContent>
@@ -349,35 +411,137 @@ const Dashboard: React.FC<DashboardProps> = ({
         <MetricsPanel data={filteredData} />
         
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-          <Card className="lg:col-span-3">
+          <Card className="lg:col-span-3 border-[#E0E6F0] rounded-xl shadow-sm">
             <CardContent className="p-6">
               <TopBottomClasses data={filteredData} />
             </CardContent>
           </Card>
         </div>
         
-        {showTrainerComparison && (
-          <div className="grid grid-cols-1 gap-6 mb-6">
-            <Card>
-              <CardContent className="p-6">
-                <TrainerComparisonView data={filteredData} trainerAvatars={trainerAvatars} />
-              </CardContent>
-            </Card>
-          </div>
-        )}
+        <div className="mb-6">
+          <Card className="border-[#E0E6F0] rounded-xl shadow-sm">
+            <CardContent className="p-6">
+              <Tabs defaultValue="trainers" value={activeComparisonTab} onValueChange={setActiveComparisonTab} className="w-full">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-xl font-semibold text-[#323B4C] dark:text-white">Comparison Analysis</h2>
+                  <TabsList>
+                    <TabsTrigger value="trainers" onClick={() => setActiveComparisonTab("trainers")}>
+                      <Users className="w-4 h-4 mr-2" />
+                      Trainers
+                    </TabsTrigger>
+                    <TabsTrigger value="locations" onClick={() => setActiveComparisonTab("locations")}>
+                      <MapPin className="w-4 h-4 mr-2" />
+                      Locations
+                    </TabsTrigger>
+                    <TabsTrigger value="classes" onClick={() => setActiveComparisonTab("classes")}>
+                      <BookOpen className="w-4 h-4 mr-2" />
+                      Classes
+                    </TabsTrigger>
+                    <TabsTrigger value="time" onClick={() => setActiveComparisonTab("time")}>
+                      <Clock className="w-4 h-4 mr-2" />
+                      Time & Day
+                    </TabsTrigger>
+                  </TabsList>
+                </div>
+                
+                <TabsContent value="trainers" className="mt-0">
+                  <TrainerComparisonView data={filteredData} trainerAvatars={trainerAvatars} />
+                </TabsContent>
+                
+                <TabsContent value="locations" className="mt-0">
+                  <LocationComparisonView data={filteredData} />
+                </TabsContent>
+                
+                <TabsContent value="classes" className="mt-0">
+                  <ClassComparisonView data={filteredData} />
+                </TabsContent>
+                
+                <TabsContent value="time" className="mt-0">
+                  <TimeComparisonView data={filteredData} />
+                </TabsContent>
+              </Tabs>
+            </CardContent>
+          </Card>
+        </div>
 
         <ViewSwitcherWrapper viewMode={viewMode} setViewMode={setViewMode} />
 
-        <div className="bg-white dark:bg-gray-900 border rounded-lg shadow-sm mb-6">
-          {viewMode === 'table' && <DataTable data={filteredData} trainerAvatars={trainerAvatars} />}
+        <div className="bg-white dark:bg-gray-900 border border-[#E0E6F0] rounded-xl shadow-sm mb-6">
+          {viewMode === 'table' && (
+            <>
+              <Collapsible
+                open={!isTableFilterCollapsed}
+                onOpenChange={(open) => setIsTableFilterCollapsed(!open)}
+              >
+                <div className="flex items-center justify-between p-4 border-b">
+                  <h3 className="text-lg font-semibold text-[#323B4C] dark:text-white">Data Table</h3>
+                  <CollapsibleTrigger asChild>
+                    <Button variant="outline" size="sm" className="flex items-center gap-1 border-[#E0E6F0]">
+                      <Filter className="h-4 w-4" />
+                      <span className="hidden sm:inline">Table Filters</span>
+                      {isTableFilterCollapsed ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
+                    </Button>
+                  </CollapsibleTrigger>
+                </div>
+                
+                <CollapsibleContent>
+                  <div className="p-4 border-b bg-gray-50 dark:bg-gray-800">
+                    {/* Table-specific filters will go here */}
+                    <p className="text-sm text-muted-foreground">Table-specific filters coming soon...</p>
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
+              <DataTable data={filteredData} trainerAvatars={trainerAvatars} />
+            </>
+          )}
           {viewMode === 'grid' && <GridView data={filteredData} trainerAvatars={trainerAvatars} />}
           {viewMode === 'kanban' && <KanbanView data={filteredData} trainerAvatars={trainerAvatars} />}
           {viewMode === 'timeline' && <TimelineView data={filteredData} trainerAvatars={trainerAvatars} />}
           {viewMode === 'pivot' && <PivotView data={filteredData} trainerAvatars={trainerAvatars} />}
         </div>
         
+        {savedPivotConfigs.length > 0 && (
+          <div className="grid grid-cols-1 gap-6 mb-6">
+            {savedPivotConfigs.map((config, index) => (
+              <Card key={index} className="border-[#E0E6F0] rounded-xl shadow-sm overflow-hidden">
+                <CardContent className="p-0">
+                  <div className="flex items-center justify-between p-4 border-b">
+                    <h3 className="font-semibold">{config.name || `Saved Pivot ${index + 1}`}</h3>
+                    <Button 
+                      variant="ghost" 
+                      size="sm"
+                      onClick={() => handleDeletePivotConfig(index)}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <div className="p-4">
+                    <p className="text-sm text-muted-foreground">
+                      Rows: {config.rowDimension}, Columns: {config.colDimension}, Metric: {config.metric}
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
+        
         <ChartPanel data={filteredData} />
       </div>
+
+      {showPivotConfig && (
+        <Dialog open={showPivotConfig} onOpenChange={setShowPivotConfig}>
+          <DialogContent className="sm:max-w-[600px]">
+            <DialogHeader>
+              <DialogTitle>Dashboard Customization</DialogTitle>
+            </DialogHeader>
+            <PivotTableConfiguration 
+              onSave={handleSavePivotConfig}
+              onClose={() => setShowPivotConfig(false)}
+            />
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 };

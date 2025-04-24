@@ -90,6 +90,8 @@ const MetricsPanel: React.FC<MetricsPanelProps> = ({ data }) => {
         icon: Calendar,
         color: 'bg-blue-500',
         textColor: 'text-blue-500',
+        bgColor: 'bg-blue-50 dark:bg-blue-950',
+        gradient: 'from-blue-50 to-blue-100 dark:from-blue-900/50 dark:to-blue-800/30',
         sparkData: generateSparklineData(data, 'totalOccurrences')
       },
       {
@@ -98,6 +100,8 @@ const MetricsPanel: React.FC<MetricsPanelProps> = ({ data }) => {
         icon: CheckCircle2,
         color: 'bg-green-500',
         textColor: 'text-green-500',
+        bgColor: 'bg-green-50 dark:bg-green-950',
+        gradient: 'from-green-50 to-green-100 dark:from-green-900/50 dark:to-green-800/30',
         sparkData: generateSparklineData(data, 'totalCheckins')
       },
       {
@@ -106,6 +110,8 @@ const MetricsPanel: React.FC<MetricsPanelProps> = ({ data }) => {
         icon: DollarSign,
         color: 'bg-emerald-500',
         textColor: 'text-emerald-500',
+        bgColor: 'bg-emerald-50 dark:bg-emerald-950',
+        gradient: 'from-emerald-50 to-emerald-100 dark:from-emerald-900/50 dark:to-emerald-800/30',
         sparkData: generateSparklineData(data, 'totalRevenue')
       },
       {
@@ -114,6 +120,8 @@ const MetricsPanel: React.FC<MetricsPanelProps> = ({ data }) => {
         icon: Users,
         color: 'bg-violet-500',
         textColor: 'text-violet-500',
+        bgColor: 'bg-violet-50 dark:bg-violet-950',
+        gradient: 'from-violet-50 to-violet-100 dark:from-violet-900/50 dark:to-violet-800/30',
         sparkData: []
       },
       {
@@ -122,6 +130,8 @@ const MetricsPanel: React.FC<MetricsPanelProps> = ({ data }) => {
         icon: XCircle,
         color: 'bg-red-500',
         textColor: 'text-red-500',
+        bgColor: 'bg-red-50 dark:bg-red-950',
+        gradient: 'from-red-50 to-red-100 dark:from-red-900/50 dark:to-red-800/30',
         sparkData: generateSparklineData(data, 'totalCancelled')
       },
       {
@@ -130,6 +140,8 @@ const MetricsPanel: React.FC<MetricsPanelProps> = ({ data }) => {
         icon: Percent,
         color: 'bg-orange-500',
         textColor: 'text-orange-500',
+        bgColor: 'bg-orange-50 dark:bg-orange-950',
+        gradient: 'from-orange-50 to-orange-100 dark:from-orange-900/50 dark:to-orange-800/30',
         sparkData: []
       },
       {
@@ -138,6 +150,8 @@ const MetricsPanel: React.FC<MetricsPanelProps> = ({ data }) => {
         icon: BarChart,
         color: 'bg-amber-500',
         textColor: 'text-amber-500',
+        bgColor: 'bg-amber-50 dark:bg-amber-950',
+        gradient: 'from-amber-50 to-amber-100 dark:from-amber-900/50 dark:to-amber-800/30',
         sparkData: []
       },
       {
@@ -146,6 +160,8 @@ const MetricsPanel: React.FC<MetricsPanelProps> = ({ data }) => {
         icon: Clock,
         color: 'bg-cyan-500',
         textColor: 'text-cyan-500',
+        bgColor: 'bg-cyan-50 dark:bg-cyan-950',
+        gradient: 'from-cyan-50 to-cyan-100 dark:from-cyan-900/50 dark:to-cyan-800/30',
         sparkData: generateSparklineData(data, 'totalTime')
       },
       {
@@ -154,6 +170,8 @@ const MetricsPanel: React.FC<MetricsPanelProps> = ({ data }) => {
         icon: Activity,
         color: 'bg-fuchsia-500',
         textColor: 'text-fuchsia-500',
+        bgColor: 'bg-fuchsia-50 dark:bg-fuchsia-950',
+        gradient: 'from-fuchsia-50 to-fuchsia-100 dark:from-fuchsia-900/50 dark:to-fuchsia-800/30',
         sparkData: []
       },
       {
@@ -162,6 +180,8 @@ const MetricsPanel: React.FC<MetricsPanelProps> = ({ data }) => {
         icon: User,
         color: 'bg-pink-500',
         textColor: 'text-pink-500',
+        bgColor: 'bg-pink-50 dark:bg-pink-950',
+        gradient: 'from-pink-50 to-pink-100 dark:from-pink-900/50 dark:to-pink-800/30',
         sparkData: []
       },
       {
@@ -170,6 +190,8 @@ const MetricsPanel: React.FC<MetricsPanelProps> = ({ data }) => {
         icon: BarChart3,
         color: 'bg-yellow-500',
         textColor: 'text-yellow-500',
+        bgColor: 'bg-yellow-50 dark:bg-yellow-950',
+        gradient: 'from-yellow-50 to-yellow-100 dark:from-yellow-900/50 dark:to-yellow-800/30',
         sparkData: []
       },
       {
@@ -178,6 +200,8 @@ const MetricsPanel: React.FC<MetricsPanelProps> = ({ data }) => {
         icon: LineChart,
         color: 'bg-teal-500', 
         textColor: 'text-teal-500',
+        bgColor: 'bg-teal-50 dark:bg-teal-950',
+        gradient: 'from-teal-50 to-teal-100 dark:from-teal-900/50 dark:to-teal-800/30',
         sparkData: []
       }
     ];
@@ -185,7 +209,7 @@ const MetricsPanel: React.FC<MetricsPanelProps> = ({ data }) => {
 
   return (
     <div className="mb-6">
-      <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
+      <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
         {metrics.map((metric, index) => (
           <motion.div
             key={index}
@@ -193,34 +217,43 @@ const MetricsPanel: React.FC<MetricsPanelProps> = ({ data }) => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: index * 0.05, duration: 0.3 }}
           >
-            <Card className="h-28 border shadow-sm overflow-hidden">
-              <CardContent className="p-3 h-full flex flex-col">
+            <Card className={`h-32 border border-[#E0E6F0] shadow-sm overflow-hidden rounded-xl bg-gradient-to-br ${metric.gradient}`}>
+              <CardContent className="p-4 h-full flex flex-col">
                 <div className="flex items-center justify-between mb-1">
-                  <p className="text-xs font-medium text-muted-foreground">{metric.title}</p>
-                  <metric.icon className={cn("h-3.5 w-3.5", metric.textColor)} />
+                  <p className="text-xs font-medium text-[#6B7A99] dark:text-gray-300">{metric.title}</p>
+                  <div className={cn("p-1 rounded-full", metric.bgColor)}>
+                    <metric.icon className={cn("h-3.5 w-3.5", metric.textColor)} />
+                  </div>
                 </div>
-                <div className="mt-1 text-lg font-semibold">
+                <div className="mt-1 text-xl font-semibold text-[#323B4C] dark:text-white">
                   {typeof metric.value === 'number' ? (
-                    showCountUp ? 
+                    showCountUp ? (
                       <CountUp 
-                        start={0} 
                         end={metric.value} 
                         decimals={metric.title.includes('Avg') || metric.title.includes('Rate') ? 1 : 0}
                         separator="," 
                         decimal="."
-                      /> : 0
+                      />
+                    ) : 0
                   ) : (
                     metric.value
                   )}
                 </div>
-                <div className="mt-auto h-8">
+                <div className="mt-auto h-12">
                   {metric.sparkData && metric.sparkData.length > 1 && (
-                    <Sparklines data={metric.sparkData} height={20} margin={0}>
+                    <Sparklines data={metric.sparkData} height={30} margin={0}>
                       <SparklinesLine 
                         color={metric.textColor.replace('text-', '')} 
                         style={{ strokeWidth: 2, fill: "none" }} 
                       />
-                      <SparklinesSpots size={1} style={{ stroke: metric.textColor.replace('text-', '') }} />
+                      <SparklinesSpots 
+                        size={2} 
+                        style={{ 
+                          stroke: metric.textColor.replace('text-', ''),
+                          fill: "white",
+                          strokeWidth: 2 
+                        }} 
+                      />
                     </Sparklines>
                   )}
                 </div>
