@@ -194,7 +194,7 @@ const ChartPanel: React.FC<ChartPanelProps> = ({
             bottom: 80
           }}>
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" angle={-45} textAnchor="end" height={80} tick={{
+                <XAxis dataKey="name" angle={0} textAnchor="end" height={80} tick={{
               fontSize: 12
             }} />
                 <YAxis />
