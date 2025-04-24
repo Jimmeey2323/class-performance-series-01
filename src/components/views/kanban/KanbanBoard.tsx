@@ -130,8 +130,8 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({ data, trainerAvatars }) => {
                   >
                     {columns[columnId].items.map((item, index) => (
                       <Draggable key={item.id} draggableId={item.id} index={index}>
-                        {(provided, snapshot) => {
-                          // Extract only the needed props for motion.div
+                        {(provided) => {
+                          // Extract the provided props
                           const { innerRef, draggableProps, dragHandleProps } = provided;
                           
                           return (
@@ -148,7 +148,6 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({ data, trainerAvatars }) => {
                                 key={item.id} 
                                 data={item.data}
                                 isActive={selectedCard === item.id}
-                                isDragging={snapshot.isDragging}
                               />
                             </motion.div>
                           );
