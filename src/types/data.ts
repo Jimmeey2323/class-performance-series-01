@@ -5,7 +5,7 @@ export interface ProcessedData {
   classTime: string;
   location: string;
   teacherName: string;
-  teacherEmail?: string; // Added this field
+  teacherEmail?: string;
   date: string;
   period: string;
   totalCheckins: number;
@@ -21,7 +21,7 @@ export interface ProcessedData {
   datesOccurred: string[];
   classAverageIncludingEmpty: string | number;
   classAverageExcludingEmpty: string | number;
-  uniqueID: string; // Added this field to fix KanbanView errors
+  uniqueID: string;
 }
 
 export interface RawDataRow {
@@ -67,5 +67,4 @@ export interface KanbanCardProps {
   isActive: boolean;
 }
 
-// Add Theme type for theme-provider
 export type Theme = 'dark' | 'light' | 'system';

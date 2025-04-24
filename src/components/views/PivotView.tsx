@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { ProcessedData } from '@/types/data';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -193,6 +192,9 @@ const PivotView: React.FC<PivotViewProps> = ({ data, trainerAvatars }) => {
       if (typeof item[activeConfig.metric] === 'string') {
         value = parseFloat(String(item[activeConfig.metric]));
         if (isNaN(value)) value = 0;
+      } else if (activeConfig.metric === 'classAverageIncludingEmpty' ||
+                activeConfig.metric === 'classAverageExcludingEmpty') {
+        value = Number(item[activeConfig.metric] || 0);
       } else {
         value = Number(item[activeConfig.metric] || 0);
       }

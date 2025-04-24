@@ -112,11 +112,11 @@ export function processRawData(rawData: RawDataRow[]): ProcessedData[] {
       const totalTime = parseFloat(row['Time (h)'] || '0');
       
       // Adjust field parsing based on the actual data format
-      const checkedIn = parseFloat(row['Checked in'] || '0');
-      const lateCancelled = parseFloat(row['Late cancellations'] || '0');
-      const paid = parseFloat(row['Total Revenue'] || '0');
-      const comp = parseFloat(row['Checked In Comps'] || row['Comps'] || '0');
-      const nonPaidCustomers = parseFloat(row['Non Paid Customers'] || '0');
+      const checkedIn = parseFloat(String(row['Checked in'] || '0'));
+      const lateCancelled = parseFloat(String(row['Late cancellations'] || '0'));
+      const paid = parseFloat(String(row['Total Revenue'] || '0'));
+      const comp = parseFloat(String(row['Checked In Comps'] || row['Comps'] || '0'));
+      const nonPaidCustomers = parseFloat(String(row['Non Paid Customers'] || '0'));
       
       // Process class data
       const cleanedClass = getCleanedClass(className) || "Unknown Class";
@@ -159,6 +159,9 @@ export function processRawData(rawData: RawDataRow[]): ProcessedData[] {
           } else {
             existingRecord.totalEmpty += 1;
           }
+
+          // Update datesOccurred
+          existingRecord.datesOccurred.push(dateOnly);
         }
       } else {
         // Create new record
@@ -179,6 +182,9 @@ export function processRawData(rawData: RawDataRow[]): ProcessedData[] {
           totalEmpty: checkedIn > 0 ? 0 : 1,
           totalNonEmpty: checkedIn > 0 ? 1 : 0,
           totalNonPaid: comp + nonPaidCustomers,
+          totalPayout: 0, // Default value
+          totalTips: 0,   // Default value
+          datesOccurred: [dateOnly], // Initialize with current date
           classAverageIncludingEmpty: 0, // Will calculate later
           classAverageExcludingEmpty: 0, // Will calculate later
           uniqueID

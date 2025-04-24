@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { formatIndianCurrency } from '../MetricsPanel';
+import { formatIndianCurrency } from '@/components/MetricsPanel';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { ChevronDown, ChevronUp, Save, FileDown, Trash, Plus, X, Bookmark, Settings, Download, Filter, LayoutGrid, BarChart3, RefreshCw } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -179,6 +179,9 @@ const PivotView: React.FC<PivotViewProps> = ({ data, trainerAvatars }) => {
       if (typeof item[activeConfig.metric] === 'string') {
         value = parseFloat(String(item[activeConfig.metric]));
         if (isNaN(value)) value = 0;
+      } else if (activeConfig.metric === 'classAverageIncludingEmpty' ||
+                activeConfig.metric === 'classAverageExcludingEmpty') {
+        value = Number(item[activeConfig.metric] || 0);
       } else {
         value = Number(item[activeConfig.metric] || 0);
       }
@@ -589,7 +592,6 @@ const PivotView: React.FC<PivotViewProps> = ({ data, trainerAvatars }) => {
               <div className="space-y-2">
                 <Label htmlFor="rowDimension">Row Dimension</Label>
                 <Select 
-                  id="rowDimension" 
                   value={activeConfig.rowDimension} 
                   onValueChange={(value) => setActiveConfig({
                     ...activeConfig,
@@ -610,7 +612,6 @@ const PivotView: React.FC<PivotViewProps> = ({ data, trainerAvatars }) => {
               <div className="space-y-2">
                 <Label htmlFor="colDimension">Column Dimension</Label>
                 <Select 
-                  id="colDimension" 
                   value={activeConfig.colDimension} 
                   onValueChange={(value) => setActiveConfig({
                     ...activeConfig,
@@ -631,7 +632,6 @@ const PivotView: React.FC<PivotViewProps> = ({ data, trainerAvatars }) => {
               <div className="space-y-2">
                 <Label htmlFor="metric">Metric</Label>
                 <Select 
-                  id="metric" 
                   value={activeConfig.metric} 
                   onValueChange={(value) => setActiveConfig({
                     ...activeConfig,
@@ -652,7 +652,6 @@ const PivotView: React.FC<PivotViewProps> = ({ data, trainerAvatars }) => {
               <div className="space-y-2">
                 <Label htmlFor="valueDisplay">Value Display</Label>
                 <Select 
-                  id="valueDisplay" 
                   value={activeConfig.valueDisplay} 
                   onValueChange={(value) => setActiveConfig({
                     ...activeConfig,

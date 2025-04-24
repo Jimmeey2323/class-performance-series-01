@@ -159,7 +159,7 @@ const DataFilters: React.FC<DataFiltersProps> = ({ onFilterChange, onSortChange,
       if (filterSettings.dateRange.from) {
         dateFilters.push({
           field: "date",
-          operator: "after",
+          operator: "after" as const,
           value: filterSettings.dateRange.from.toISOString().split('T')[0]
         });
       }
@@ -167,7 +167,7 @@ const DataFilters: React.FC<DataFiltersProps> = ({ onFilterChange, onSortChange,
       if (filterSettings.dateRange.to) {
         dateFilters.push({
           field: "date",
-          operator: "before",
+          operator: "before" as const,
           value: filterSettings.dateRange.to.toISOString().split('T')[0]
         });
       }
@@ -360,7 +360,7 @@ const DataFilters: React.FC<DataFiltersProps> = ({ onFilterChange, onSortChange,
 
                   <div className="flex flex-wrap gap-2 mb-4">
                     <div className="w-full sm:w-auto">
-                      <Select value={newFilter.field} onValueChange={(value) => setNewFilter({ ...newFilter, field: value as keyof ProcessedData, operator: getOperatorsForField(value)[0].value })}>
+                      <Select value={newFilter.field} onValueChange={(value) => setNewFilter({ ...newFilter, field: value as keyof ProcessedData, operator: getOperatorsForField(value)[0].value as FilterOption['operator'] })}>
                         <SelectTrigger className="w-full sm:w-[180px]">
                           <SelectValue placeholder="Select field" />
                         </SelectTrigger>
@@ -373,7 +373,7 @@ const DataFilters: React.FC<DataFiltersProps> = ({ onFilterChange, onSortChange,
                     </div>
 
                     <div className="w-full sm:w-auto">
-                      <Select value={newFilter.operator} onValueChange={(value) => setNewFilter({ ...newFilter, operator: value })}>
+                      <Select value={newFilter.operator} onValueChange={(value) => setNewFilter({ ...newFilter, operator: value as FilterOption['operator'] })}>
                         <SelectTrigger className="w-full sm:w-[150px]">
                           <SelectValue placeholder="Operator" />
                         </SelectTrigger>

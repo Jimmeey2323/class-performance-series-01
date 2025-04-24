@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { FilterOption, SortOption, ProcessedData } from '@/types/data';
 import { Input } from '@/components/ui/input';
@@ -25,13 +26,13 @@ const TableFilterPanel: React.FC<TableFilterPanelProps> = ({ onFilterChange, onS
     const numericFields = ['totalCheckins', 'totalRevenue', 'totalCancelled', 'totalOccurrences'];
     const dateFields = ['date', 'period'];
     
-    if (numericFields.includes(field)) {
+    if (numericFields.includes(field as string)) {
       return [
         { value: 'greater', label: 'Greater than' },
         { value: 'less', label: 'Less than' },
         { value: 'equals', label: 'Equals' },
       ];
-    } else if (dateFields.includes(field)) {
+    } else if (dateFields.includes(field as string)) {
       return [
         { value: 'after', label: 'After' },
         { value: 'before', label: 'Before' },
@@ -134,7 +135,7 @@ const TableFilterPanel: React.FC<TableFilterPanelProps> = ({ onFilterChange, onS
             {/* Add new filter controls */}
             <div className="flex flex-col sm:flex-row gap-2 mb-4">
               <div className="w-full sm:w-auto">
-                <Select value={newFilter.field} onValueChange={(value) => setNewFilter({ ...newFilter, field: value as keyof ProcessedData, operator: getOperatorsForField(value)[0].value })}>
+                <Select value={newFilter.field} onValueChange={(value) => setNewFilter({ ...newFilter, field: value as keyof ProcessedData, operator: getOperatorsForField(value as keyof ProcessedData)[0].value })}>
                   <SelectTrigger className="w-full">
                     <SelectValue placeholder="Select field" />
                   </SelectTrigger>
@@ -147,7 +148,7 @@ const TableFilterPanel: React.FC<TableFilterPanelProps> = ({ onFilterChange, onS
               </div>
 
               <div className="w-full sm:w-auto">
-                <Select value={newFilter.operator} onValueChange={(value) => setNewFilter({ ...newFilter, operator: value })}>
+                <Select value={newFilter.operator} onValueChange={(value) => setNewFilter({ ...newFilter, operator: value as FilterOption['operator'] })}>
                   <SelectTrigger className="w-full">
                     <SelectValue placeholder="Operator" />
                   </SelectTrigger>
