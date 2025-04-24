@@ -1,25 +1,15 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { useDropzone } from 'react-dropzone';
 import Papa from 'papaparse';
+import JSZip from 'jszip';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { ProcessedData } from '@/types/data';
 import { useToast } from '@/components/ui/use-toast';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
-
-import { 
-  Upload, 
-  FileText, 
-  AlertCircle, 
-  CheckCircle2, 
-  XCircle, 
-  Loader2, 
-  ArrowRight, 
-  RefreshCw 
-} from 'lucide-react';
+import { Upload, FileText, AlertCircle, CheckCircle2, Loader2, ArrowRight, RefreshCw } from 'lucide-react';
+import { ProcessedData } from '@/types/data';
 
 interface FileUploaderProps {
   onDataProcessed: (data: ProcessedData[], skipAnimation?: boolean) => void;
@@ -69,36 +59,51 @@ const FileUploader: React.FC<FileUploaderProps> = ({
     }
   }, [storedData, storedFilename, onDataProcessed, toast]);
 
-  const onDrop = useCallback((acceptedFiles: File[]) => {
+  const onDrop = useCallback(async (acceptedFiles: File[]) => {
     const file = acceptedFiles[0];
     if (file) {
       setSelectedFile(file);
       setLoadingStatus('loading');
       setError('');
       
-      const reader = new FileReader();
-      reader.onload = () => {
-        try {
-          const csv = reader.result as string;
-          const lines = csv.split('\n').slice(0, 5);
-          setPreview(lines);
-          setLoadingStatus('success');
-        } catch (e) {
-          setError('Error reading file: ' + (e instanceof Error ? e.message : String(e)));
-          setLoadingStatus('error');
+      try {
+        let csvContent: string;
+        
+        if (file.name.toLowerCase().endsWith('.zip')) {
+          const zip = await JSZip.loadAsync(file);
+          const csvFiles = Object.values(zip.files).filter(f => 
+            f.name.toLowerCase().endsWith('.csv')
+          );
+          
+          if (csvFiles.length === 0) {
+            throw new Error('No CSV files found in the zip archive');
+          }
+          
+          const csvFile = csvFiles[0];
+          csvContent = await csvFile.async('text');
+        } else {
+          csvContent = await new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result as string);
+            reader.onerror = reject;
+            reader.readAsText(file);
+          });
         }
-      };
-      reader.onerror = () => {
-        setError('Error reading file: ' + (reader.error ? reader.error.message : 'Unknown error'));
+        
+        const lines = csvContent.split('\n').slice(0, 5);
+        setPreview(lines);
+        setLoadingStatus('success');
+      } catch (e) {
+        setError('Error reading file: ' + (e instanceof Error ? e.message : String(e)));
         setLoadingStatus('error');
-      };
-      reader.readAsText(file);
+      }
     }
   }, []);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({ 
     onDrop,
     accept: {
+      'application/zip': ['.zip'],
       'text/csv': ['.csv'],
       'application/vnd.ms-excel': ['.csv', '.xls'],
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx']
@@ -106,40 +111,68 @@ const FileUploader: React.FC<FileUploaderProps> = ({
     maxFiles: 1
   });
 
-  const processFile = () => {
+  const processFile = async () => {
     if (!selectedFile) return;
     
     setProcessingStarted(true);
     onProcessingStarted();
     
-    Papa.parse(selectedFile, {
-      header: hasHeader,
-      dynamicTyping: true,
-      skipEmptyLines: true,
-      worker: true,
-      step: function(row, parser) {
-      },
-      complete: function(results) {
-        console.info(`Parsed ${results.data.length} rows from CSV`);
+    try {
+      let csvContent: string;
+      
+      if (selectedFile.name.toLowerCase().endsWith('.zip')) {
+        const zip = await JSZip.loadAsync(selectedFile);
+        const csvFiles = Object.values(zip.files).filter(f => 
+          f.name.toLowerCase().endsWith('.csv')
+        );
         
-        if (!results.data.length) {
-          setError('The file appears to be empty or invalid');
-          setLoadingStatus('error');
-          return;
+        if (csvFiles.length === 0) {
+          throw new Error('No CSV files found in the zip archive');
         }
         
-        try {
-          processData(results.data);
-        } catch (e) {
-          setError('Error processing data: ' + (e instanceof Error ? e.message : String(e)));
-          setLoadingStatus('error');
-        }
-      },
-      error: function(error) {
-        setError('Error parsing file: ' + error.message);
-        setLoadingStatus('error');
+        const csvFile = csvFiles[0];
+        csvContent = await csvFile.async('text');
+      } else {
+        csvContent = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = reject;
+          reader.readAsText(selectedFile);
+        });
       }
-    });
+      
+      Papa.parse(csvContent, {
+        header: hasHeader,
+        dynamicTyping: true,
+        skipEmptyLines: true,
+        worker: true,
+        step: function(row, parser) {
+        },
+        complete: function(results) {
+          console.info(`Parsed ${results.data.length} rows from CSV`);
+          
+          if (!results.data.length) {
+            setError('The file appears to be empty or invalid');
+            setLoadingStatus('error');
+            return;
+          }
+          
+          try {
+            processData(results.data);
+          } catch (e) {
+            setError('Error processing data: ' + (e instanceof Error ? e.message : String(e)));
+            setLoadingStatus('error');
+          }
+        },
+        error: function(error) {
+          setError('Error parsing file: ' + error.message);
+          setLoadingStatus('error');
+        }
+      });
+    } catch (e) {
+      setError('Error processing file: ' + (e instanceof Error ? e.message : String(e)));
+      setLoadingStatus('error');
+    }
   };
 
   function cleanClassName(name: string): string {
