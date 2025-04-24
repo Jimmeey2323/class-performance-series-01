@@ -1,51 +1,61 @@
 
-export interface ProcessedData {
-  cleanedClass: string;
-  dayOfWeek: string;
-  classTime: string;
-  location: string;
-  teacherName: string;
-  teacherEmail?: string;
-  date: string;
-  period: string;
-  totalCheckins: number;
-  totalRevenue: number;
-  totalCancelled: number;
-  totalOccurrences: number;
-  totalEmpty: number;
-  totalNonEmpty: number;
-  totalTime: number;
-  totalPayout: number;
-  totalTips: number;
-  totalNonPaid: number;
-  datesOccurred: string[];
-  classAverageIncludingEmpty: string | number;
-  classAverageExcludingEmpty: string | number;
-  uniqueID: string;
+export interface RawDataRow {
+  'Teacher First Name': string;
+  'Teacher Last Name': string;
+  'Teacher Email'?: string;
+  'Time (h)': string;
+  'Class name': string;
+  'Class date': string;
+  'Location': string;
+  'Payrate': string;
+  'Employee Code'?: string;
+  'Payrate Code'?: string;
+  'Total Revenue': string;
+  'Base Payout'?: string;
+  'Additional Payout'?: string;
+  'Total Payout'?: string;
+  'Tip'?: string;
+  'Participants'?: string;
+  'Checked in': string;
+  'Comps'?: string;
+  'Checked In Comps'?: string;
+  'Late cancellations'?: string;
+  'Non Paid Customers'?: string;
 }
 
-export interface RawDataRow {
-  [key: string]: any;
-  'Teacher First Name'?: string;
-  'Teacher Last Name'?: string;
-  'Teacher Email'?: string;
-  'Class name'?: string;
-  'Class date'?: string;
-  'Location'?: string;
-  'Time (h)'?: string;
-  'Checked in'?: string | number;
-  'Late cancellations'?: string | number;
-  'Total Revenue'?: string | number;
-  'Checked In Comps'?: string | number;
-  'Comps'?: string | number;
-  'Non Paid Customers'?: string | number;
+export interface ProcessedData {
+  teacherName: string;
+  teacherEmail?: string;
+  totalTime: number;
+  classTime: string;
+  location: string;
+  cleanedClass: string;
+  date: string;
+  dayOfWeek: string;
+  period: string; // e.g., "Mar-22"
+  totalCheckins: number;
+  totalOccurrences: number;
+  totalRevenue: number | string;
+  totalCancelled: number;
+  totalEmpty: number;
+  totalNonEmpty: number;
+  totalNonPaid: number;
+  classAverageIncludingEmpty: number | string;
+  classAverageExcludingEmpty: number | string;
+  uniqueID: string; // For tracking purposes
+  totalPayout?: number | string;
+  totalBasePayout?: number | string;
+  totalAdditionalPayout?: number | string;
+  totalTips?: number | string;
+  totalParticipants?: number | string;
+  totalComps?: number | string;
 }
 
 export type ViewMode = 'table' | 'grid' | 'kanban' | 'timeline' | 'pivot';
 
 export interface FilterOption {
   field: keyof ProcessedData;
-  operator: 'contains' | 'equals' | 'starts' | 'ends' | 'greater' | 'less' | 'after' | 'before' | 'on' | 'in';
+  operator: string; // 'contains' | 'equals' | 'starts' | 'ends' | 'greater' | 'less'
   value: string;
 }
 
@@ -56,15 +66,28 @@ export interface SortOption {
 
 export interface ChartConfig {
   type: 'bar' | 'line' | 'pie' | 'scatter' | 'donut';
-  metric: keyof ProcessedData;
-  dimension: keyof ProcessedData;
+  primaryMetric: keyof ProcessedData;
+  groupBy: keyof ProcessedData;
+}
+
+export interface MetricData {
   title: string;
-  color: string;
+  value: number | string;
+  icon?: React.ReactNode;
+  color?: string;
+}
+
+// Add these for KanbanBoard
+export interface KanbanItem {
+  id: string;
+  content: ProcessedData;
+  data: ProcessedData;
 }
 
 export interface KanbanCardProps {
   data: ProcessedData;
+  key?: string;
   isActive: boolean;
 }
 
-export type Theme = 'dark' | 'light' | 'system';
+export type Theme = 'light' | 'dark' | 'system';

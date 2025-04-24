@@ -1,37 +1,34 @@
 import React from 'react';
-import { KanbanCardProps } from '@/types/data';
-import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
-import { Calendar, Clock, MapPin, Users, IndianRupee } from 'lucide-react';
-import { formatIndianCurrency } from '@/components/MetricsPanel';
+import { ProcessedData, KanbanCardProps } from '@/types/data';
+import { Card, CardContent } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Calendar, Clock, BarChart3, Users } from 'lucide-react';
 
 const KanbanCard: React.FC<KanbanCardProps> = ({ data, isActive }) => {
   return (
-    <Card className={`border-2 ${isActive ? 'border-primary' : 'border-transparent'} hover:shadow-md transition-shadow duration-200`}>
-      <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-        <CardTitle className="text-sm font-medium flex items-center gap-2">
-          <Users className="h-4 w-4 mr-1" />
-          {data.cleanedClass}
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="p-2 text-sm text-muted-foreground">
-        <div className="flex items-center space-x-2">
-          <Calendar className="h-4 w-4" />
-          <span>{data.dayOfWeek}</span>
+    <Card className={`shadow-sm hover:shadow-md transition-shadow duration-200 ${isActive ? 'border-2 border-primary' : ''}`}>
+      <CardContent className="p-3">
+        <div className="flex items-center justify-between mb-2">
+          <div className="text-sm font-medium">{data.cleanedClass}</div>
+          <Badge variant="secondary">{data.location}</Badge>
         </div>
-        <div className="flex items-center space-x-2">
-          <Clock className="h-4 w-4" />
-          <span>{data.classTime}</span>
+        <div className="text-xs text-muted-foreground flex items-center gap-1 mb-1">
+          <Calendar className="h-3 w-3" />
+          {data.date}
         </div>
-        <div className="flex items-center space-x-2">
-          <MapPin className="h-4 w-4" />
-          <span>{data.location}</span>
+        <div className="text-xs text-muted-foreground flex items-center gap-1 mb-1">
+          <Clock className="h-3 w-3" />
+          {data.classTime}
         </div>
-        <div className="flex items-center space-x-2">
-          <IndianRupee className="h-4 w-4" />
-          <span>{formatIndianCurrency(data.totalRevenue)}</span>
+        <div className="text-xs text-muted-foreground flex items-center gap-1 mb-1">
+          <BarChart3 className="h-3 w-3" />
+          Revenue: {data.totalRevenue}
+        </div>
+        <div className="text-xs text-muted-foreground flex items-center gap-1">
+          <Users className="h-3 w-3" />
+          Check-ins: {data.totalCheckins}
         </div>
       </CardContent>
-      <CardFooter className="text-xs text-muted-foreground">{data.date}</CardFooter>
     </Card>
   );
 };

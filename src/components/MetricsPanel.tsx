@@ -1,249 +1,234 @@
 
-import React from 'react';
-import { ProcessedData } from '@/types/data';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
-import { Sparkline, SparklineProps } from './Sparkline';
-import { 
-  BarChart3, 
-  Users, 
-  Calendar, 
-  IndianRupee,
-  Flame,
-  TrendingUp,
-  BadgeCheck,
-  BadgeMinus
+import { ProcessedData } from '@/types/data';
+import {
+  LineChart,
+  Clock,
+  Calendar,
+  User,
+  Percent,
+  DollarSign,
+  Activity,
+  BarChart3,
+  Users,
+  CheckCircle2,
+  XCircle,
+  BarChart,
 } from 'lucide-react';
 import CountUp from 'react-countup';
+import { Sparklines, SparklinesLine, SparklinesSpots } from 'react-sparklines';
+import { cn } from '@/lib/utils';
+import { motion } from 'framer-motion';
+
+export const formatIndianCurrency = (value: number): string => {
+  const formatter = new Intl.NumberFormat('en-IN', {
+    style: 'currency',
+    currency: 'INR',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  });
+  return formatter.format(value);
+};
 
 interface MetricsPanelProps {
   data: ProcessedData[];
 }
 
-interface SparklineData {
-  name: string;
-  value: number;
-}
+const generateSparklineData = (data: ProcessedData[], field: keyof ProcessedData, periods: number = 10): number[] => {
+  // Group data by period
+  const periodData = data.reduce((acc: Record<string, number>, item) => {
+    const period = item.period || 'Unknown';
+    if (!acc[period]) acc[period] = 0;
+    const value = typeof item[field] === 'number' ? item[field] as number : 
+                  typeof item[field] === 'string' ? parseFloat(item[field] as string) || 0 : 0;
+    acc[period] += value;
+    return acc;
+  }, {});
 
-export const formatIndianCurrency = (amount: number) => {
-  return new Intl.NumberFormat('en-IN', {
-    style: 'currency',
-    currency: 'INR',
-    maximumFractionDigits: 0
-  }).format(amount);
+  // Sort periods chronologically and take the last `periods` number
+  const sortedPeriods = Object.keys(periodData).sort();
+  const recentPeriods = sortedPeriods.slice(-periods);
+
+  // Return the values for the recent periods
+  return recentPeriods.map(period => periodData[period]);
 };
 
 const MetricsPanel: React.FC<MetricsPanelProps> = ({ data }) => {
-  // Calculate period-based metrics for sparklines
-  const periodMetrics = React.useMemo(() => {
-    if (!data.length) return {};
+  const [showCountUp, setShowCountUp] = useState(false);
+
+  useEffect(() => {
+    // Trigger CountUp after component mounts
+    setShowCountUp(true);
+  }, []);
+
+  const metrics = useMemo(() => {
+    if (!data.length) return [];
+
+    const totalClasses = data.reduce((sum, item) => sum + item.totalOccurrences, 0);
+    const totalCheckins = data.reduce((sum, item) => sum + item.totalCheckins, 0);
+    const totalRevenue = data.reduce((sum, item) => {
+      const revenue = typeof item.totalRevenue === 'string' ? parseFloat(item.totalRevenue) : item.totalRevenue;
+      return sum + (revenue || 0);
+    }, 0);
+    const totalCancelled = data.reduce((sum, item) => sum + item.totalCancelled, 0);
+    const totalTime = data.reduce((sum, item) => sum + item.totalTime, 0);
+
+    const totalNonEmpty = data.reduce((sum, item) => sum + item.totalNonEmpty, 0);
+    const averageClassSize = totalClasses > 0 ? totalCheckins / totalClasses : 0;
+    const averageRevenue = totalClasses > 0 ? totalRevenue / totalClasses : 0;
+    const cancellationRate = totalCheckins + totalCancelled > 0 ? (totalCancelled / (totalCheckins + totalCancelled)) * 100 : 0;
     
-    // Get unique periods sorted chronologically
-    const periods = Array.from(new Set(data.map(item => item.period)))
-      .filter(Boolean)
-      .sort();
-    
-    // Initialize metrics by period
-    const metrics: Record<string, Record<string, number>> = {};
-    
-    periods.forEach(period => {
-      metrics[period] = {
-        totalCheckins: 0,
-        totalRevenue: 0,
-        totalOccurrences: 0,
-        totalCancelled: 0
-      };
-    });
-    
-    // Aggregate metrics by period
-    data.forEach(item => {
-      const period = item.period;
-      if (period && metrics[period]) {
-        metrics[period].totalCheckins += Number(item.totalCheckins) || 0;
-        metrics[period].totalRevenue += Number(item.totalRevenue) || 0;
-        metrics[period].totalOccurrences += Number(item.totalOccurrences) || 0;
-        metrics[period].totalCancelled += Number(item.totalCancelled) || 0;
+    const uniqueTeachers = new Set(data.map(item => item.teacherName)).size;
+    const uniqueClasses = new Set(data.map(item => item.cleanedClass)).size;
+    const uniqueLocations = new Set(data.map(item => item.location)).size;
+
+    return [
+      {
+        title: 'Total Classes',
+        value: totalClasses,
+        icon: Calendar,
+        color: 'bg-blue-500',
+        textColor: 'text-blue-500',
+        sparkData: generateSparklineData(data, 'totalOccurrences')
+      },
+      {
+        title: 'Total Check-ins',
+        value: totalCheckins,
+        icon: CheckCircle2,
+        color: 'bg-green-500',
+        textColor: 'text-green-500',
+        sparkData: generateSparklineData(data, 'totalCheckins')
+      },
+      {
+        title: 'Total Revenue',
+        value: formatIndianCurrency(totalRevenue),
+        icon: DollarSign,
+        color: 'bg-emerald-500',
+        textColor: 'text-emerald-500',
+        sparkData: generateSparklineData(data, 'totalRevenue')
+      },
+      {
+        title: 'Avg. Class Size',
+        value: averageClassSize.toFixed(1),
+        icon: Users,
+        color: 'bg-violet-500',
+        textColor: 'text-violet-500',
+        sparkData: []
+      },
+      {
+        title: 'Cancellations',
+        value: totalCancelled,
+        icon: XCircle,
+        color: 'bg-red-500',
+        textColor: 'text-red-500',
+        sparkData: generateSparklineData(data, 'totalCancelled')
+      },
+      {
+        title: 'Cancellation Rate',
+        value: `${cancellationRate.toFixed(1)}%`,
+        icon: Percent,
+        color: 'bg-orange-500',
+        textColor: 'text-orange-500',
+        sparkData: []
+      },
+      {
+        title: 'Revenue Per Class',
+        value: formatIndianCurrency(averageRevenue),
+        icon: BarChart,
+        color: 'bg-amber-500',
+        textColor: 'text-amber-500',
+        sparkData: []
+      },
+      {
+        title: 'Total Hours',
+        value: totalTime.toFixed(0),
+        icon: Clock,
+        color: 'bg-cyan-500',
+        textColor: 'text-cyan-500',
+        sparkData: generateSparklineData(data, 'totalTime')
+      },
+      {
+        title: 'Unique Classes',
+        value: uniqueClasses,
+        icon: Activity,
+        color: 'bg-fuchsia-500',
+        textColor: 'text-fuchsia-500',
+        sparkData: []
+      },
+      {
+        title: 'Unique Trainers',
+        value: uniqueTeachers,
+        icon: User,
+        color: 'bg-pink-500',
+        textColor: 'text-pink-500',
+        sparkData: []
+      },
+      {
+        title: 'Locations',
+        value: uniqueLocations,
+        icon: BarChart3,
+        color: 'bg-yellow-500',
+        textColor: 'text-yellow-500',
+        sparkData: []
+      },
+      {
+        title: 'Class Attendance',
+        value: `${(totalCheckins * 100 / (totalClasses * 10)).toFixed(1)}%`,
+        icon: LineChart,
+        color: 'bg-teal-500', 
+        textColor: 'text-teal-500',
+        sparkData: []
       }
-    });
-    
-    // Convert to arrays for sparklines
-    const sparklineData: Record<string, SparklineData[]> = {
-      checkins: [],
-      revenue: [],
-      classes: [],
-      cancelled: []
-    };
-    
-    periods.forEach(period => {
-      sparklineData.checkins.push({ name: period, value: metrics[period].totalCheckins });
-      sparklineData.revenue.push({ name: period, value: metrics[period].totalRevenue });
-      sparklineData.classes.push({ name: period, value: metrics[period].totalOccurrences });
-      sparklineData.cancelled.push({ name: period, value: metrics[period].totalCancelled });
-    });
-    
-    return sparklineData;
+    ];
   }, [data]);
-
-  // Calculate overall metrics
-  const totalCheckins = React.useMemo(() => {
-    return data.reduce((sum, item) => sum + (Number(item.totalCheckins) || 0), 0);
-  }, [data]);
-  
-  const totalRevenue = React.useMemo(() => {
-    return data.reduce((sum, item) => sum + (Number(item.totalRevenue) || 0), 0);
-  }, [data]);
-  
-  const totalClasses = React.useMemo(() => {
-    return data.reduce((sum, item) => sum + (Number(item.totalOccurrences) || 0), 0);
-  }, [data]);
-  
-  const totalCancellations = React.useMemo(() => {
-    return data.reduce((sum, item) => sum + (Number(item.totalCancelled) || 0), 0);
-  }, [data]);
-  
-  const averageClassSize = React.useMemo(() => {
-    if (totalClasses === 0) return 0;
-    return Math.round((totalCheckins / totalClasses) * 10) / 10;
-  }, [totalCheckins, totalClasses]);
-  
-  const occupancyRate = React.useMemo(() => {
-    // Assuming an average capacity of 12 students per class
-    const avgCapacity = 12;
-    if (totalClasses === 0) return 0;
-    return Math.round((totalCheckins / (totalClasses * avgCapacity)) * 100);
-  }, [totalCheckins, totalClasses]);
-  
-  const cancellationRate = React.useMemo(() => {
-    if (totalClasses === 0) return 0;
-    return Math.round((totalCancellations / totalClasses) * 100);
-  }, [totalCancellations, totalClasses]);
-  
-  const averageRevenuePerClass = React.useMemo(() => {
-    if (totalClasses === 0) return 0;
-    return totalRevenue / totalClasses;
-  }, [totalRevenue, totalClasses]);
-
-  const revenuePerClient = React.useMemo(() => {
-    if (totalCheckins === 0) return 0;
-    return totalRevenue / totalCheckins;
-  }, [totalRevenue, totalCheckins]);
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
-      {/* Total Check-ins */}
-      <Card className="bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/30 dark:to-purple-800/30 border-purple-200 dark:border-purple-800 shadow-sm hover:shadow-md transition-shadow duration-200">
-        <CardContent className="p-6">
-          <div className="flex justify-between">
-            <div>
-              <p className="text-sm font-medium text-purple-800 dark:text-purple-300">Total Check-ins</p>
-              <h3 className="text-2xl font-bold text-purple-900 dark:text-purple-100 mt-1">
-                <CountUp end={totalCheckins} />
-              </h3>
-              <p className="text-xs text-purple-700 dark:text-purple-400 mt-1">
-                <span className="font-medium">{averageClassSize}</span> per class
-              </p>
-            </div>
-            <div className="h-12 w-12 bg-purple-500/10 rounded-full flex items-center justify-center">
-              <Users className="h-6 w-6 text-purple-600 dark:text-purple-400" />
-            </div>
-          </div>
-          {periodMetrics.checkins && periodMetrics.checkins.length > 0 && (
-            <div className="mt-3 h-16">
-              <Sparkline 
-                data={periodMetrics.checkins} 
-                color="#8b5cf6" 
-                fillGradient={['rgba(139, 92, 246, 0.3)', 'rgba(139, 92, 246, 0.01)']} 
-              />
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Total Revenue */}
-      <Card className="bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/30 dark:to-green-800/30 border-green-200 dark:border-green-800 shadow-sm hover:shadow-md transition-shadow duration-200">
-        <CardContent className="p-6">
-          <div className="flex justify-between">
-            <div>
-              <p className="text-sm font-medium text-green-800 dark:text-green-300">Total Revenue</p>
-              <h3 className="text-2xl font-bold text-green-900 dark:text-green-100 mt-1">
-                {formatIndianCurrency(totalRevenue)}
-              </h3>
-              <p className="text-xs text-green-700 dark:text-green-400 mt-1">
-                <span className="font-medium">{formatIndianCurrency(averageRevenuePerClass)}</span> per class
-              </p>
-            </div>
-            <div className="h-12 w-12 bg-green-500/10 rounded-full flex items-center justify-center">
-              <IndianRupee className="h-6 w-6 text-green-600 dark:text-green-400" />
-            </div>
-          </div>
-          {periodMetrics.revenue && periodMetrics.revenue.length > 0 && (
-            <div className="mt-3 h-16">
-              <Sparkline 
-                data={periodMetrics.revenue} 
-                color="#10b981" 
-                fillGradient={['rgba(16, 185, 129, 0.3)', 'rgba(16, 185, 129, 0.01)']} 
-              />
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Total Classes */}
-      <Card className="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/30 dark:to-blue-800/30 border-blue-200 dark:border-blue-800 shadow-sm hover:shadow-md transition-shadow duration-200">
-        <CardContent className="p-6">
-          <div className="flex justify-between">
-            <div>
-              <p className="text-sm font-medium text-blue-800 dark:text-blue-300">Total Classes</p>
-              <h3 className="text-2xl font-bold text-blue-900 dark:text-blue-100 mt-1">
-                <CountUp end={totalClasses} />
-              </h3>
-              <p className="text-xs text-blue-700 dark:text-blue-400 mt-1">
-                <span className="font-medium">{occupancyRate}%</span> occupancy rate
-              </p>
-            </div>
-            <div className="h-12 w-12 bg-blue-500/10 rounded-full flex items-center justify-center">
-              <Calendar className="h-6 w-6 text-blue-600 dark:text-blue-400" />
-            </div>
-          </div>
-          {periodMetrics.classes && periodMetrics.classes.length > 0 && (
-            <div className="mt-3 h-16">
-              <Sparkline 
-                data={periodMetrics.classes} 
-                color="#3b82f6" 
-                fillGradient={['rgba(59, 130, 246, 0.3)', 'rgba(59, 130, 246, 0.01)']} 
-              />
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Total Cancellations */}
-      <Card className="bg-gradient-to-br from-amber-50 to-amber-100 dark:from-amber-900/30 dark:to-amber-800/30 border-amber-200 dark:border-amber-800 shadow-sm hover:shadow-md transition-shadow duration-200">
-        <CardContent className="p-6">
-          <div className="flex justify-between">
-            <div>
-              <p className="text-sm font-medium text-amber-800 dark:text-amber-300">Cancellations</p>
-              <h3 className="text-2xl font-bold text-amber-900 dark:text-amber-100 mt-1">
-                <CountUp end={totalCancellations} />
-              </h3>
-              <p className="text-xs text-amber-700 dark:text-amber-400 mt-1">
-                <span className="font-medium">{cancellationRate}%</span> of total classes
-              </p>
-            </div>
-            <div className="h-12 w-12 bg-amber-500/10 rounded-full flex items-center justify-center">
-              <BadgeMinus className="h-6 w-6 text-amber-600 dark:text-amber-400" />
-            </div>
-          </div>
-          {periodMetrics.cancelled && periodMetrics.cancelled.length > 0 && (
-            <div className="mt-3 h-16">
-              <Sparkline 
-                data={periodMetrics.cancelled} 
-                color="#f59e0b" 
-                fillGradient={['rgba(245, 158, 11, 0.3)', 'rgba(245, 158, 11, 0.01)']} 
-              />
-            </div>
-          )}
-        </CardContent>
-      </Card>
+    <div className="mb-6">
+      <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
+        {metrics.map((metric, index) => (
+          <motion.div
+            key={index}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: index * 0.05, duration: 0.3 }}
+          >
+            <Card className="h-28 border shadow-sm overflow-hidden">
+              <CardContent className="p-3 h-full flex flex-col">
+                <div className="flex items-center justify-between mb-1">
+                  <p className="text-xs font-medium text-muted-foreground">{metric.title}</p>
+                  <metric.icon className={cn("h-3.5 w-3.5", metric.textColor)} />
+                </div>
+                <div className="mt-1 text-lg font-semibold">
+                  {typeof metric.value === 'number' ? (
+                    showCountUp ? 
+                      <CountUp 
+                        start={0} 
+                        end={metric.value} 
+                        decimals={metric.title.includes('Avg') || metric.title.includes('Rate') ? 1 : 0}
+                        separator="," 
+                        decimal="."
+                      /> : 0
+                  ) : (
+                    metric.value
+                  )}
+                </div>
+                <div className="mt-auto h-8">
+                  {metric.sparkData && metric.sparkData.length > 1 && (
+                    <Sparklines data={metric.sparkData} height={20} margin={0}>
+                      <SparklinesLine 
+                        color={metric.textColor.replace('text-', '')} 
+                        style={{ strokeWidth: 2, fill: "none" }} 
+                      />
+                      <SparklinesSpots size={1} style={{ stroke: metric.textColor.replace('text-', '') }} />
+                    </Sparklines>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        ))}
+      </div>
     </div>
   );
 };

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { FilterOption, SortOption, ProcessedData } from '@/types/data';
 import { Input } from '@/components/ui/input';
@@ -23,11 +24,14 @@ interface DataFiltersProps {
 const parseClassDate = (dateStr: string | undefined): Date | undefined => {
   if (!dateStr) return undefined;
   
+  // Try parsing as MM/DD/YYYY first, which is commonly used in the data
   let parsed = parse(dateStr.split(',')[0], "MM/dd/yyyy", new Date());
   
+  // If that fails, try alternative formats
   if (isNaN(parsed.getTime())) {
     parsed = parse(dateStr.split(',')[0], "yyyy-MM-dd", new Date());
     if (isNaN(parsed.getTime())) {
+      // Try one more format as a last resort
       parsed = parse(dateStr.split(',')[0], "dd/MM/yyyy", new Date());
       if (isNaN(parsed.getTime())) return undefined;
     }
@@ -44,6 +48,7 @@ const DataFilters: React.FC<DataFiltersProps> = ({ onFilterChange, onSortChange,
   const [newSort, setNewSort] = useState<SortOption>({ field: 'totalCheckins', direction: 'desc' });
   const [isExpanded, setIsExpanded] = useState(false);
 
+  // Extract unique options for selects
   const classNames = React.useMemo(() => {
     if (!data || data.length === 0) return [];
     const uniqueClasses = new Set(data.map(row => row.cleanedClass).filter(Boolean));
@@ -82,7 +87,7 @@ const DataFilters: React.FC<DataFiltersProps> = ({ onFilterChange, onSortChange,
       const updatedFilters = [...filters, { ...newFilter }];
       setFilters(updatedFilters);
       onFilterChange(updatedFilters);
-      setNewFilter({ ...newFilter, value: '' });
+      setNewFilter({ ...newFilter, value: '' }); // Reset value but keep field and operator
     }
   };
 
@@ -153,13 +158,14 @@ const DataFilters: React.FC<DataFiltersProps> = ({ onFilterChange, onSortChange,
       });
     }
 
+    // Date range filter
     if (filterSettings.dateRange.from || filterSettings.dateRange.to) {
       const dateFilters = [];
       
       if (filterSettings.dateRange.from) {
         dateFilters.push({
           field: "date",
-          operator: "after" as const,
+          operator: "after",
           value: filterSettings.dateRange.from.toISOString().split('T')[0]
         });
       }
@@ -167,7 +173,7 @@ const DataFilters: React.FC<DataFiltersProps> = ({ onFilterChange, onSortChange,
       if (filterSettings.dateRange.to) {
         dateFilters.push({
           field: "date",
-          operator: "before" as const,
+          operator: "before",
           value: filterSettings.dateRange.to.toISOString().split('T')[0]
         });
       }
@@ -179,6 +185,7 @@ const DataFilters: React.FC<DataFiltersProps> = ({ onFilterChange, onSortChange,
     onFilterChange(newFilters);
   };
 
+  // Operators based on field type
   const getOperatorsForField = (field: string) => {
     const numericFields = ['totalCheckins', 'totalRevenue', 'totalCancelled', 'totalOccurrences'];
     const dateFields = ['date', 'period'];
@@ -201,7 +208,6 @@ const DataFilters: React.FC<DataFiltersProps> = ({ onFilterChange, onSortChange,
         { value: 'equals', label: 'Equals' },
         { value: 'starts', label: 'Starts with' },
         { value: 'ends', label: 'Ends with' },
-        { value: 'in', label: 'In' },
       ];
     }
   };
@@ -263,6 +269,7 @@ const DataFilters: React.FC<DataFiltersProps> = ({ onFilterChange, onSortChange,
 
             {activeTab === 'filter' && (
               <div className="space-y-4">
+                {/* Simple filters */}
                 <div className="grid md:grid-cols-4 gap-4">
                   <div className="space-y-2">
                     <Label>Class Type</Label>
@@ -355,12 +362,14 @@ const DataFilters: React.FC<DataFiltersProps> = ({ onFilterChange, onSortChange,
                   </Button>
                 </div>
 
+                {/* Advanced Filters */}
                 <div className="mt-6 border-t pt-6">
                   <h3 className="text-sm font-medium mb-4">Advanced Filters</h3>
 
+                  {/* Add new filter controls */}
                   <div className="flex flex-wrap gap-2 mb-4">
                     <div className="w-full sm:w-auto">
-                      <Select value={newFilter.field} onValueChange={(value) => setNewFilter({ ...newFilter, field: value as keyof ProcessedData, operator: getOperatorsForField(value)[0].value as FilterOption['operator'] })}>
+                      <Select value={newFilter.field} onValueChange={(value) => setNewFilter({ ...newFilter, field: value as keyof ProcessedData, operator: getOperatorsForField(value)[0].value })}>
                         <SelectTrigger className="w-full sm:w-[180px]">
                           <SelectValue placeholder="Select field" />
                         </SelectTrigger>
@@ -373,7 +382,7 @@ const DataFilters: React.FC<DataFiltersProps> = ({ onFilterChange, onSortChange,
                     </div>
 
                     <div className="w-full sm:w-auto">
-                      <Select value={newFilter.operator} onValueChange={(value) => setNewFilter({ ...newFilter, operator: value as FilterOption['operator'] })}>
+                      <Select value={newFilter.operator} onValueChange={(value) => setNewFilter({ ...newFilter, operator: value })}>
                         <SelectTrigger className="w-full sm:w-[150px]">
                           <SelectValue placeholder="Operator" />
                         </SelectTrigger>
@@ -398,6 +407,7 @@ const DataFilters: React.FC<DataFiltersProps> = ({ onFilterChange, onSortChange,
                     </Button>
                   </div>
 
+                  {/* Active filters */}
                   <div className="space-y-2">
                     <AnimatePresence>
                       {filters.map((filter, index) => {
@@ -435,6 +445,7 @@ const DataFilters: React.FC<DataFiltersProps> = ({ onFilterChange, onSortChange,
               <div className="space-y-4">
                 <h3 className="text-sm font-medium mb-4">Sort Order</h3>
 
+                {/* Add new sort controls */}
                 <div className="flex flex-wrap gap-2 mb-4">
                   <div className="w-full sm:w-auto">
                     <Select value={newSort.field} onValueChange={(value) => setNewSort({ ...newSort, field: value as keyof ProcessedData })}>
@@ -466,6 +477,7 @@ const DataFilters: React.FC<DataFiltersProps> = ({ onFilterChange, onSortChange,
                   </Button>
                 </div>
 
+                {/* Active sort options */}
                 <div className="space-y-2">
                   <AnimatePresence>
                     {sortOptions.map((sort, index) => {
@@ -499,6 +511,7 @@ const DataFilters: React.FC<DataFiltersProps> = ({ onFilterChange, onSortChange,
                   </AnimatePresence>
                 </div>
 
+                {/* Clear all button */}
                 {sortOptions.length > 0 && (
                   <div className="flex justify-end">
                     <Button variant="outline" size="sm" onClick={() => {

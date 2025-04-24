@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { ProcessedData, ViewMode, FilterOption, SortOption } from '@/types/data';
 import ViewSwitcherWrapper from './ViewSwitcherWrapper';
@@ -13,17 +12,12 @@ import TimelineView from '@/components/views/TimelineView';
 import PivotView from '@/components/views/PivotView';
 import SearchBar from '@/components/SearchBar';
 import TrainerComparisonView from '@/components/TrainerComparisonView';
-import LocationComparisonView from '@/components/LocationComparisonView';
-import ClassComparisonView from '@/components/ClassComparisonView';
-import DayTimeComparisonView from '@/components/DayTimeComparisonView';
-import TableFilterPanel from './TableFilterPanel';
 import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { exportToCSV } from '@/utils/fileProcessing';
-import { DateRange } from './DateRangePicker';
 import { 
   Upload, 
-  BarChart, 
+  BarChart3, 
   Download, 
   RefreshCw, 
   Search,
@@ -34,8 +28,7 @@ import {
   ChevronDown,
   ChevronUp,
   Filter,
-  X,
-  Calendar
+  X
 } from 'lucide-react';
 import ProgressBar from '@/components/ProgressBar';
 import { Card, CardContent } from '@/components/ui/card';
@@ -57,9 +50,6 @@ import {
 } from "@/components/ui/dialog";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import CustomizeAppearanceDialog from './CustomizeAppearanceDialog';
-import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 interface DashboardProps {
   data: ProcessedData[];
@@ -96,35 +86,27 @@ const Dashboard: React.FC<DashboardProps> = ({
 }) => {
   const [filteredData, setFilteredData] = useState<ProcessedData[]>([]);
   const [filters, setFilters] = useState<FilterOption[]>([]);
-  const [dateFilter, setDateFilter] = useState<DateRange>({ from: undefined, to: undefined });
   const [sortOptions, setSortOptions] = useState<SortOption[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [isFilterCollapsed, setIsFilterCollapsed] = useState(true);
-  const [activeComparisonTab, setActiveComparisonTab] = useState('trainer');
-  const [showFilterPanel, setShowFilterPanel] = useState(false);
-  const [tableFilters, setTableFilters] = useState<FilterOption[]>([]);
-  const [tableSortOptions, setTableSortOptions] = useState<SortOption[]>([]);
+  const [showTrainerComparison, setShowTrainerComparison] = useState(false);
 
   useEffect(() => {
     if (!data.length) return;
 
-    // First apply date range filter
-    let result = data;
+    const today = new Date();
+    let result = data.filter(item => {
+      if (item.period) {
+        const [month, year] = item.period.split('-');
+        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        const monthIndex = months.indexOf(month);
+        const fullYear = 2000 + parseInt(year);
+        const periodDate = new Date(fullYear, monthIndex);
+        return periodDate <= today;
+      }
+      return true;
+    });
 
-    if (dateFilter.from || dateFilter.to) {
-      result = result.filter(item => {
-        if (!item.date) return true;
-        
-        const itemDate = new Date(item.date.split(',')[0]);
-        
-        if (dateFilter.from && itemDate < dateFilter.from) return false;
-        if (dateFilter.to && itemDate > dateFilter.to) return false;
-        
-        return true;
-      });
-    }
-    
-    // Then apply search filter
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
       result = result.filter(item => 
@@ -134,7 +116,6 @@ const Dashboard: React.FC<DashboardProps> = ({
       );
     }
 
-    // Then apply filters
     if (filters.length > 0) {
       result = result.filter(item => {
         return filters.every(filter => {
@@ -165,7 +146,6 @@ const Dashboard: React.FC<DashboardProps> = ({
       });
     }
 
-    // Then apply sort
     if (sortOptions.length > 0) {
       result.sort((a, b) => {
         for (const sort of sortOptions) {
@@ -190,59 +170,8 @@ const Dashboard: React.FC<DashboardProps> = ({
       });
     }
     
-    // Apply table-specific filters if in table view
-    if (viewMode === 'table' && tableFilters.length > 0) {
-      result = result.filter(item => {
-        return tableFilters.every(filter => {
-          const fieldValue = String(item[filter.field]);
-          
-          switch (filter.operator) {
-            case 'contains':
-              return fieldValue.toLowerCase().includes(filter.value.toLowerCase());
-            case 'equals':
-              return fieldValue.toLowerCase() === filter.value.toLowerCase();
-            case 'starts':
-              return fieldValue.toLowerCase().startsWith(filter.value.toLowerCase());
-            case 'ends':
-              return fieldValue.toLowerCase().endsWith(filter.value.toLowerCase());
-            case 'greater':
-              return Number(fieldValue) > Number(filter.value);
-            case 'less':
-              return Number(fieldValue) < Number(filter.value);
-            default:
-              return true;
-          }
-        });
-      });
-    }
-    
-    // Apply table-specific sort options if in table view
-    if (viewMode === 'table' && tableSortOptions.length > 0) {
-      result.sort((a, b) => {
-        for (const sort of tableSortOptions) {
-          const valueA = a[sort.field];
-          const valueB = b[sort.field];
-          
-          const isNumeric = !isNaN(Number(valueA)) && !isNaN(Number(valueB));
-          
-          let comparison = 0;
-          if (isNumeric) {
-            comparison = Number(valueA) - Number(valueB);
-          } else {
-            comparison = String(valueA).localeCompare(String(valueB));
-          }
-          
-          if (comparison !== 0) {
-            return sort.direction === 'asc' ? comparison : -comparison;
-          }
-        }
-        
-        return 0;
-      });
-    }
-    
     setFilteredData(result);
-  }, [data, filters, sortOptions, searchQuery, viewMode, tableFilters, tableSortOptions, dateFilter]);
+  }, [data, filters, sortOptions, searchQuery]);
 
   const handleFilterChange = (newFilters: FilterOption[]) => {
     setFilters(newFilters);
@@ -250,14 +179,6 @@ const Dashboard: React.FC<DashboardProps> = ({
 
   const handleSortChange = (newSortOptions: SortOption[]) => {
     setSortOptions(newSortOptions);
-  };
-
-  const handleTableFilterChange = (newFilters: FilterOption[]) => {
-    setTableFilters(newFilters);
-  };
-
-  const handleTableSortChange = (newSortOptions: SortOption[]) => {
-    setTableSortOptions(newSortOptions);
   };
 
   const handleExport = (format: 'csv' | 'json' | 'excel') => {
@@ -283,7 +204,6 @@ const Dashboard: React.FC<DashboardProps> = ({
   const clearFilters = () => {
     setFilters([]);
     setSearchQuery('');
-    setDateFilter({ from: undefined, to: undefined });
   };
 
   if (loading) {
@@ -325,19 +245,12 @@ const Dashboard: React.FC<DashboardProps> = ({
               </h1>
               <p className="text-xs text-slate-500 dark:text-slate-400">
                 {filteredData.length} Classes | {filters.length} Active Filters
-                {dateFilter.from && (
-                  <> | <Calendar className="inline h-3 w-3 mx-1" /> 
-                    {dateFilter.from.toLocaleDateString()} - {dateFilter.to ? dateFilter.to.toLocaleDateString() : 'present'}
-                  </>
-                )}
               </p>
             </div>
           </div>
           
           <div className="flex items-center gap-2 ml-auto">
             <ThemeToggle />
-            
-            <CustomizeAppearanceDialog />
             
             <Button variant="outline" size="sm" onClick={onReset}>
               <RefreshCw className="mr-2 h-4 w-4" />
@@ -387,7 +300,7 @@ const Dashboard: React.FC<DashboardProps> = ({
               <div className="flex-1 max-w-xl">
                 <SearchBar onSearch={handleSearchChange} data={data} />
               </div>
-              {(filters.length > 0 || dateFilter.from || dateFilter.to) && (
+              {filters.length > 0 && (
                 <Button 
                   variant="ghost" 
                   size="sm" 
@@ -401,26 +314,15 @@ const Dashboard: React.FC<DashboardProps> = ({
             </div>
             
             <div className="flex items-center gap-2">
-              <Tabs value={activeComparisonTab} onValueChange={setActiveComparisonTab} className="hidden sm:flex">
-                <TabsList>
-                  <TabsTrigger value="trainer">
-                    <Users className="h-4 w-4 mr-2" />
-                    Trainer
-                  </TabsTrigger>
-                  <TabsTrigger value="location">
-                    <Users className="h-4 w-4 mr-2" />
-                    Location
-                  </TabsTrigger>
-                  <TabsTrigger value="class">
-                    <Users className="h-4 w-4 mr-2" />
-                    Class
-                  </TabsTrigger>
-                  <TabsTrigger value="time">
-                    <Users className="h-4 w-4 mr-2" />
-                    Time
-                  </TabsTrigger>
-                </TabsList>
-              </Tabs>
+              <Button 
+                variant={showTrainerComparison ? "default" : "outline"} 
+                size="sm" 
+                onClick={() => setShowTrainerComparison(!showTrainerComparison)}
+                className="hidden sm:flex"
+              >
+                <Users className="mr-2 h-4 w-4" />
+                Trainer Comparison
+              </Button>
               
               <CollapsibleTrigger asChild>
                 <Button variant="outline" size="sm" className="flex items-center gap-1">
@@ -447,55 +349,26 @@ const Dashboard: React.FC<DashboardProps> = ({
         <MetricsPanel data={filteredData} />
         
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-          <Card className="lg:col-span-3 animate-card gradient-card">
+          <Card className="lg:col-span-3">
             <CardContent className="p-6">
               <TopBottomClasses data={filteredData} />
             </CardContent>
           </Card>
         </div>
         
-        {/* Comparison Views based on active tab */}
-        <div className="grid grid-cols-1 gap-6 mb-6">
-          <Card className="animate-card gradient-card">
-            <CardContent className="p-6">
-              {activeComparisonTab === 'trainer' && <TrainerComparisonView data={filteredData} trainerAvatars={trainerAvatars} />}
-              {activeComparisonTab === 'location' && <LocationComparisonView data={filteredData} />}
-              {activeComparisonTab === 'class' && <ClassComparisonView data={filteredData} />}
-              {activeComparisonTab === 'time' && <DayTimeComparisonView data={filteredData} />}
-            </CardContent>
-          </Card>
-        </div>
-        
-        <div className="flex justify-between items-center mb-4">
-          <ViewSwitcherWrapper viewMode={viewMode} setViewMode={setViewMode} />
-          
-          {viewMode === 'table' && (
-            <Button 
-              variant="outline"
-              size="sm"
-              onClick={() => setShowFilterPanel(!showFilterPanel)}
-              className="flex items-center gap-2"
-            >
-              <Filter className="h-4 w-4" />
-              Table Filters
-              {tableFilters.length > 0 && (
-                <Badge variant="secondary" className="ml-1">
-                  {tableFilters.length}
-                </Badge>
-              )}
-            </Button>
-          )}
-        </div>
-        
-        {viewMode === 'table' && showFilterPanel && (
-          <TableFilterPanel 
-            onFilterChange={handleTableFilterChange} 
-            onSortChange={handleTableSortChange} 
-            data={data} 
-          />
+        {showTrainerComparison && (
+          <div className="grid grid-cols-1 gap-6 mb-6">
+            <Card>
+              <CardContent className="p-6">
+                <TrainerComparisonView data={filteredData} trainerAvatars={trainerAvatars} />
+              </CardContent>
+            </Card>
+          </div>
         )}
 
-        <div className="bg-white dark:bg-gray-900 border rounded-lg shadow-sm mb-6 animate-card">
+        <ViewSwitcherWrapper viewMode={viewMode} setViewMode={setViewMode} />
+
+        <div className="bg-white dark:bg-gray-900 border rounded-lg shadow-sm mb-6">
           {viewMode === 'table' && <DataTable data={filteredData} trainerAvatars={trainerAvatars} />}
           {viewMode === 'grid' && <GridView data={filteredData} trainerAvatars={trainerAvatars} />}
           {viewMode === 'kanban' && <KanbanView data={filteredData} trainerAvatars={trainerAvatars} />}

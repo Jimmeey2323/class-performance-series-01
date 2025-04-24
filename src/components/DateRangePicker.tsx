@@ -12,126 +12,30 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useState } from "react";
 
-export type { DateRange } from "react-day-picker";
+export type { DateRange };
 
 interface DateRangePickerProps {
   value?: DateRange;
   onChange?: (date?: DateRange) => void;
-  align?: "start" | "center" | "end";
-  showPresets?: boolean;
+  placeholder?: string;
 }
 
 export function DateRangePicker({
-  value,
+  value = { from: undefined, to: undefined },
   onChange,
-  align = "start",
-  showPresets = true,
+  placeholder = "Select date range",
 }: DateRangePickerProps) {
-  const [dateRange, setDateRange] = React.useState<DateRange | undefined>(
-    value
-  );
-  
-  // Update internal state when prop changes
-  React.useEffect(() => {
-    setDateRange(value);
-  }, [value]);
+  const [date, setDate] = useState<DateRange | undefined>(value);
 
-  // Function to handle range selection and propagate changes
-  const handleDateSelect = (range?: DateRange) => {
-    setDateRange(range);
-    if (onChange) {
-      onChange(range);
-    }
-  };
-
-  // Function to handle preset selection
-  const handleSelectPreset = (preset: string) => {
-    const today = new Date();
-    let from: Date | undefined;
-    let to: Date | undefined;
-    
-    switch (preset) {
-      case "today":
-        from = today;
-        to = today;
-        break;
-      case "yesterday": {
-        const yesterday = new Date(today);
-        yesterday.setDate(yesterday.getDate() - 1);
-        from = yesterday;
-        to = yesterday;
-        break;
-      }
-      case "week": {
-        const startOfWeek = new Date(today);
-        startOfWeek.setDate(today.getDate() - today.getDay());
-        from = startOfWeek;
-        to = today;
-        break;
-      }
-      case "month": {
-        const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-        from = startOfMonth;
-        to = today;
-        break;
-      }
-      case "quarter": {
-        const currentMonth = today.getMonth();
-        const startMonth = Math.floor(currentMonth / 3) * 3;
-        const startOfQuarter = new Date(today.getFullYear(), startMonth, 1);
-        from = startOfQuarter;
-        to = today;
-        break;
-      }
-      case "year": {
-        const startOfYear = new Date(today.getFullYear(), 0, 1);
-        from = startOfYear;
-        to = today;
-        break;
-      }
-      case "last-month": {
-        const lastMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1);
-        const endOfLastMonth = new Date(today.getFullYear(), today.getMonth(), 0);
-        from = lastMonth;
-        to = endOfLastMonth;
-        break;
-      }
-      case "last-quarter": {
-        const currentMonth = today.getMonth();
-        const startLastQuarterMonth = Math.floor((currentMonth - 3) / 3) * 3;
-        const startOfLastQuarter = new Date(today.getFullYear(), startLastQuarterMonth, 1);
-        const endOfLastQuarter = new Date(today.getFullYear(), startLastQuarterMonth + 3, 0);
-        from = startOfLastQuarter;
-        to = endOfLastQuarter;
-        break;
-      }
-      case "last-year": {
-        const lastYear = today.getFullYear() - 1;
-        const startOfLastYear = new Date(lastYear, 0, 1);
-        const endOfLastYear = new Date(lastYear, 11, 31);
-        from = startOfLastYear;
-        to = endOfLastYear;
-        break;
-      }
-      case "clear":
-        from = undefined;
-        to = undefined;
-        break;
-      default:
-        return;
-    }
-
-    handleDateSelect({ from, to });
-  };
-
-  const formatDate = (date?: Date) => {
-    return date ? format(date, "PPP") : "";
+  const handleDateChange = (newDate?: DateRange) => {
+    setDate(newDate);
+    onChange?.(newDate);
   };
 
   return (
-    <div className="flex flex-col sm:flex-row gap-2">
+    <div className={cn("grid gap-2")}>
       <Popover>
         <PopoverTrigger asChild>
           <Button
@@ -139,55 +43,56 @@ export function DateRangePicker({
             variant={"outline"}
             className={cn(
               "w-full justify-start text-left font-normal",
-              !dateRange?.from && "text-muted-foreground"
+              !date && "text-muted-foreground"
             )}
           >
             <CalendarIcon className="mr-2 h-4 w-4" />
-            {dateRange?.from ? (
-              dateRange.to ? (
+            {date?.from ? (
+              date.to ? (
                 <>
-                  {formatDate(dateRange.from)} - {formatDate(dateRange.to)}
+                  {format(date.from, "LLL dd, y")} -{" "}
+                  {format(date.to, "LLL dd, y")}
                 </>
               ) : (
-                formatDate(dateRange.from)
+                format(date.from, "LLL dd, y")
               )
             ) : (
-              <span>Pick a date range</span>
+              <span>{placeholder}</span>
             )}
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-auto p-0" align={align}>
-          {showPresets && (
-            <Select
-              onValueChange={handleSelectPreset}
-              defaultValue="none"
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Select a preset" />
-              </SelectTrigger>
-              <SelectContent position="popper">
-                <SelectItem value="today">Today</SelectItem>
-                <SelectItem value="yesterday">Yesterday</SelectItem>
-                <SelectItem value="week">This Week</SelectItem>
-                <SelectItem value="month">This Month</SelectItem>
-                <SelectItem value="quarter">This Quarter</SelectItem>
-                <SelectItem value="year">This Year</SelectItem>
-                <SelectItem value="last-month">Last Month</SelectItem>
-                <SelectItem value="last-quarter">Last Quarter</SelectItem>
-                <SelectItem value="last-year">Last Year</SelectItem>
-                <SelectItem value="clear">Clear Selection</SelectItem>
-              </SelectContent>
-            </Select>
-          )}
+        <PopoverContent className="w-auto p-0" align="start">
           <Calendar
             initialFocus
             mode="range"
-            defaultMonth={dateRange?.from}
-            selected={dateRange}
-            onSelect={handleDateSelect}
+            defaultMonth={date?.from}
+            selected={date}
+            onSelect={handleDateChange}
             numberOfMonths={2}
-            className="p-3 pointer-events-auto"
           />
+          <div className="p-3 border-t border-border flex justify-between">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => handleDateChange(undefined)}
+            >
+              Clear
+            </Button>
+            <Button
+              size="sm"
+              onClick={() => {
+                const today = new Date();
+                const thirtyDaysAgo = new Date();
+                thirtyDaysAgo.setDate(today.getDate() - 30);
+                handleDateChange({
+                  from: thirtyDaysAgo,
+                  to: today
+                });
+              }}
+            >
+              Last 30 Days
+            </Button>
+          </div>
         </PopoverContent>
       </Popover>
     </div>

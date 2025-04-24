@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import { ProcessedData } from '@/types/data';
@@ -136,7 +137,8 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({ data, trainerAvatars }) => {
                           return (
                             <motion.div
                               ref={innerRef}
-                              {...(dragHandleProps as any)}
+                              {...draggableProps}
+                              {...dragHandleProps}
                               initial={{ opacity: 0, y: 20 }}
                               animate={{ opacity: 1, y: 0 }}
                               transition={{ duration: 0.2, delay: index * 0.05 }}

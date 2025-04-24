@@ -320,7 +320,9 @@ const KanbanView: React.FC<KanbanViewProps> = ({ data, trainerAvatars }) => {
                                   
                                   return (
                                     <motion.div
-                                      {...(dragHandleProps as any)}
+                                      ref={innerRef}
+                                      {...draggableProps}
+                                      {...dragHandleProps}
                                       initial={{ opacity: 0, y: 10 }}
                                       animate={{ opacity: 1, y: 0 }}
                                       transition={{ duration: 0.2, delay: index * 0.03 }}
