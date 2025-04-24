@@ -103,7 +103,7 @@ const Index = () => {
         duration: 20,
         repeat: Infinity,
         ease: "linear"
-      }} className="h-20 w-auto mb-6 object-contain" />
+      }} className="h-20 w-auto mb-6" />
           
           <motion.div initial={{
         scale: 0.9,
