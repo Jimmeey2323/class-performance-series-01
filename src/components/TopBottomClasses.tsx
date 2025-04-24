@@ -1,11 +1,13 @@
-import React, { useState } from 'react';
+
+import React, { useState, useMemo } from 'react';
 import { ProcessedData } from '@/types/data';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
+import { Button } from '@/components/ui/button';
 import { formatIndianCurrency } from './MetricsPanel';
-import { Calendar, Clock, MapPin } from 'lucide-react';
+import { Calendar, Clock, MapPin, ChevronDown } from 'lucide-react';
 
 interface TopBottomClassesProps {
   data: ProcessedData[];
@@ -14,18 +16,22 @@ interface TopBottomClassesProps {
 const TopBottomClasses: React.FC<TopBottomClassesProps> = ({ data }) => {
   const [groupByTrainer, setGroupByTrainer] = useState(false);
   const [metric, setMetric] = useState<'attendance' | 'revenue'>('attendance');
+  const [displayCount, setDisplayCount] = useState(5);
 
   const getTopBottomClasses = () => {
+    if (!data || data.length === 0) return { top: [], bottom: [] };
+
     if (groupByTrainer) {
       // Group by trainer and class type
       const grouped = data.reduce((acc, item) => {
-        const key = `${item.teacherName}-${item.cleanedClass}`;
+        const key = `${item.teacherName}-${item.cleanedClass}-${item.dayOfWeek}-${item.classTime}-${item.location}`;
         if (!acc[key]) {
           acc[key] = {
             teacherName: item.teacherName,
             cleanedClass: item.cleanedClass,
             dayOfWeek: item.dayOfWeek,
             classTime: item.classTime,
+            location: item.location,
             totalCheckins: 0,
             totalRevenue: 0,
             totalOccurrences: 0,
@@ -36,9 +42,7 @@ const TopBottomClasses: React.FC<TopBottomClassesProps> = ({ data }) => {
         acc[key].totalCheckins += Number(item.totalCheckins);
         acc[key].totalRevenue += Number(item.totalRevenue);
         acc[key].totalOccurrences += Number(item.totalOccurrences);
-        // Keep the most common dayOfWeek and time for this group
-        if (!acc[key].dayOfWeek) acc[key].dayOfWeek = item.dayOfWeek;
-        if (!acc[key].classTime) acc[key].classTime = item.classTime;
+        
         return acc;
       }, {} as Record<string, any>);
 
@@ -49,75 +53,96 @@ const TopBottomClasses: React.FC<TopBottomClassesProps> = ({ data }) => {
         classAverageExcludingEmpty: item.totalOccurrences > 0 ? item.totalCheckins / item.totalOccurrences : 0
       }));
 
+      // Filter out classes that don't meet criteria
+      const filteredClasses = classes.filter(item => {
+        return !item.cleanedClass.includes('Hosted') && 
+               !item.cleanedClass.includes('Recovery') && 
+               item.totalOccurrences >= 2;
+      });
+
       return {
-        top: classes
+        top: filteredClasses
           .sort((a, b) => metric === 'attendance' 
             ? b.average - a.average 
             : b.totalRevenue - a.totalRevenue
           )
-          .slice(0, 5),
-        bottom: classes
+          .slice(0, displayCount),
+        bottom: filteredClasses
           .sort((a, b) => metric === 'attendance'
             ? a.average - b.average
             : a.totalRevenue - b.totalRevenue
           )
-          .slice(0, 5)
+          .slice(0, displayCount)
       };
     } else {
-      // Group by class type only, ignoring trainers
+      // Group by class type, day, time and location
       const grouped = data.reduce((acc, item) => {
-        if (!acc[item.cleanedClass]) {
-          acc[item.cleanedClass] = {
+        const key = `${item.cleanedClass}-${item.dayOfWeek}-${item.classTime}-${item.location}`;
+        if (!acc[key]) {
+          acc[key] = {
             cleanedClass: item.cleanedClass,
-            dayOfWeek: [],
-            classTime: [],
+            dayOfWeek: item.dayOfWeek,
+            classTime: item.classTime,
+            location: item.location,
             totalCheckins: 0,
             totalRevenue: 0,
-            totalOccurrences: 0
+            totalOccurrences: 0,
+            trainers: new Set(),
           };
         }
-        acc[item.cleanedClass].totalCheckins += Number(item.totalCheckins);
-        acc[item.cleanedClass].totalRevenue += Number(item.totalRevenue);
-        acc[item.cleanedClass].totalOccurrences += Number(item.totalOccurrences);
+        acc[key].totalCheckins += Number(item.totalCheckins);
+        acc[key].totalRevenue += Number(item.totalRevenue);
+        acc[key].totalOccurrences += Number(item.totalOccurrences);
+        acc[key].trainers.add(item.teacherName);
         
-        // Track most common day and time
-        if (!acc[item.cleanedClass].dayOfWeek.includes(item.dayOfWeek)) {
-          acc[item.cleanedClass].dayOfWeek.push(item.dayOfWeek);
-        }
-        if (!acc[item.cleanedClass].classTime.includes(item.classTime)) {
-          acc[item.cleanedClass].classTime.push(item.classTime);
-        }
         return acc;
       }, {} as Record<string, any>);
 
       const classes = Object.values(grouped).map(item => ({
         ...item,
+        trainers: Array.from(item.trainers),
         average: item.totalOccurrences > 0 ? item.totalCheckins / item.totalOccurrences : 0,
         classAverageIncludingEmpty: item.totalOccurrences > 0 ? item.totalCheckins / item.totalOccurrences : 0,
-        classAverageExcludingEmpty: item.totalOccurrences > 0 ? item.totalCheckins / item.totalOccurrences : 0,
-        // Format day and time for display
-        dayOfWeek: Array.isArray(item.dayOfWeek) ? item.dayOfWeek.join(', ') : item.dayOfWeek,
-        classTime: Array.isArray(item.classTime) ? item.classTime.join(', ') : item.classTime
+        classAverageExcludingEmpty: item.totalOccurrences > 0 ? item.totalCheckins / item.totalOccurrences : 0
       }));
 
+      // Filter out classes that don't meet criteria
+      const filteredClasses = classes.filter(item => {
+        return !item.cleanedClass.includes('Hosted') && 
+               !item.cleanedClass.includes('Recovery') && 
+               item.totalOccurrences >= 2;
+      });
+
       return {
-        top: classes
+        top: filteredClasses
           .sort((a, b) => metric === 'attendance'
             ? b.average - a.average
             : b.totalRevenue - a.totalRevenue
           )
-          .slice(0, 5),
-        bottom: classes
+          .slice(0, displayCount),
+        bottom: filteredClasses
           .sort((a, b) => metric === 'attendance'
             ? a.average - b.average
             : a.totalRevenue - b.totalRevenue
           )
-          .slice(0, 5)
+          .slice(0, displayCount)
       };
     }
   };
 
   const { top, bottom } = getTopBottomClasses();
+  const hasMoreData = useMemo(() => {
+    const totalFilteredClasses = data.filter(item => 
+      !item.cleanedClass.includes('Hosted') && 
+      !item.cleanedClass.includes('Recovery')
+    ).length;
+    
+    return totalFilteredClasses > displayCount;
+  }, [data, displayCount]);
+
+  const handleShowMore = () => {
+    setDisplayCount(prev => prev + 5);
+  };
 
   return (
     <div className="space-y-6">
@@ -155,9 +180,9 @@ const TopBottomClasses: React.FC<TopBottomClassesProps> = ({ data }) => {
         {/* Top Classes */}
         <Card>
           <CardContent className="p-6">
-            <h3 className="text-lg font-semibold mb-4">Top 5 Classes</h3>
+            <h3 className="text-lg font-semibold mb-4">Top {displayCount} Classes</h3>
             <div className="space-y-4">
-              {top.map((item, index) => (
+              {top.length > 0 ? top.map((item, index) => (
                 <div key={index} className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-900/50 rounded-lg">
                   <div className="flex items-center gap-3">
                     <span className="text-2xl font-bold text-indigo-600 dark:text-indigo-400 w-8">
@@ -165,8 +190,14 @@ const TopBottomClasses: React.FC<TopBottomClassesProps> = ({ data }) => {
                     </span>
                     <div className="space-y-1">
                       <p className="font-medium">{item.cleanedClass}</p>
-                      {groupByTrainer && (
+                      {groupByTrainer ? (
                         <p className="text-sm text-muted-foreground">{item.teacherName}</p>
+                      ) : (
+                        <p className="text-sm text-muted-foreground">
+                          {Array.isArray(item.trainers) 
+                            ? `${item.trainers.length} trainer${item.trainers.length > 1 ? 's' : ''}` 
+                            : ''}
+                        </p>
                       )}
                       <div className="flex items-center gap-3 text-xs text-muted-foreground">
                         <span className="flex items-center gap-1">
@@ -202,26 +233,47 @@ const TopBottomClasses: React.FC<TopBottomClassesProps> = ({ data }) => {
                     </div>
                   </div>
                 </div>
-              ))}
+              )) : (
+                <div className="p-4 text-center text-muted-foreground">
+                  No classes found matching the criteria
+                </div>
+              )}
             </div>
+            {hasMoreData && (
+              <div className="mt-4 text-center">
+                <Button 
+                  variant="outline" 
+                  onClick={handleShowMore}
+                  className="text-sm"
+                >
+                  Show More <ChevronDown className="ml-2 h-4 w-4" />
+                </Button>
+              </div>
+            )}
           </CardContent>
         </Card>
 
         {/* Bottom Classes */}
         <Card>
           <CardContent className="p-6">
-            <h3 className="text-lg font-semibold mb-4">Bottom 5 Classes</h3>
+            <h3 className="text-lg font-semibold mb-4">Bottom {displayCount} Classes</h3>
             <div className="space-y-4">
-              {bottom.map((item, index) => (
+              {bottom.length > 0 ? bottom.map((item, index) => (
                 <div key={index} className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-900/50 rounded-lg">
                   <div className="flex items-center gap-3">
                     <span className="text-2xl font-bold text-red-500 dark:text-red-400 w-8">
-                      #{5 - index}
+                      #{displayCount - index}
                     </span>
                     <div className="space-y-1">
                       <p className="font-medium">{item.cleanedClass}</p>
-                      {groupByTrainer && (
+                      {groupByTrainer ? (
                         <p className="text-sm text-muted-foreground">{item.teacherName}</p>
+                      ) : (
+                        <p className="text-sm text-muted-foreground">
+                          {Array.isArray(item.trainers) 
+                            ? `${item.trainers.length} trainer${item.trainers.length > 1 ? 's' : ''}` 
+                            : ''}
+                        </p>
                       )}
                       <div className="flex items-center gap-3 text-xs text-muted-foreground">
                         <span className="flex items-center gap-1">
@@ -257,8 +309,23 @@ const TopBottomClasses: React.FC<TopBottomClassesProps> = ({ data }) => {
                     </div>
                   </div>
                 </div>
-              ))}
+              )) : (
+                <div className="p-4 text-center text-muted-foreground">
+                  No classes found matching the criteria
+                </div>
+              )}
             </div>
+            {hasMoreData && (
+              <div className="mt-4 text-center">
+                <Button 
+                  variant="outline" 
+                  onClick={handleShowMore}
+                  className="text-sm"
+                >
+                  Show More <ChevronDown className="ml-2 h-4 w-4" />
+                </Button>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>

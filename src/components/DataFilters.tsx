@@ -1,656 +1,469 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { ProcessedData, FilterOption } from '@/types/data';
-import { DateRange } from 'react-day-picker';
-import { format } from 'date-fns';
-import { Calendar as CalendarIcon } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Calendar } from '@/components/ui/calendar';
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover';
+
+import React, { useState, useEffect } from 'react';
+import { FilterOption, SortOption, ProcessedData } from '@/types/data';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from '@/components/ui/tabs';
+import { Button } from '@/components/ui/button';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { DateRangePicker, DateRange } from './DateRangePicker';
+import { parse } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
-import { Plus, Trash2, ArrowUpDown, Filter as FilterIcon, Calendar as CalendarLucide } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Filter, Plus, X, Check, ChevronDown, ChevronUp } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface DataFiltersProps {
   onFilterChange: (filters: FilterOption[]) => void;
-  onSortChange: (sortOptions: any[]) => void;
+  onSortChange: (sortOptions: SortOption[]) => void;
   data: ProcessedData[];
   activeFilters: number;
 }
 
-type FilterOperator = 'contains' | 'equals' | 'starts' | 'ends' | 'greater' | 'less' | 'between' | 'in';
-
-interface FilterOptionWithId extends FilterOption {
-  id: string;
-}
-
-const getTimeRangeFilter = (range: string): FilterOptionWithId[] => {
-  const now = new Date();
-  const filters: FilterOptionWithId[] = [];
-  const id = `filter-${Date.now()}`;
+const parseClassDate = (dateStr: string | undefined): Date | undefined => {
+  if (!dateStr) return undefined;
   
-  switch (range) {
-    case 'last-week':
-      const lastWeek = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-      filters.push({
-        id,
-        field: 'period',
-        operator: 'greater',
-        value: lastWeek.toISOString()
-      });
-      break;
-    case 'last-month':
-      const lastMonth = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-      filters.push({
-        id,
-        field: 'period',
-        operator: 'greater',
-        value: lastMonth.toISOString()
-      });
-      break;
-    case 'last-quarter':
-      const lastQuarter = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
-      filters.push({
-        id,
-        field: 'period',
-        operator: 'greater',
-        value: lastQuarter.toISOString()
-      });
-      break;
-    case 'custom':
-      // Custom date range will be handled by the date picker
-      break;
+  // Try parsing as MM/DD/YYYY first, which is commonly used in the data
+  let parsed = parse(dateStr.split(',')[0], "MM/dd/yyyy", new Date());
+  
+  // If that fails, try alternative formats
+  if (isNaN(parsed.getTime())) {
+    parsed = parse(dateStr.split(',')[0], "yyyy-MM-dd", new Date());
+    if (isNaN(parsed.getTime())) {
+      // Try one more format as a last resort
+      parsed = parse(dateStr.split(',')[0], "dd/MM/yyyy", new Date());
+      if (isNaN(parsed.getTime())) return undefined;
+    }
   }
   
-  return filters;
+  return parsed;
 };
 
-const DataFilters: React.FC<DataFiltersProps> = ({
-  onFilterChange,
-  onSortChange,
-  data,
-  activeFilters,
-}) => {
-  const [filters, setFilters] = useState<FilterOptionWithId[]>([]);
-  const [sortOptions, setSortOptions] = useState<any[]>([]);
-  const [activeTab, setActiveTab] = useState('filters');
-  const [date, setDate] = useState<Date | undefined>(undefined);
+const DataFilters: React.FC<DataFiltersProps> = ({ onFilterChange, onSortChange, data, activeFilters }) => {
+  const [activeTab, setActiveTab] = useState<'filter' | 'sort'>('filter');
+  const [filters, setFilters] = useState<FilterOption[]>([]);
+  const [sortOptions, setSortOptions] = useState<SortOption[]>([]);
+  const [newFilter, setNewFilter] = useState<FilterOption>({ field: 'cleanedClass', operator: 'contains', value: '' });
+  const [newSort, setNewSort] = useState<SortOption>({ field: 'totalCheckins', direction: 'desc' });
+  const [isExpanded, setIsExpanded] = useState(false);
 
-  const uniqueOptions = useMemo(() => {
-    const options = {
-      cleanedClass: new Set<string>(),
-      location: new Set<string>(),
-      teacherName: new Set<string>(),
-      dayOfWeek: new Set<string>(),
-      period: new Set<string>(),
-    };
-
-    data.forEach(item => {
-      if (item.cleanedClass) options.cleanedClass.add(item.cleanedClass);
-      if (item.location) options.location.add(item.location);
-      if (item.teacherName) options.teacherName.add(item.teacherName);
-      if (item.dayOfWeek) options.dayOfWeek.add(item.dayOfWeek);
-      if (item.period) options.period.add(item.period);
-    });
-
-    return {
-      cleanedClass: Array.from(options.cleanedClass).sort(),
-      location: Array.from(options.location).sort(),
-      teacherName: Array.from(options.teacherName).sort(),
-      dayOfWeek: Array.from(options.dayOfWeek).sort((a, b) => {
-        const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-        return days.indexOf(a) - days.indexOf(b);
-      }),
-      period: Array.from(options.period).sort((a, b) => {
-        const [monthA, yearA] = a.split('-');
-        const [monthB, yearB] = b.split('-');
-        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-        if (yearA !== yearB) return parseInt(yearA) - parseInt(yearB);
-        return months.indexOf(monthA) - months.indexOf(monthB);
-      }),
-    };
+  // Extract unique options for selects
+  const classNames = React.useMemo(() => {
+    if (!data || data.length === 0) return [];
+    const uniqueClasses = new Set(data.map(row => row.cleanedClass).filter(Boolean));
+    return Array.from(uniqueClasses).sort();
   }, [data]);
 
-  useEffect(() => {
-    onFilterChange(filters);
-  }, [filters, onFilterChange]);
+  const locations = React.useMemo(() => {
+    if (!data || data.length === 0) return [];
+    const uniqueLocations = new Set(data.map(row => row.location).filter(Boolean));
+    return Array.from(uniqueLocations).sort();
+  }, [data]);
 
-  useEffect(() => {
-    onSortChange(sortOptions);
-  }, [sortOptions, onSortChange]);
+  const daysOfWeek = React.useMemo(() => {
+    if (!data || data.length === 0) return [];
+    const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+    const availableDays = new Set(data.map(row => row.dayOfWeek).filter(Boolean));
+    return days.filter(day => availableDays.has(day));
+  }, [data]);
 
-  const getOperatorOptions = (field: keyof ProcessedData) => {
-    const numericFields = [
-      'totalCheckins', 'totalOccurrences', 'totalRevenue', 'totalCancelled',
-      'totalEmpty', 'totalNonEmpty', 'totalNonPaid', 'classAverageIncludingEmpty', 
-      'classAverageExcludingEmpty', 'totalTime'
-    ];
+  const periods = React.useMemo(() => {
+    if (!data || data.length === 0) return [];
+    const uniquePeriods = new Set(data.map(row => row.period).filter(Boolean));
+    return Array.from(uniquePeriods).sort();
+  }, [data]);
+  
+  const [filterSettings, setFilterSettings] = useState({
+    className: "all",
+    location: "all",
+    dayOfWeek: "all",
+    hasParticipants: false,
+    dateRange: { from: undefined, to: undefined } as DateRange,
+  });
+
+  const addFilter = () => {
+    if (newFilter.value) {
+      const updatedFilters = [...filters, { ...newFilter }];
+      setFilters(updatedFilters);
+      onFilterChange(updatedFilters);
+      setNewFilter({ ...newFilter, value: '' }); // Reset value but keep field and operator
+    }
+  };
+
+  const removeFilter = (index: number) => {
+    const updatedFilters = filters.filter((_, i) => i !== index);
+    setFilters(updatedFilters);
+    onFilterChange(updatedFilters);
+  };
+
+  const addSort = () => {
+    const updatedSortOptions = [...sortOptions, { ...newSort }];
+    setSortOptions(updatedSortOptions);
+    onSortChange(updatedSortOptions);
+  };
+
+  const removeSort = (index: number) => {
+    const updatedSortOptions = sortOptions.filter((_, i) => i !== index);
+    setSortOptions(updatedSortOptions);
+    onSortChange(updatedSortOptions);
+  };
+
+  const clearAll = () => {
+    setFilters([]);
+    setSortOptions([]);
+    setFilterSettings({
+      className: "all",
+      location: "all",
+      dayOfWeek: "all",
+      hasParticipants: false,
+      dateRange: { from: undefined, to: undefined },
+    });
+    onFilterChange([]);
+    onSortChange([]);
+  };
+
+  const applyFilters = () => {
+    const newFilters: FilterOption[] = [];
     
-    const isNumeric = numericFields.includes(field);
+    if (filterSettings.className !== "all") {
+      newFilters.push({
+        field: "cleanedClass",
+        operator: "equals",
+        value: filterSettings.className
+      });
+    }
+
+    if (filterSettings.location !== "all") {
+      newFilters.push({
+        field: "location",
+        operator: "equals",
+        value: filterSettings.location
+      });
+    }
+
+    if (filterSettings.dayOfWeek !== "all") {
+      newFilters.push({
+        field: "dayOfWeek",
+        operator: "equals",
+        value: filterSettings.dayOfWeek
+      });
+    }
+
+    if (filterSettings.hasParticipants) {
+      newFilters.push({
+        field: "totalCheckins",
+        operator: "greater",
+        value: "0"
+      });
+    }
+
+    // Date range filter
+    if (filterSettings.dateRange.from || filterSettings.dateRange.to) {
+      const dateFilters = [];
+      
+      if (filterSettings.dateRange.from) {
+        dateFilters.push({
+          field: "date",
+          operator: "after",
+          value: filterSettings.dateRange.from.toISOString().split('T')[0]
+        });
+      }
+      
+      if (filterSettings.dateRange.to) {
+        dateFilters.push({
+          field: "date",
+          operator: "before",
+          value: filterSettings.dateRange.to.toISOString().split('T')[0]
+        });
+      }
+      
+      newFilters.push(...dateFilters);
+    }
+
+    setFilters(newFilters);
+    onFilterChange(newFilters);
+  };
+
+  // Operators based on field type
+  const getOperatorsForField = (field: string) => {
+    const numericFields = ['totalCheckins', 'totalRevenue', 'totalCancelled', 'totalOccurrences'];
+    const dateFields = ['date', 'period'];
     
-    if (field === 'period') {
+    if (numericFields.includes(field)) {
       return [
-        { value: 'in', label: 'Is one of' },
+        { value: 'greater', label: 'Greater than' },
+        { value: 'less', label: 'Less than' },
         { value: 'equals', label: 'Equals' },
       ];
+    } else if (dateFields.includes(field)) {
+      return [
+        { value: 'after', label: 'After' },
+        { value: 'before', label: 'Before' },
+        { value: 'on', label: 'On' },
+      ];
+    } else {
+      return [
+        { value: 'contains', label: 'Contains' },
+        { value: 'equals', label: 'Equals' },
+        { value: 'starts', label: 'Starts with' },
+        { value: 'ends', label: 'Ends with' },
+      ];
     }
-    
-    return isNumeric
-      ? [
-          { value: 'equals', label: '=' },
-          { value: 'greater', label: '&gt;' },
-          { value: 'less', label: '&lt;' },
-          { value: 'between', label: 'Between' },
-        ]
-      : [
-          { value: 'contains', label: 'Contains' },
-          { value: 'equals', label: 'Equals' },
-          { value: 'starts', label: 'Starts with' },
-          { value: 'ends', label: 'Ends with' },
-        ];
   };
 
-  const getFilterFields = () => [
+  const fields = [
     { value: 'cleanedClass', label: 'Class Type' },
+    { value: 'teacherName', label: 'Instructor' },
+    { value: 'location', label: 'Location' },
     { value: 'dayOfWeek', label: 'Day of Week' },
     { value: 'classTime', label: 'Class Time' },
-    { value: 'location', label: 'Location' },
-    { value: 'teacherName', label: 'Instructor' },
+    { value: 'date', label: 'Class Date' },
     { value: 'period', label: 'Period' },
-    { value: 'totalCheckins', label: 'Total Check-ins' },
-    { value: 'totalOccurrences', label: 'Occurrences' },
+    { value: 'totalCheckins', label: 'Check-ins' },
     { value: 'totalRevenue', label: 'Revenue' },
-    { value: 'classAverageIncludingEmpty', label: 'Avg. Attendance (All)' },
-    { value: 'classAverageExcludingEmpty', label: 'Avg. Attendance (Non-Empty)' },
     { value: 'totalCancelled', label: 'Cancellations' },
+    { value: 'totalOccurrences', label: 'Class Count' },
   ];
 
-  const handleAddFilter = () => {
-    const newFilter: FilterOptionWithId = {
-      id: `filter-${Date.now()}`,
-      field: 'cleanedClass',
-      operator: 'contains',
-      value: '',
-    };
-    setFilters([...filters, newFilter]);
-  };
-
-  const handleUpdateFilter = (id: string, key: keyof FilterOption, value: string) => {
-    setFilters(filters.map(filter => 
-      filter.id === id ? { ...filter, [key]: value } : filter
-    ));
-  };
-
-  const handleRemoveFilter = (id: string) => {
-    setFilters(filters.filter(filter => filter.id !== id));
-  };
-
-  const handleAddSort = () => {
-    const newSort: any = {
-      field: 'totalCheckins',
-      direction: 'desc',
-    };
-    setSortOptions([...sortOptions, newSort]);
-  };
-
-  const handleUpdateSort = (index: number, key: keyof any, value: string) => {
-    const updatedSortOptions = [...sortOptions];
-    updatedSortOptions[index] = { 
-      ...updatedSortOptions[index], 
-      [key]: key === 'field' ? value : value as 'asc' | 'desc' 
-    };
-    setSortOptions(updatedSortOptions);
-  };
-
-  const handleRemoveSort = (index: number) => {
-    setSortOptions(sortOptions.filter((_, i) => i !== index));
-  };
-
-  const renderFilterValue = (filter: FilterOptionWithId) => {
-    if (
-      filter.field === 'cleanedClass' ||
-      filter.field === 'location' ||
-      filter.field === 'teacherName' ||
-      filter.field === 'dayOfWeek'
-    ) {
-      const options = uniqueOptions[filter.field as keyof typeof uniqueOptions] || [];
-      
-      return (
-        <Select
-          value={filter.value}
-          onValueChange={(value) => handleUpdateFilter(filter.id, 'value', value)}
-        >
-          <SelectTrigger className="w-full">
-            <SelectValue placeholder={`Select ${filter.field}`} />
-          </SelectTrigger>
-          <SelectContent className="max-h-72">
-            {options.map((option) => (
-              <SelectItem key={option} value={option}>
-                {option}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      );
-    }
-
-    if (filter.field === 'period' && filter.operator === 'in') {
-      const selectedPeriods = filter.value ? filter.value.split(',') : [];
-      
-      return (
-        <div className="space-y-2">
-          <div className="flex flex-wrap gap-2">
-            {selectedPeriods.map(period => (
-              <Badge 
-                key={period} 
-                variant="secondary" 
-                className="flex items-center gap-1"
-                onClick={() => {
-                  const newSelected = selectedPeriods.filter(p => p !== period);
-                  handleUpdateFilter(filter.id, 'value', newSelected.join(','));
-                }}
-              >
-                {period}
-                <Trash2 className="h-3 w-3 ml-1 cursor-pointer" />
-              </Badge>
-            ))}
-            {selectedPeriods.length === 0 && (
-              <div className="text-sm text-muted-foreground">No periods selected</div>
-            )}
-          </div>
-          
-          <Select
-            onValueChange={(value) => {
-              if (!selectedPeriods.includes(value)) {
-                const newSelected = [...selectedPeriods, value];
-                handleUpdateFilter(filter.id, 'value', newSelected.join(','));
-              }
-            }}
-          >
-            <SelectTrigger className="w-full">
-              <SelectValue placeholder="Add period" />
-            </SelectTrigger>
-            <SelectContent className="max-h-72">
-              {uniqueOptions.period.map((period) => (
-                <SelectItem 
-                  key={period} 
-                  value={period}
-                  disabled={selectedPeriods.includes(period)}
-                >
-                  {period}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      );
-    }
-
-    if (filter.field === 'date') {
-      return (
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button
-              variant="outline"
-              className={cn(
-                "w-full justify-start text-left font-normal",
-                !date && "text-muted-foreground"
-              )}
-            >
-              <CalendarLucide className="mr-2 h-4 w-4" />
-              {date ? format(date, "PPP") : "Select date"}
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-auto p-0">
-            <Calendar
-              mode="single"
-              selected={date}
-              onSelect={(newDate) => {
-                setDate(newDate);
-                if (newDate) {
-                  handleUpdateFilter(filter.id, 'value', format(newDate, 'yyyy-MM-dd'));
-                }
-              }}
-              initialFocus
-            />
-          </PopoverContent>
-        </Popover>
-      );
-    }
-
-    return (
-      <Input
-        type={
-          [
-            'totalCheckins', 
-            'totalOccurrences', 
-            'totalRevenue', 
-            'totalCancelled',
-            'totalEmpty', 
-            'totalNonEmpty', 
-            'classAverageIncludingEmpty', 
-            'classAverageExcludingEmpty'
-          ].includes(filter.field) ? 'number' : 'text'
-        }
-        value={filter.value}
-        onChange={(e) => handleUpdateFilter(filter.id, 'value', e.target.value)}
-        placeholder="Enter value..."
-        className="w-full"
-      />
-    );
-  };
+  const sortableFields = [
+    { value: 'cleanedClass', label: 'Class Type' },
+    { value: 'teacherName', label: 'Instructor' },
+    { value: 'location', label: 'Location' },
+    { value: 'dayOfWeek', label: 'Day of Week' },
+    { value: 'classTime', label: 'Class Time' },
+    { value: 'date', label: 'Class Date' },
+    { value: 'totalCheckins', label: 'Check-ins' },
+    { value: 'totalRevenue', label: 'Revenue' },
+    { value: 'totalCancelled', label: 'Cancellations' },
+    { value: 'totalOccurrences', label: 'Class Count' },
+    { value: 'classAverageIncludingEmpty', label: 'Avg. Attendance (All)' },
+    { value: 'classAverageExcludingEmpty', label: 'Avg. Attendance (Non-empty)' },
+  ];
 
   return (
-    <div className="space-y-6">
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="filters" className="text-sm">
-            <FilterIcon className="h-4 w-4 mr-2" />
-            Filters {activeFilters > 0 && <Badge className="ml-2">{activeFilters}</Badge>}
-          </TabsTrigger>
-          <TabsTrigger value="sorting" className="text-sm">
-            <ArrowUpDown className="h-4 w-4 mr-2" />
-            Sorting {sortOptions.length > 0 && <Badge className="ml-2">{sortOptions.length}</Badge>}
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="filters" className="space-y-4 pt-2">
-          <div className="flex justify-between items-center">
-            <h3 className="font-medium">Filter Criteria</h3>
-            <Button size="sm" onClick={handleAddFilter} className="gap-1">
-              <Plus className="h-4 w-4" /> Add Filter
-            </Button>
-          </div>
-          
-          {filters.length === 0 ? (
-            <div className="text-center p-6 text-muted-foreground border border-dashed rounded-md">
-              Add filters to narrow down your data
-            </div>
+    <Card className="mb-6">
+      <CardHeader className="pb-3 flex flex-row items-center justify-between space-y-0">
+        <CardTitle className="text-md font-medium flex items-center gap-2">
+          <Filter className="h-4 w-4" />
+          Filter & Sort Data {activeFilters > 0 && (
+            <Badge variant="secondary" className="ml-2">{activeFilters} active</Badge>
+          )}
+        </CardTitle>
+        <Button variant="ghost" size="sm" onClick={() => setIsExpanded(!isExpanded)}>
+          {isExpanded ? (
+            <ChevronUp className="h-4 w-4" />
           ) : (
-            <div className="space-y-4">
-              {filters.map((filter) => (
-                <div 
-                  key={filter.id} 
-                  className="grid grid-cols-1 md:grid-cols-[2fr_1fr_2fr_auto] gap-2 items-end border-b pb-4"
-                >
-                  <div className="space-y-1">
-                    <Label>Field</Label>
+            <ChevronDown className="h-4 w-4" />
+          )}
+        </Button>
+      </CardHeader>
+      
+      {isExpanded && (
+        <CardContent className="space-y-4">
+          <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'filter' | 'sort')}>
+            <TabsList className="grid grid-cols-2 w-[200px] mb-4">
+              <TabsTrigger value="filter">Filter</TabsTrigger>
+              <TabsTrigger value="sort">Sort</TabsTrigger>
+            </TabsList>
+
+            {activeTab === 'filter' && (
+              <div className="space-y-4">
+                {/* Simple filters */}
+                <div className="grid md:grid-cols-4 gap-4">
+                  <div className="space-y-2">
+                    <Label>Class Type</Label>
                     <Select
-                      value={filter.field}
-                      onValueChange={(value) => {
-                        const newOperator = getOperatorOptions(value as keyof ProcessedData)[0].value;
-                        handleUpdateFilter(filter.id, 'field', value);
-                        handleUpdateFilter(filter.id, 'operator', newOperator);
-                        handleUpdateFilter(filter.id, 'value', '');
-                      }}
+                      value={filterSettings.className}
+                      onValueChange={(value) => setFilterSettings({ ...filterSettings, className: value })}
                     >
                       <SelectTrigger>
-                        <SelectValue placeholder="Select field" />
+                        <SelectValue placeholder="Select class type" />
                       </SelectTrigger>
                       <SelectContent>
-                        {getFilterFields().map((field) => (
-                          <SelectItem key={field.value} value={field.value}>
-                            {field.label}
+                        <SelectItem value="all">All Classes</SelectItem>
+                        {classNames.map((className) => (
+                          <SelectItem key={className} value={className}>
+                            {className}
                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
                   </div>
                   
-                  <div className="space-y-1">
-                    <Label>Operator</Label>
+                  <div className="space-y-2">
+                    <Label>Location</Label>
                     <Select
-                      value={filter.operator}
-                      onValueChange={(value) => handleUpdateFilter(filter.id, 'operator', value)}
+                      value={filterSettings.location}
+                      onValueChange={(value) => setFilterSettings({ ...filterSettings, location: value })}
                     >
                       <SelectTrigger>
-                        <SelectValue placeholder="Select operator" />
+                        <SelectValue placeholder="Select location" />
                       </SelectTrigger>
                       <SelectContent>
-                        {getOperatorOptions(filter.field as keyof ProcessedData).map((op) => (
-                          <SelectItem key={op.value} value={op.value}>
-                            {op.label}
+                        <SelectItem value="all">All Locations</SelectItem>
+                        {locations.map((location) => (
+                          <SelectItem key={location} value={location}>
+                            {location}
                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
                   </div>
                   
-                  <div className="space-y-1">
-                    <Label>Value</Label>
-                    {renderFilterValue(filter)}
+                  <div className="space-y-2">
+                    <Label>Day of Week</Label>
+                    <Select
+                      value={filterSettings.dayOfWeek}
+                      onValueChange={(value) => setFilterSettings({ ...filterSettings, dayOfWeek: value })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select day" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Days</SelectItem>
+                        {daysOfWeek.map((day) => (
+                          <SelectItem key={day} value={day}>
+                            {day}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
-                  
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => handleRemoveFilter(filter.id)}
-                    className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                  >
-                    <Trash2 className="h-4 w-4" />
+
+                  <div className="space-y-2">
+                    <Label>Date Range</Label>
+                    <DateRangePicker
+                      value={filterSettings.dateRange}
+                      onChange={(dateRange) =>
+                        setFilterSettings({ ...filterSettings, dateRange: dateRange || { from: undefined, to: undefined } })
+                      }
+                    />
+                  </div>
+                </div>
+                
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="hasParticipants"
+                    checked={filterSettings.hasParticipants}
+                    onCheckedChange={(checked) => 
+                      setFilterSettings({ ...filterSettings, hasParticipants: checked === true })
+                    }
+                  />
+                  <Label htmlFor="hasParticipants">Only show classes with participants</Label>
+                </div>
+                
+                <div className="flex justify-between">
+                  <Button variant="outline" onClick={clearAll}>
+                    Clear All
+                  </Button>
+                  <Button onClick={applyFilters}>
+                    Apply Filters
                   </Button>
                 </div>
-              ))}
-            </div>
-          )}
-          
-          <div className="bg-indigo-50 dark:bg-indigo-900/20 p-3 rounded-md">
-            <h4 className="font-medium mb-2">Predefined Filters</h4>
-            <div className="flex flex-wrap gap-2">
-              <Button 
-                variant="secondary" 
-                size="sm" 
-                onClick={() => {
-                  const now = new Date();
-                  const currentMonth = now.toLocaleString('default', { month: 'short' });
-                  const currentYear = now.getFullYear().toString().slice(-2);
-                  const period = `${currentMonth}-${currentYear}`;
-                  
-                  const existingPeriodFilter = filters.find(f => f.field === 'period');
-                  
-                  if (existingPeriodFilter) {
-                    handleUpdateFilter(existingPeriodFilter.id, 'operator', 'equals');
-                    handleUpdateFilter(existingPeriodFilter.id, 'value', period);
-                  } else {
-                    setFilters([
-                      ...filters, 
-                      {
-                        id: `filter-${Date.now()}`,
-                        field: 'period',
-                        operator: 'equals',
-                        value: period
-                      }
-                    ]);
-                  }
-                }}
-              >
-                Current Month
-              </Button>
-              
-              <Button 
-                variant="secondary" 
-                size="sm"
-                onClick={() => {
-                  const existingClassFilter = filters.find(f => f.field === 'totalCheckins');
-                  
-                  if (existingClassFilter) {
-                    handleUpdateFilter(existingClassFilter.id, 'operator', 'greater');
-                    handleUpdateFilter(existingClassFilter.id, 'value', '0');
-                  } else {
-                    setFilters([
-                      ...filters, 
-                      {
-                        id: `filter-${Date.now()}`,
-                        field: 'totalCheckins',
-                        operator: 'greater',
-                        value: '0'
-                      }
-                    ]);
-                  }
-                }}
-              >
-                Non-Empty Classes
-              </Button>
-              
-              <Button 
-                variant="secondary" 
-                size="sm" 
-                onClick={() => {
-                  const existingRevenueFilter = filters.find(f => f.field === 'totalRevenue');
-                  
-                  if (existingRevenueFilter) {
-                    handleUpdateFilter(existingRevenueFilter.id, 'operator', 'greater');
-                    handleUpdateFilter(existingRevenueFilter.id, 'value', '10000');
-                  } else {
-                    setFilters([
-                      ...filters, 
-                      {
-                        id: `filter-${Date.now()}`,
-                        field: 'totalRevenue',
-                        operator: 'greater',
-                        value: '10000'
-                      }
-                    ]);
-                  }
-                }}
-              >
-                High Revenue (&gt;10K)
-              </Button>
-              
-              <Button 
-                variant="secondary" 
-                size="sm"
-                onClick={() => {
-                  const existingAvgFilter = filters.find(f => f.field === 'classAverageIncludingEmpty');
-                  
-                  if (existingAvgFilter) {
-                    handleUpdateFilter(existingAvgFilter.id, 'operator', 'greater');
-                    handleUpdateFilter(existingAvgFilter.id, 'value', '5');
-                  } else {
-                    setFilters([
-                      ...filters, 
-                      {
-                        id: `filter-${Date.now()}`,
-                        field: 'classAverageIncludingEmpty',
-                        operator: 'greater',
-                        value: '5'
-                      }
-                    ]);
-                  }
-                }}
-              >
-                High Attendance (&gt;5)
-              </Button>
-            </div>
-          </div>
 
-          <div className="bg-indigo-50 dark:bg-indigo-900/20 p-3 rounded-md">
-            <h4 className="font-medium mb-2">Time Period</h4>
-            <div className="flex flex-wrap gap-2">
-              <Button 
-                variant="secondary" 
-                size="sm"
-                onClick={() => setFilters(getTimeRangeFilter('last-week'))}
-              >
-                Last Week
-              </Button>
-              <Button 
-                variant="secondary" 
-                size="sm"
-                onClick={() => setFilters(getTimeRangeFilter('last-month'))}
-              >
-                Last Month
-              </Button>
-              <Button 
-                variant="secondary" 
-                size="sm"
-                onClick={() => setFilters(getTimeRangeFilter('last-quarter'))}
-              >
-                Last Quarter
-              </Button>
-              <DateRangeSelector 
-                onChange={(range) => {
-                  if (range.from && range.to) {
-                    setFilters([
-                      {
-                        id: `filter-${Date.now()}`,
-                        field: 'period',
-                        operator: 'between',
-                        value: `${range.from.toISOString()},${range.to.toISOString()}`
-                      }
-                    ]);
-                  }
-                }}
-              />
-            </div>
-          </div>
-        </TabsContent>
+                {/* Advanced Filters */}
+                <div className="mt-6 border-t pt-6">
+                  <h3 className="text-sm font-medium mb-4">Advanced Filters</h3>
 
-        <TabsContent value="sorting" className="space-y-4 pt-2">
-          <div className="flex justify-between items-center">
-            <h3 className="font-medium">Sort Options</h3>
-            <Button size="sm" onClick={handleAddSort} className="gap-1">
-              <Plus className="h-4 w-4" /> Add Sort
-            </Button>
-          </div>
-          
-          {sortOptions.length === 0 ? (
-            <div className="text-center p-6 text-muted-foreground border border-dashed rounded-md">
-              Add sorting to organize your data
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {sortOptions.map((sort, index) => (
-                <div 
-                  key={index} 
-                  className="grid grid-cols-1 md:grid-cols-[2fr_1fr_auto] gap-2 items-end border-b pb-4"
-                >
-                  <div className="space-y-1">
-                    <Label>Field</Label>
-                    <Select
-                      value={sort.field}
-                      onValueChange={(value) => handleUpdateSort(index, 'field', value)}
-                    >
-                      <SelectTrigger>
+                  {/* Add new filter controls */}
+                  <div className="flex flex-wrap gap-2 mb-4">
+                    <div className="w-full sm:w-auto">
+                      <Select value={newFilter.field} onValueChange={(value) => setNewFilter({ ...newFilter, field: value as keyof ProcessedData, operator: getOperatorsForField(value)[0].value })}>
+                        <SelectTrigger className="w-full sm:w-[180px]">
+                          <SelectValue placeholder="Select field" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {fields.map(field => (
+                            <SelectItem key={field.value} value={field.value}>{field.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="w-full sm:w-auto">
+                      <Select value={newFilter.operator} onValueChange={(value) => setNewFilter({ ...newFilter, operator: value })}>
+                        <SelectTrigger className="w-full sm:w-[150px]">
+                          <SelectValue placeholder="Operator" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {getOperatorsForField(newFilter.field).map(op => (
+                            <SelectItem key={op.value} value={op.value}>{op.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="flex-1">
+                      <Input 
+                        placeholder="Value" 
+                        value={newFilter.value} 
+                        onChange={(e) => setNewFilter({ ...newFilter, value: e.target.value })}
+                      />
+                    </div>
+
+                    <Button type="button" onClick={addFilter} size="sm" className="whitespace-nowrap">
+                      <Plus className="h-4 w-4 mr-1" /> Add Filter
+                    </Button>
+                  </div>
+
+                  {/* Active filters */}
+                  <div className="space-y-2">
+                    <AnimatePresence>
+                      {filters.map((filter, index) => {
+                        const field = fields.find(f => f.value === filter.field);
+                        const operator = getOperatorsForField(filter.field).find(op => op.value === filter.operator);
+                        
+                        return (
+                          <motion.div 
+                            key={index}
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: 'auto' }}
+                            exit={{ opacity: 0, height: 0 }}
+                            className="flex items-center gap-2 p-2 border rounded-md bg-muted/20"
+                          >
+                            <Badge variant="secondary" className="whitespace-nowrap">
+                              {field?.label || filter.field}
+                            </Badge>
+                            <Badge variant="outline" className="whitespace-nowrap">
+                              {operator?.label || filter.operator}
+                            </Badge>
+                            <span className="text-sm truncate flex-1">{filter.value}</span>
+                            <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-foreground" onClick={() => removeFilter(index)}>
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </motion.div>
+                        );
+                      })}
+                    </AnimatePresence>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'sort' && (
+              <div className="space-y-4">
+                <h3 className="text-sm font-medium mb-4">Sort Order</h3>
+
+                {/* Add new sort controls */}
+                <div className="flex flex-wrap gap-2 mb-4">
+                  <div className="w-full sm:w-auto">
+                    <Select value={newSort.field} onValueChange={(value) => setNewSort({ ...newSort, field: value as keyof ProcessedData })}>
+                      <SelectTrigger className="w-full sm:w-[200px]">
                         <SelectValue placeholder="Select field" />
                       </SelectTrigger>
                       <SelectContent>
-                        {getFilterFields().map((field) => (
-                          <SelectItem key={field.value} value={field.value}>
-                            {field.label}
-                          </SelectItem>
+                        {sortableFields.map(field => (
+                          <SelectItem key={field.value} value={field.value}>{field.label}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
                   </div>
-                  
-                  <div className="space-y-1">
-                    <Label>Direction</Label>
-                    <Select
-                      value={sort.direction}
-                      onValueChange={(value) => handleUpdateSort(index, 'direction', value)}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select direction" />
+
+                  <div className="w-full sm:w-auto">
+                    <Select value={newSort.direction} onValueChange={(value) => setNewSort({ ...newSort, direction: value as 'asc' | 'desc' })}>
+                      <SelectTrigger className="w-full sm:w-[150px]">
+                        <SelectValue placeholder="Direction" />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="asc">Ascending</SelectItem>
@@ -658,105 +471,63 @@ const DataFilters: React.FC<DataFiltersProps> = ({
                       </SelectContent>
                     </Select>
                   </div>
-                  
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => handleRemoveSort(index)}
-                    className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                  >
-                    <Trash2 className="h-4 w-4" />
+
+                  <Button type="button" onClick={addSort} size="sm">
+                    <Plus className="h-4 w-4 mr-1" /> Add Sort
                   </Button>
                 </div>
-              ))}
-            </div>
-          )}
-          
-          <div className="bg-indigo-50 dark:bg-indigo-900/20 p-3 rounded-md">
-            <h4 className="font-medium mb-2">Common Sort Patterns</h4>
-            <div className="flex flex-wrap gap-2">
-              <Button 
-                variant="secondary" 
-                size="sm"
-                onClick={() => setSortOptions([
-                  { field: 'totalCheckins', direction: 'desc' }
-                ])}
-              >
-                Most Popular Classes
-              </Button>
-              <Button 
-                variant="secondary" 
-                size="sm"
-                onClick={() => setSortOptions([
-                  { field: 'classAverageIncludingEmpty', direction: 'desc' }
-                ])}
-              >
-                Best Attendance
-              </Button>
-              <Button 
-                variant="secondary" 
-                size="sm"
-                onClick={() => setSortOptions([
-                  { field: 'totalRevenue', direction: 'desc' }
-                ])}
-              >
-                Highest Revenue
-              </Button>
-            </div>
-          </div>
-        </TabsContent>
-      </Tabs>
-    </div>
-  );
-};
 
-// Replace DateRangePicker with a custom date range selector
-const DateRangeSelector = ({ onChange }: { onChange: (range: DateRange) => void }) => {
-  const [date, setDate] = React.useState<DateRange | undefined>();
+                {/* Active sort options */}
+                <div className="space-y-2">
+                  <AnimatePresence>
+                    {sortOptions.map((sort, index) => {
+                      const field = sortableFields.find(f => f.value === sort.field);
+                      
+                      return (
+                        <motion.div 
+                          key={index}
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: 'auto' }}
+                          exit={{ opacity: 0, height: 0 }}
+                          className="flex items-center gap-2 p-2 border rounded-md bg-muted/20"
+                        >
+                          <div className="flex-1 flex items-center gap-2">
+                            <Badge variant="secondary" className="whitespace-nowrap">
+                              {field?.label || sort.field}
+                            </Badge>
+                            <Badge variant="outline" className="whitespace-nowrap">
+                              {sort.direction === 'asc' ? 'Ascending' : 'Descending'}
+                            </Badge>
+                            {index === 0 && (
+                              <Badge className="bg-primary/20 text-primary border-primary/20">Primary</Badge>
+                            )}
+                          </div>
+                          <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-foreground" onClick={() => removeSort(index)}>
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </motion.div>
+                      );
+                    })}
+                  </AnimatePresence>
+                </div>
 
-  return (
-    <div className="grid gap-2">
-      <Popover>
-        <PopoverTrigger asChild>
-          <Button
-            id="date"
-            variant={"outline"}
-            className={cn(
-              "w-[300px] justify-start text-left font-normal",
-              !date && "text-muted-foreground"
+                {/* Clear all button */}
+                {sortOptions.length > 0 && (
+                  <div className="flex justify-end">
+                    <Button variant="outline" size="sm" onClick={() => {
+                      setSortOptions([]);
+                      onSortChange([]);
+                    }}>
+                      Clear All Sorts
+                    </Button>
+                  </div>
+                )}
+              </div>
             )}
-          >
-            <CalendarIcon className="mr-2 h-4 w-4" />
-            {date?.from ? (
-              date.to ? (
-                <>
-                  {format(date.from, "LLL dd, y")} -{" "}
-                  {format(date.to, "LLL dd, y")}
-                </>
-              ) : (
-                format(date.from, "LLL dd, y")
-              )
-            ) : (
-              <span>Pick a date range</span>
-            )}
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent className="w-auto p-0" align="start">
-          <Calendar
-            initialFocus
-            mode="range"
-            defaultMonth={date?.from}
-            selected={date}
-            onSelect={(newDate) => {
-              setDate(newDate);
-              if (newDate?.from && newDate?.to) {
-                onChange(newDate);
-              }
-            }}
-          />
-        </PopoverContent>
-      </Popover>
-    </div>
+          </Tabs>
+        </CardContent>
+      )}
+    </Card>
   );
 };
 

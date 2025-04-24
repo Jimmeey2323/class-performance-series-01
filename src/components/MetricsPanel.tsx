@@ -1,252 +1,235 @@
 
-import React from 'react';
-import { ProcessedData } from '@/types/data';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { 
-  ArrowUp, ArrowDown, Activity, Users, Calendar, IndianRupee,
-  Clock, UserCheck, Building, Percent, TrendingUp, BadgePercent,
-  Wallet, Award
+import { ProcessedData } from '@/types/data';
+import {
+  LineChart,
+  Clock,
+  Calendar,
+  User,
+  Percent,
+  DollarSign,
+  Activity,
+  BarChart3,
+  Users,
+  CheckCircle2,
+  XCircle,
+  BarChart,
 } from 'lucide-react';
-import { motion } from 'framer-motion';
+import CountUp from 'react-countup';
 import { Sparklines, SparklinesLine, SparklinesSpots } from 'react-sparklines';
+import { cn } from '@/lib/utils';
+import { motion } from 'framer-motion';
+
+export const formatIndianCurrency = (value: number): string => {
+  const formatter = new Intl.NumberFormat('en-IN', {
+    style: 'currency',
+    currency: 'INR',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  });
+  return formatter.format(value);
+};
 
 interface MetricsPanelProps {
   data: ProcessedData[];
 }
 
-export const formatIndianCurrency = (value: number): string => {
-  return new Intl.NumberFormat('en-IN', {
-    style: 'currency',
-    currency: 'INR',
-    maximumFractionDigits: 0,
-  }).format(value);
+const generateSparklineData = (data: ProcessedData[], field: keyof ProcessedData, periods: number = 10): number[] => {
+  // Group data by period
+  const periodData = data.reduce((acc: Record<string, number>, item) => {
+    const period = item.period || 'Unknown';
+    if (!acc[period]) acc[period] = 0;
+    const value = typeof item[field] === 'number' ? item[field] as number : 
+                  typeof item[field] === 'string' ? parseFloat(item[field] as string) || 0 : 0;
+    acc[period] += value;
+    return acc;
+  }, {});
+
+  // Sort periods chronologically and take the last `periods` number
+  const sortedPeriods = Object.keys(periodData).sort();
+  const recentPeriods = sortedPeriods.slice(-periods);
+
+  // Return the values for the recent periods
+  return recentPeriods.map(period => periodData[period]);
 };
 
 const MetricsPanel: React.FC<MetricsPanelProps> = ({ data }) => {
-  // Calculate metrics...
-  const totalCheckIns = data.reduce((sum, item) => sum + Number(item.totalCheckins), 0);
-  const totalClasses = data.reduce((sum, item) => sum + Number(item.totalOccurrences), 0);
-  const totalRevenue = data.reduce((sum, item) => sum + Number(item.totalRevenue), 0);
-  const avgAttendance = totalClasses > 0 ? totalCheckIns / totalClasses : 0;
-  const totalPayout = data.reduce((sum, item) => sum + Number(item.totalPayout || 0), 0);
-  const totalTips = data.reduce((sum, item) => sum + Number(item.totalTips || 0), 0);
-  const totalCancelled = data.reduce((sum, item) => sum + Number(item.totalCancelled || 0), 0);
-  const totalEmptyClasses = data.reduce((sum, item) => sum + Number(item.totalEmpty || 0), 0);
-  
-  // Calculate unique teachers and locations
-  const uniqueTeachers = new Set(data.map(item => item.teacherName)).size;
-  const uniqueLocations = new Set(data.map(item => item.location)).size;
-  
-  // Calculate fill rate - percentage of checked-in vs total capacity
-  const totalParticipants = data.reduce((sum, item) => sum + Number(item.totalParticipants || 0), 0);
-  const fillRate = totalParticipants > 0 ? (totalCheckIns / totalParticipants) * 100 : 0;
-  
-  // Calculate revenue per checked-in
-  const revenuePerCheckin = totalCheckIns > 0 ? totalRevenue / totalCheckIns : 0;
+  const [showCountUp, setShowCountUp] = useState(false);
 
-  // Generate sample data for sparklines (last 10 periods)
-  const periods = Array.from(new Set(data.map(item => item.period))).sort();
-  const last10Periods = periods.slice(-10);
-  
-  const sparklineData = {
-    checkIns: last10Periods.map(period => 
-      data.filter(item => item.period === period)
-        .reduce((sum, item) => sum + Number(item.totalCheckins), 0)
-    ),
-    classes: last10Periods.map(period => 
-      data.filter(item => item.period === period)
-        .reduce((sum, item) => sum + Number(item.totalOccurrences), 0)
-    ),
-    revenue: last10Periods.map(period => 
-      data.filter(item => item.period === period)
-        .reduce((sum, item) => sum + Number(item.totalRevenue), 0)
-    ),
-    attendance: last10Periods.map(period => {
-      const periodData = data.filter(item => item.period === period);
-      const checkIns = periodData.reduce((sum, item) => sum + Number(item.totalCheckins), 0);
-      const classes = periodData.reduce((sum, item) => sum + Number(item.totalOccurrences), 0);
-      return classes > 0 ? checkIns / classes : 0;
-    }),
-    payout: last10Periods.map(period => 
-      data.filter(item => item.period === period)
-        .reduce((sum, item) => sum + Number(item.totalPayout || 0), 0)
-    ),
-    tips: last10Periods.map(period => 
-      data.filter(item => item.period === period)
-        .reduce((sum, item) => sum + Number(item.totalTips || 0), 0)
-    ),
-    cancellations: last10Periods.map(period => 
-      data.filter(item => item.period === period)
-        .reduce((sum, item) => sum + Number(item.totalCancelled || 0), 0)
-    ),
-    emptyClasses: last10Periods.map(period => 
-      data.filter(item => item.period === period)
-        .reduce((sum, item) => sum + Number(item.totalEmpty || 0), 0)
-    )
-  };
+  useEffect(() => {
+    // Trigger CountUp after component mounts
+    setShowCountUp(true);
+  }, []);
 
-  const metrics = [
-    {
-      title: 'Total Check-ins',
-      value: totalCheckIns.toLocaleString(),
-      icon: Users,
-      sparkline: sparklineData.checkIns,
-      trend: 5.2,
-      gradient: 'from-blue-500 to-indigo-600',
-      sparklineColor: '#818cf8'
-    },
-    {
-      title: 'Total Classes',
-      value: totalClasses.toLocaleString(),
-      icon: Calendar,
-      sparkline: sparklineData.classes,
-      trend: -2.1,
-      gradient: 'from-emerald-500 to-teal-600',
-      sparklineColor: '#34d399'
-    },
-    {
-      title: 'Average Attendance',
-      value: avgAttendance.toFixed(1),
-      icon: Activity,
-      sparkline: sparklineData.attendance,
-      trend: 3.4,
-      gradient: 'from-amber-500 to-orange-600',
-      sparklineColor: '#fbbf24'
-    },
-    {
-      title: 'Total Revenue',
-      value: formatIndianCurrency(totalRevenue),
-      icon: IndianRupee,
-      sparkline: sparklineData.revenue,
-      trend: 7.8,
-      gradient: 'from-purple-500 to-pink-600',
-      sparklineColor: '#e879f9'
-    },
-    {
-      title: 'Total Payout',
-      value: formatIndianCurrency(totalPayout),
-      icon: Wallet,
-      sparkline: sparklineData.payout,
-      trend: 4.2,
-      gradient: 'from-green-500 to-teal-600',
-      sparklineColor: '#10b981'
-    },
-    {
-      title: 'Total Tips',
-      value: formatIndianCurrency(totalTips),
-      icon: Award,
-      sparkline: sparklineData.tips,
-      trend: 8.7,
-      gradient: 'from-yellow-500 to-amber-600',
-      sparklineColor: '#f59e0b'
-    },
-    {
-      title: 'Fill Rate',
-      value: fillRate.toFixed(1) + '%',
-      icon: Percent,
-      sparkline: sparklineData.checkIns,
-      trend: 3.1,
-      gradient: 'from-cyan-500 to-blue-600',
-      sparklineColor: '#22d3ee'
-    },
-    {
-      title: 'Revenue Per Check-in',
-      value: formatIndianCurrency(revenuePerCheckin),
-      icon: TrendingUp,
-      sparkline: sparklineData.revenue,
-      trend: 6.5,
-      gradient: 'from-rose-500 to-red-600',
-      sparklineColor: '#fb7185'
-    },
-    {
-      title: 'Total Instructors',
-      value: uniqueTeachers,
-      icon: UserCheck,
-      sparkline: sparklineData.attendance,
-      trend: 0.8,
-      gradient: 'from-indigo-500 to-blue-600',
-      sparklineColor: '#6366f1'
-    },
-    {
-      title: 'Total Locations',
-      value: uniqueLocations,
-      icon: Building,
-      sparkline: sparklineData.attendance,
-      trend: 1.2,
-      gradient: 'from-blue-500 to-cyan-600',
-      sparklineColor: '#0ea5e9'
-    },
-    {
-      title: 'Cancellations',
-      value: totalCancelled,
-      icon: Clock,
-      sparkline: sparklineData.cancellations,
-      trend: -3.7,
-      gradient: 'from-red-500 to-rose-600',
-      sparklineColor: '#ef4444'
-    },
-    {
-      title: 'Empty Classes',
-      value: totalEmptyClasses,
-      icon: BadgePercent,
-      sparkline: sparklineData.emptyClasses,
-      trend: -5.2,
-      gradient: 'from-orange-500 to-red-600',
-      sparklineColor: '#f97316'
-    }
-  ];
+  const metrics = useMemo(() => {
+    if (!data.length) return [];
+
+    const totalClasses = data.reduce((sum, item) => sum + item.totalOccurrences, 0);
+    const totalCheckins = data.reduce((sum, item) => sum + item.totalCheckins, 0);
+    const totalRevenue = data.reduce((sum, item) => {
+      const revenue = typeof item.totalRevenue === 'string' ? parseFloat(item.totalRevenue) : item.totalRevenue;
+      return sum + (revenue || 0);
+    }, 0);
+    const totalCancelled = data.reduce((sum, item) => sum + item.totalCancelled, 0);
+    const totalTime = data.reduce((sum, item) => sum + item.totalTime, 0);
+
+    const totalNonEmpty = data.reduce((sum, item) => sum + item.totalNonEmpty, 0);
+    const averageClassSize = totalClasses > 0 ? totalCheckins / totalClasses : 0;
+    const averageRevenue = totalClasses > 0 ? totalRevenue / totalClasses : 0;
+    const cancellationRate = totalCheckins + totalCancelled > 0 ? (totalCancelled / (totalCheckins + totalCancelled)) * 100 : 0;
+    
+    const uniqueTeachers = new Set(data.map(item => item.teacherName)).size;
+    const uniqueClasses = new Set(data.map(item => item.cleanedClass)).size;
+    const uniqueLocations = new Set(data.map(item => item.location)).size;
+
+    return [
+      {
+        title: 'Total Classes',
+        value: totalClasses,
+        icon: Calendar,
+        color: 'bg-blue-500',
+        textColor: 'text-blue-500',
+        sparkData: generateSparklineData(data, 'totalOccurrences')
+      },
+      {
+        title: 'Total Check-ins',
+        value: totalCheckins,
+        icon: CheckCircle2,
+        color: 'bg-green-500',
+        textColor: 'text-green-500',
+        sparkData: generateSparklineData(data, 'totalCheckins')
+      },
+      {
+        title: 'Total Revenue',
+        value: formatIndianCurrency(totalRevenue),
+        icon: DollarSign,
+        color: 'bg-emerald-500',
+        textColor: 'text-emerald-500',
+        sparkData: generateSparklineData(data, 'totalRevenue')
+      },
+      {
+        title: 'Avg. Class Size',
+        value: averageClassSize.toFixed(1),
+        icon: Users,
+        color: 'bg-violet-500',
+        textColor: 'text-violet-500',
+        sparkData: []
+      },
+      {
+        title: 'Cancellations',
+        value: totalCancelled,
+        icon: XCircle,
+        color: 'bg-red-500',
+        textColor: 'text-red-500',
+        sparkData: generateSparklineData(data, 'totalCancelled')
+      },
+      {
+        title: 'Cancellation Rate',
+        value: `${cancellationRate.toFixed(1)}%`,
+        icon: Percent,
+        color: 'bg-orange-500',
+        textColor: 'text-orange-500',
+        sparkData: []
+      },
+      {
+        title: 'Revenue Per Class',
+        value: formatIndianCurrency(averageRevenue),
+        icon: BarChart,
+        color: 'bg-amber-500',
+        textColor: 'text-amber-500',
+        sparkData: []
+      },
+      {
+        title: 'Total Hours',
+        value: totalTime.toFixed(0),
+        icon: Clock,
+        color: 'bg-cyan-500',
+        textColor: 'text-cyan-500',
+        sparkData: generateSparklineData(data, 'totalTime')
+      },
+      {
+        title: 'Unique Classes',
+        value: uniqueClasses,
+        icon: Activity,
+        color: 'bg-fuchsia-500',
+        textColor: 'text-fuchsia-500',
+        sparkData: []
+      },
+      {
+        title: 'Unique Trainers',
+        value: uniqueTeachers,
+        icon: User,
+        color: 'bg-pink-500',
+        textColor: 'text-pink-500',
+        sparkData: []
+      },
+      {
+        title: 'Locations',
+        value: uniqueLocations,
+        icon: BarChart3,
+        color: 'bg-yellow-500',
+        textColor: 'text-yellow-500',
+        sparkData: []
+      },
+      {
+        title: 'Class Attendance',
+        value: `${(totalCheckins * 100 / (totalClasses * 10)).toFixed(1)}%`,
+        icon: LineChart,
+        color: 'bg-teal-500', 
+        textColor: 'text-teal-500',
+        sparkData: []
+      }
+    ];
+  }, [data]);
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
-      {metrics.map((metric, index) => (
-        <motion.div
-          key={metric.title}
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3, delay: index * 0.1 }}
-        >
-          <Card className="overflow-hidden relative group hover:shadow-lg transition-shadow duration-200">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between mb-4">
-                <div className={`p-3 rounded-lg bg-gradient-to-br ${metric.gradient} text-white shadow-md`}>
-                  <metric.icon className="h-6 w-6" />
+    <div className="mb-6">
+      <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
+        {metrics.map((metric, index) => (
+          <motion.div
+            key={index}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: index * 0.05, duration: 0.3 }}
+          >
+            <Card className="h-28 border shadow-sm overflow-hidden">
+              <CardContent className="p-3 h-full flex flex-col">
+                <div className="flex items-center justify-between mb-1">
+                  <p className="text-xs font-medium text-muted-foreground">{metric.title}</p>
+                  <metric.icon className={cn("h-3.5 w-3.5", metric.textColor)} />
                 </div>
-                <Badge 
-                  variant={metric.trend > 0 ? 'default' : 'destructive'} 
-                  className="flex items-center gap-1 shadow-sm"
-                >
-                  {metric.trend > 0 ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
-                  {Math.abs(metric.trend)}%
-                </Badge>
-              </div>
-              <div className="space-y-2">
-                <h3 className="text-sm font-medium text-muted-foreground">{metric.title}</h3>
-                <p className="text-2xl font-bold">{metric.value}</p>
-              </div>
-              <div className="h-16 mt-4 opacity-50 group-hover:opacity-100 transition-opacity duration-200">
-                <Sparklines data={metric.sparkline} width={200} height={60} margin={5}>
-                  <SparklinesLine 
-                    style={{ 
-                      stroke: metric.sparklineColor, 
-                      strokeWidth: 2, 
-                      fill: "none" 
-                    }} 
-                  />
-                  <SparklinesSpots 
-                    size={3}
-                    style={{ 
-                      stroke: metric.sparklineColor,
-                      strokeWidth: 2,
-                      fill: "white"
-                    }} 
-                  />
-                </Sparklines>
-              </div>
-            </CardContent>
-          </Card>
-        </motion.div>
-      ))}
+                <div className="mt-1 text-lg font-semibold">
+                  {typeof metric.value === 'number' ? (
+                    showCountUp ? 
+                      <CountUp 
+                        start={0} 
+                        end={metric.value} 
+                        duration={2} 
+                        separator="," 
+                        decimal="." 
+                        decimals={metric.title.includes('Avg') || metric.title.includes('Rate') ? 1 : 0}
+                      /> : 0
+                  ) : (
+                    metric.value
+                  )}
+                </div>
+                <div className="mt-auto h-8">
+                  {metric.sparkData && metric.sparkData.length > 1 && (
+                    <Sparklines data={metric.sparkData} height={20} margin={0}>
+                      <SparklinesLine 
+                        color={metric.textColor.replace('text-', '')} 
+                        style={{ strokeWidth: 2, fill: "none" }} 
+                      />
+                      <SparklinesSpots size={1} style={{ stroke: metric.textColor.replace('text-', '') }} />
+                    </Sparklines>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        ))}
+      </div>
     </div>
   );
 };

@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import { ProcessedData } from '@/types/data';
@@ -138,7 +139,6 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({ data, trainerAvatars }) => {
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ duration: 0.2, delay: index * 0.05 }}
                             className="mb-3"
-                            // Remove the onDragStart handler to fix the TypeScript error
                           >
                             <KanbanCard
                               key={item.id} 
