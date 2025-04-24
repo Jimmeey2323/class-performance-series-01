@@ -238,7 +238,7 @@ const ChartPanel: React.FC<ChartPanelProps> = ({
             bottom: 80
           }}>
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" type="category" name={dimensions.find(d => d.key === groupBy)?.label || groupBy} angle={-45} textAnchor="end" height={80} tick={{
+                <XAxis dataKey="name" type="category" name={dimensions.find(d => d.key === groupBy)?.label || groupBy} angle={0} textAnchor="end" height={80} tick={{
               fontSize: 12
             }} />
                 <YAxis dataKey="value" name={metrics.find(m => m.key === primaryMetric)?.label || primaryMetric} />
