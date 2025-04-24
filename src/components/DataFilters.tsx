@@ -41,6 +41,43 @@ interface FilterOptionWithId extends FilterOption {
   id: string;
 }
 
+const getTimeRangeFilter = (range: string) => {
+  const now = new Date();
+  const filters: FilterOption[] = [];
+  
+  switch (range) {
+    case 'last-week':
+      const lastWeek = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      filters.push({
+        field: 'period',
+        operator: 'greater',
+        value: lastWeek.toISOString()
+      });
+      break;
+    case 'last-month':
+      const lastMonth = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+      filters.push({
+        field: 'period',
+        operator: 'greater',
+        value: lastMonth.toISOString()
+      });
+      break;
+    case 'last-quarter':
+      const lastQuarter = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+      filters.push({
+        field: 'period',
+        operator: 'greater',
+        value: lastQuarter.toISOString()
+      });
+      break;
+    case 'custom':
+      // Custom date range will be handled by the date picker
+      break;
+  }
+  
+  return filters;
+};
+
 const DataFilters: React.FC<DataFiltersProps> = ({
   onFilterChange,
   onSortChange,
@@ -52,7 +89,6 @@ const DataFilters: React.FC<DataFiltersProps> = ({
   const [activeTab, setActiveTab] = useState('filters');
   const [date, setDate] = useState<Date | undefined>(undefined);
 
-  // Generate unique options for select fields
   const uniqueOptions = useMemo(() => {
     const options = {
       cleanedClass: new Set<string>(),
@@ -79,7 +115,6 @@ const DataFilters: React.FC<DataFiltersProps> = ({
         return days.indexOf(a) - days.indexOf(b);
       }),
       period: Array.from(options.period).sort((a, b) => {
-        // Sort periods in chronological order (e.g. Mar-22 before Apr-22)
         const [monthA, yearA] = a.split('-');
         const [monthB, yearB] = b.split('-');
         const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -89,12 +124,10 @@ const DataFilters: React.FC<DataFiltersProps> = ({
     };
   }, [data]);
 
-  // Update parent component when filters change
   useEffect(() => {
     onFilterChange(filters);
   }, [filters, onFilterChange]);
 
-  // Update parent component when sort options change
   useEffect(() => {
     onSortChange(sortOptions);
   }, [sortOptions, onSortChange]);
@@ -187,7 +220,6 @@ const DataFilters: React.FC<DataFiltersProps> = ({
   };
 
   const renderFilterValue = (filter: FilterOptionWithId) => {
-    // For dropdown fields, show a select component
     if (
       filter.field === 'cleanedClass' ||
       filter.field === 'location' ||
@@ -215,7 +247,6 @@ const DataFilters: React.FC<DataFiltersProps> = ({
       );
     }
 
-    // For period field with 'in' operator, show a multi-select UI
     if (filter.field === 'period' && filter.operator === 'in') {
       const selectedPeriods = filter.value ? filter.value.split(',') : [];
       
@@ -268,7 +299,6 @@ const DataFilters: React.FC<DataFiltersProps> = ({
       );
     }
 
-    // For date-related fields
     if (filter.field === 'date') {
       return (
         <Popover>
@@ -301,7 +331,6 @@ const DataFilters: React.FC<DataFiltersProps> = ({
       );
     }
 
-    // Default input for other fields
     return (
       <Input
         type={
@@ -525,6 +554,46 @@ const DataFilters: React.FC<DataFiltersProps> = ({
               >
                 High Attendance (&gt;5)
               </Button>
+            </div>
+          </div>
+
+          <div className="bg-indigo-50 dark:bg-indigo-900/20 p-3 rounded-md">
+            <h4 className="font-medium mb-2">Time Period</h4>
+            <div className="flex flex-wrap gap-2">
+              <Button 
+                variant="secondary" 
+                size="sm"
+                onClick={() => setFilters(getTimeRangeFilter('last-week'))}
+              >
+                Last Week
+              </Button>
+              <Button 
+                variant="secondary" 
+                size="sm"
+                onClick={() => setFilters(getTimeRangeFilter('last-month'))}
+              >
+                Last Month
+              </Button>
+              <Button 
+                variant="secondary" 
+                size="sm"
+                onClick={() => setFilters(getTimeRangeFilter('last-quarter'))}
+              >
+                Last Quarter
+              </Button>
+              <DateRangePicker 
+                onChange={(range) => {
+                  if (range.from && range.to) {
+                    setFilters([
+                      {
+                        field: 'period',
+                        operator: 'between',
+                        value: `${range.from.toISOString()},${range.to.toISOString()}`
+                      }
+                    ]);
+                  }
+                }}
+              />
             </div>
           </div>
         </TabsContent>
